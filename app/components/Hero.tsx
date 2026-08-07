@@ -232,16 +232,17 @@ export default function Hero() {
 
       <div className="w-full z-30"></div>
 
-      <div className="relative z-30 w-full max-w-md mx-auto p-5 md:p-7 rounded-2xl bg-[#120a0f]/5 border border-pink-500/25 shadow-2xl text-white text-center transform hover:scale-[1.01] transition-transform duration-500 space-y-3.5 pointer-events-auto my-auto">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-pink-500/15 border border-pink-300/30 text-[#fbcfe8] text-[11px] font-bold tracking-widest uppercase shadow-inner animate-pulse">
+      {/* Card di Tengah (Transparan tanpa blur / backdrop-blur dihapus) */}
+      <div className="relative z-30 w-full max-w-lg mx-auto p-6 md:p-9 rounded-3xl bg-[#120a0f]/60 border border-pink-500/30 shadow-2xl text-white text-center transform hover:scale-[1.01] transition-transform duration-500 space-y-4 pointer-events-auto my-auto">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-pink-500/20 border border-pink-300/40 text-[#fbcfe8] text-xs font-bold tracking-widest uppercase shadow-inner animate-pulse">
           <i className="ri-heart-fill text-[#ec4899]"></i> Our Love Story
         </div>
 
-        <h2 className="text-xs md:text-sm font-medium text-[#fbcfe8] tracking-wider">
+        <h2 className="text-sm md:text-base font-medium text-[#fbcfe8] tracking-wider">
           Berdua, satu cerita
         </h2>
 
-        <h1 className="text-2xl md:text-4xl font-black text-white leading-snug tracking-tight drop-shadow-md">
+        <h1 className="text-3xl md:text-5xl font-black text-white leading-snug tracking-tight drop-shadow-md">
           Petualangan Ini
           <br />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-rose-500">
@@ -249,15 +250,15 @@ export default function Hero() {
           </span>
         </h1>
 
-        <div className="pt-1">
+        <div className="pt-2">
           <Link
             href="#about"
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full font-bold text-xs tracking-wider text-white shadow-xl transition-all duration-300 transform hover:-translate-y-1 hover:shadow-pink-500/40 active:translate-y-0 border border-pink-400/30 w-fit mx-auto"
+            className="inline-flex items-center gap-2 px-7 py-3 rounded-full font-bold text-sm tracking-wider text-white shadow-xl transition-all duration-300 transform hover:-translate-y-1 hover:shadow-pink-500/40 active:translate-y-0 border border-pink-400/30 w-fit mx-auto"
             style={{ background: "linear-gradient(135deg, #ec4899, #db2777)" }}
           >
             <span>Lihat Cerita</span>
             <svg
-              className="w-3.5 h-3.5 animate-bounce"
+              className="w-4 h-4 animate-bounce"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -273,6 +274,7 @@ export default function Hero() {
         </div>
       </div>
 
+      {/* Gambar Lotso */}
       <div className="relative z-35 pointer-events-none flex justify-center w-full mt-auto overflow-visible">
         <div className="relative">
           {sparkles.map((sparkle) => (
@@ -291,7 +293,7 @@ export default function Hero() {
           ))}
 
           <div
-            className={`relative w-72 sm:w-80 md:w-96 h-44 sm:h-52 md:h-60 ${
+            className={`relative w-80 sm:w-96 md:w-[420px] h-52 sm:h-60 md:h-68 ${
               isLotsoVisible ? "animate-slide-up" : "animate-slide-down"
             }`}
           >
@@ -300,8 +302,8 @@ export default function Hero() {
               alt="Lotso Bear"
               fill
               priority
-              sizes="(max-width: 768px) 288px, 384px"
-              className="object-contain object-bottom drop-shadow-[0_10px_20px_rgba(236,72,153,0.4)]"
+              sizes="(max-width: 768px) 384px, 420px"
+              className="object-contain object-bottom drop-shadow-[0_10px_25px_rgba(236,72,153,0.5)]"
             />
           </div>
         </div>
