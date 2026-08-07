@@ -27,11 +27,9 @@ interface Sparkle {
 }
 
 export default function Hero() {
-  // State untuk mengontrol animasi muncul/hilang Lotso (True = Muncul, False = Sembunyi ke bawah)
   const [isLotsoVisible, setIsLotsoVisible] = useState<boolean>(true);
   const [sparkles, setSparkles] = useState<Sparkle[]>([]);
 
-  // Efek Siklus Muncul & Hilang Lotso setiap 5 detik
   useEffect(() => {
     const cycleInterval = setInterval(() => {
       setIsLotsoVisible((prev) => !prev);
@@ -40,18 +38,16 @@ export default function Hero() {
     return () => clearInterval(cycleInterval);
   }, []);
 
-  // Efek untuk memicu percikan cahaya/confetti ketika Lotso berubah menjadi muncul
   useEffect(() => {
     if (isLotsoVisible) {
       const newSparkles: Sparkle[] = [];
       const colors = ["#f472b6", "#fb7185", "#fbcfe8", "#ffffff", "#f43f5e"];
 
-      // Buat 20 partikel kilau cahaya di sekitar area bawah
       for (let i = 0; i < 20; i++) {
         newSparkles.push({
           id: Math.random(),
-          x: (Math.random() - 0.5) * 200, // Menyebar ke kiri/kanan
-          y: Math.random() * -50 - 10, // Menyebar ke atas dari posisi bawah
+          x: (Math.random() - 0.5) * 200,
+          y: Math.random() * -50 - 10,
           size: Math.random() * 6 + 4,
           color: colors[Math.floor(Math.random() * colors.length)],
           speedX: (Math.random() - 0.5) * 4,
@@ -61,7 +57,6 @@ export default function Hero() {
       }
       setSparkles(newSparkles);
 
-      // Hilangkan partikel setelah beberapa saat
       const sparkleTimer = setTimeout(() => {
         setSparkles([]);
       }, 1500);
@@ -186,7 +181,6 @@ export default function Hero() {
       id="home"
       className="relative min-h-screen w-full flex flex-col justify-between items-center overflow-hidden pt-24 pb-0 px-4"
     >
-      {/* CSS Keyframes untuk animasi masuk dan keluar ke bawah */}
       <style jsx global>{`
         @keyframes slideUp {
           0% {
@@ -236,10 +230,8 @@ export default function Hero() {
         className="absolute inset-0 z-20 w-full h-full cursor-pointer pointer-events-auto"
       ></canvas>
 
-      {/* Spacer atas */}
       <div className="w-full z-30"></div>
 
-      {/* Konten Utama Hero (Card) */}
       <div className="relative z-30 w-full max-w-md mx-auto p-5 md:p-7 rounded-2xl bg-[#120a0f]/5 border border-pink-500/25 shadow-2xl text-white text-center transform hover:scale-[1.01] transition-transform duration-500 space-y-3.5 pointer-events-auto my-auto">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-pink-500/15 border border-pink-300/30 text-[#fbcfe8] text-[11px] font-bold tracking-widest uppercase shadow-inner animate-pulse">
           <i className="ri-heart-fill text-[#ec4899]"></i> Our Love Story
@@ -281,10 +273,8 @@ export default function Hero() {
         </div>
       </div>
 
-      {/* Karakter Lotso dengan Animasi Muncul/Hilang secara Berkala + Efek Cahaya Confetti */}
       <div className="relative z-35 pointer-events-none flex justify-center w-full mt-auto overflow-visible">
         <div className="relative">
-          {/* Efek Cahaya / Sparkles saat Lotso Muncul */}
           {sparkles.map((sparkle) => (
             <span
               key={sparkle.id}
@@ -300,7 +290,6 @@ export default function Hero() {
             />
           ))}
 
-          {/* Wrapper Animasi Gambar Lotso */}
           <div
             className={`relative w-72 sm:w-80 md:w-96 h-44 sm:h-52 md:h-60 ${
               isLotsoVisible ? "animate-slide-up" : "animate-slide-down"
