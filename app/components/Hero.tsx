@@ -232,8 +232,8 @@ export default function Hero() {
 
       <div className="w-full z-30"></div>
 
-      {/* Card di Tengah (Transparan tanpa blur / backdrop-blur dihapus) */}
-      <div className="relative z-30 w-full max-w-lg mx-auto p-6 md:p-9 rounded-3xl bg-[#120a0f]/60 border border-pink-500/30 shadow-2xl text-white text-center transform hover:scale-[1.01] transition-transform duration-500 space-y-4 pointer-events-auto my-auto">
+      {/* Card di Tengah (Lebih transparan dengan bg-[#120a0f]/30) */}
+      <div className="relative z-30 w-full max-w-lg mx-auto p-6 md:p-9 rounded-3xl bg-[#120a0f]/30 border border-pink-500/20 shadow-2xl text-white text-center transform hover:scale-[1.01] transition-transform duration-500 space-y-4 pointer-events-auto my-auto">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-pink-500/20 border border-pink-300/40 text-[#fbcfe8] text-xs font-bold tracking-widest uppercase shadow-inner animate-pulse">
           <i className="ri-heart-fill text-[#ec4899]"></i> Our Love Story
         </div>
