@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import WelcomeCatModal from "./components/WelcomeModal"; // Sesuaikan path jika berbeda
+import WelcomeCatModal from "./components/welcome/WelcomeModal"; // Sesuaikan path jika berbeda
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

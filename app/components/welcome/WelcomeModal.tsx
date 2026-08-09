@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
+import TextType from "./TextType";
 
 export default function WelcomeLotsoModal() {
   const [isVisible, setIsVisible] = useState(false);
@@ -24,7 +25,7 @@ export default function WelcomeLotsoModal() {
     <div className="fixed inset-0 bg-[#120a0f]/80 backdrop-blur-sm z-[9999] flex justify-center items-center p-4 animate-fadeIn">
       {/* Container Utama */}
       <div className="relative bg-[#120a0f] border-2 border-[#ec4899] rounded-3xl shadow-2xl shadow-[#ec4899]/30 w-full max-w-md p-8 pt-24 mt-20 animate-scaleIn">
-        {/* Area Foto Lotso dari folder /public */}
+        {/* Area Foto Lotso */}
         <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-40 h-40 rounded-full bg-[#120a0f] border-4 border-[#ec4899] shadow-lg overflow-hidden flex items-center justify-center z-10">
           <Image
             src="/assets/img/lotso.png"
@@ -39,11 +40,24 @@ export default function WelcomeLotsoModal() {
         {/* Konten Modal */}
         <div className="text-center">
           <h2 className="text-4xl font-extrabold text-[#fdf8f6] mb-4 tracking-tighter drop-shadow-md">
-            Hii, Selamat Datang!
+            Hii, Welcome!
           </h2>
-          <p className="text-[#fbcfe8] text-lg mb-8 leading-relaxed font-medium">
-            Ubur-ubur ikan lele selamat eksplor di Altaf Story lee
-          </p>
+
+          {/* Efek Ketik TextType */}
+          <div className="text-[#fbcfe8] text-lg mb-8 leading-relaxed font-medium min-h-[3.5rem] flex items-center justify-center">
+            <TextType
+              text={[
+                "Ubur-ubur ikan lele, selamat datang di Altaf Story lee.",
+                "Ikan hiu makan teri, waktunya scroll di Altaf Story.",
+                "Makan bubur pakai sumpit, gabisa bang.",
+              ]}
+              typingSpeed={50}
+              pauseDuration={2000}
+              loop={true}
+              showCursor={true}
+              cursorCharacter="|"
+            />
+          </div>
 
           {/* Tombol Aksi Utama */}
           <button
@@ -55,7 +69,7 @@ export default function WelcomeLotsoModal() {
         </div>
       </div>
 
-      {/* Animasi CSS Ringan */}
+      {/* Animasi CSS */}
       <style jsx>{`
         @keyframes scaleIn {
           0% {
