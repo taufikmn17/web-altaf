@@ -30,3 +30,32 @@
   background: #db2777;
   border-radius: 9999px;
 }
+
+/* footprints */
+@keyframes star-movement-bottom {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-40%);
+  }
+}
+
+@keyframes star-movement-top {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(40%);
+  }
+}
+
+.animate-star-top {
+  animation: star-movement-top 4s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.animate-star-bottom {
+  animation: star-movement-bottom 4s ease-in-out infinite alternate;
+  will-change: transform;
+}

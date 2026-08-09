@@ -49,75 +49,96 @@ export default function Footprints() {
           <div className="w-16 h-1 bg-gradient-to-r from-pink-400 to-rose-500 mx-auto mt-4 rounded-full"></div>
         </div>
 
-        {/* Kotak Kontainer Peta Perjalanan */}
-        <div className="relative max-w-4xl mx-auto bg-[#1a0f18]/60 border border-[var(--primary-pink)]/20 rounded-3xl p-8 md:p-12 shadow-2xl overflow-hidden min-h-[350px] flex items-center justify-center backdrop-blur-xl">
-          {/* Garis Penghubung Desktop (SVG Curved Path) */}
-          <svg
-            className="absolute inset-0 w-full h-full hidden md:block pointer-events-none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M 150 200 Q 300 80 450 200 T 750 180"
-              fill="none"
-              stroke="#ec4899"
-              strokeWidth="2.5"
-              strokeDasharray="6,6"
-              strokeOpacity="0.4"
-            />
-          </svg>
+        {/* Kotak Kontainer Utama dengan StarBorder Responsif Mobile & Desktop */}
+        <div className="relative max-w-4xl mx-auto rounded-[32px] overflow-hidden p-[2px] bg-transparent">
+          {/* Garis Animasi Bawah */}
+          <div
+            className="absolute w-[600%] md:w-[200%] h-full opacity-100 bottom-0 right-[-250%] md:right-[-100%] rounded-[50%] z-0 pointer-events-none animate-star-bottom"
+            style={{
+              background:
+                "radial-gradient(circle, #ffffff 10%, var(--primary-pink) 40%, transparent 70%)",
+            }}
+          ></div>
 
-          {/* Garis Penghubung Mobile (Vertical Dashed Line) */}
-          <div className="absolute top-12 bottom-12 w-0.5 border-l-2 border-dashed border-[var(--primary-pink)]/30 md:hidden pointer-events-none"></div>
+          {/* Garis Animasi Atas */}
+          <div
+            className="absolute w-[600%] md:w-[200%] h-full opacity-100 top-0 left-[-250%] md:left-[-100%] rounded-[50%] z-0 pointer-events-none animate-star-top"
+            style={{
+              background:
+                "radial-gradient(circle, #ffffff 10%, var(--primary-pink) 40%, transparent 70%)",
+            }}
+          ></div>
 
-          {/* Titik-titik Milestone */}
-          <div className="flex flex-col md:flex-row justify-around items-center gap-16 md:gap-12 w-full relative z-10 py-6">
-            {/* Milestone 1: Awal Bertemu */}
-            <button
-              onClick={() => setActiveModal("pubg")}
-              className="group relative flex flex-col items-center focus:outline-none transition-all duration-300 transform hover:scale-105 bg-[#120a0f]/80 md:bg-transparent p-5 md:p-0 rounded-2xl shadow-lg md:shadow-none border border-[var(--primary-pink)]/20 md:border-none cursor-pointer"
+          {/* Konten Bagian Dalam */}
+          <div className="relative w-full bg-[#160b13] rounded-[30px] p-8 md:p-12 z-10 border border-[var(--primary-pink)]/20 min-h-[350px] flex items-center justify-center shadow-2xl">
+            {/* Garis Penghubung Desktop (SVG Curved Path) */}
+            <svg
+              className="absolute inset-0 w-full h-full hidden md:block pointer-events-none z-0"
+              xmlns="http://www.w3.org/2000/svg"
             >
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[var(--primary-pink)] to-rose-700 text-white flex items-center justify-center text-2xl shadow-lg shadow-[var(--primary-pink)]/30 group-hover:scale-110 transition-all duration-300">
-                🎮
-              </div>
-              <span className="mt-3 font-bold text-[var(--text-main)] tracking-wide text-sm md:text-base">
-                AWAL BERTEMU
-              </span>
-              <span className="text-xs text-[var(--soft-pink)] font-medium mt-0.5">
-                POCHINKI 🗺️
-              </span>
-            </button>
+              <path
+                d="M 150 200 Q 300 80 450 200 T 750 180"
+                fill="none"
+                stroke="#ec4899"
+                strokeWidth="2.5"
+                strokeDasharray="6,6"
+                strokeOpacity="0.4"
+              />
+            </svg>
 
-            {/* Milestone 2: Menjalin Asmara */}
-            <button
-              onClick={() => setActiveModal("firstmeet")}
-              className="group relative flex flex-col items-center focus:outline-none transition-all duration-300 transform hover:scale-105 bg-[#120a0f]/80 md:bg-transparent p-5 md:p-0 rounded-2xl shadow-lg md:shadow-none border border-[var(--primary-pink)]/20 md:border-none cursor-pointer"
-            >
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-rose-500 to-[var(--primary-pink)] text-white flex items-center justify-center text-2xl shadow-lg shadow-rose-500/30 group-hover:scale-110 transition-all duration-300 animate-pulse">
-                ❤️
-              </div>
-              <span className="mt-3 font-bold text-[var(--text-main)] tracking-wide text-sm md:text-base">
-                MENJALIN ASMARA
-              </span>
-              <span className="text-xs text-[var(--soft-pink)] font-medium mt-0.5">
-                NOW ✨
-              </span>
-            </button>
+            {/* Garis Penghubung Mobile (Vertical Dashed Line) */}
+            <div className="absolute top-12 bottom-12 w-0.5 border-l-2 border-dashed border-[var(--primary-pink)]/30 md:hidden pointer-events-none"></div>
 
-            {/* Milestone 3: Pelaminan */}
-            <button
-              onClick={() => setActiveModal("favorite")}
-              className="group relative flex flex-col items-center focus:outline-none transition-all duration-300 transform hover:scale-105 bg-[#120a0f]/80 md:bg-transparent p-5 md:p-0 rounded-2xl shadow-lg md:shadow-none border border-[var(--primary-pink)]/20 md:border-none cursor-pointer"
-            >
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[var(--primary-pink)] to-rose-700 text-white flex items-center justify-center text-2xl shadow-lg shadow-[var(--primary-pink)]/30 group-hover:scale-110 transition-all duration-300">
-                💍
-              </div>
-              <span className="mt-3 font-bold text-[var(--text-main)] tracking-wide text-sm md:text-base">
-                PELAMINAN
-              </span>
-              <span className="text-xs text-[var(--soft-pink)] font-medium mt-0.5">
-                TUJUAN AKHIR 🤍
-              </span>
-            </button>
+            {/* Titik-titik Milestone */}
+            <div className="flex flex-col md:flex-row justify-around items-center gap-16 md:gap-12 w-full relative z-10 py-6">
+              {/* Milestone 1: Awal Bertemu */}
+              <button
+                onClick={() => setActiveModal("pubg")}
+                className="group relative flex flex-col items-center focus:outline-none transition-all duration-300 transform hover:scale-105 bg-[#120a0f]/80 md:bg-transparent p-5 md:p-0 rounded-2xl shadow-lg md:shadow-none border border-[var(--primary-pink)]/20 md:border-none cursor-pointer"
+              >
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[var(--primary-pink)] to-rose-700 text-white flex items-center justify-center text-2xl shadow-lg shadow-[var(--primary-pink)]/30 group-hover:scale-110 transition-all duration-300">
+                  🎮
+                </div>
+                <span className="mt-3 font-bold text-[var(--text-main)] tracking-wide text-sm md:text-base">
+                  AWAL BERTEMU
+                </span>
+                <span className="text-xs text-[var(--soft-pink)] font-medium mt-0.5">
+                  POCHINKI 🗺️
+                </span>
+              </button>
+
+              {/* Milestone 2: Menjalin Asmara */}
+              <button
+                onClick={() => setActiveModal("firstmeet")}
+                className="group relative flex flex-col items-center focus:outline-none transition-all duration-300 transform hover:scale-105 bg-[#120a0f]/80 md:bg-transparent p-5 md:p-0 rounded-2xl shadow-lg md:shadow-none border border-[var(--primary-pink)]/20 md:border-none cursor-pointer"
+              >
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-rose-500 to-[var(--primary-pink)] text-white flex items-center justify-center text-2xl shadow-lg shadow-rose-500/30 group-hover:scale-110 transition-all duration-300 animate-pulse">
+                  ❤️
+                </div>
+                <span className="mt-3 font-bold text-[var(--text-main)] tracking-wide text-sm md:text-base">
+                  MENJALIN ASMARA
+                </span>
+                <span className="text-xs text-[var(--soft-pink)] font-medium mt-0.5">
+                  NOW ✨
+                </span>
+              </button>
+
+              {/* Milestone 3: Pelaminan */}
+              <button
+                onClick={() => setActiveModal("favorite")}
+                className="group relative flex flex-col items-center focus:outline-none transition-all duration-300 transform hover:scale-105 bg-[#120a0f]/80 md:bg-transparent p-5 md:p-0 rounded-2xl shadow-lg md:shadow-none border border-[var(--primary-pink)]/20 md:border-none cursor-pointer"
+              >
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[var(--primary-pink)] to-rose-700 text-white flex items-center justify-center text-2xl shadow-lg shadow-[var(--primary-pink)]/30 group-hover:scale-110 transition-all duration-300">
+                  💍
+                </div>
+                <span className="mt-3 font-bold text-[var(--text-main)] tracking-wide text-sm md:text-base">
+                  PELAMINAN
+                </span>
+                <span className="text-xs text-[var(--soft-pink)] font-medium mt-0.5">
+                  TUJUAN AKHIR 🤍
+                </span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
