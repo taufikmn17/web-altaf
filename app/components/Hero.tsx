@@ -232,45 +232,49 @@ export default function Hero() {
 
       <div className="w-full z-30"></div>
 
-      {/* Card di Tengah (Lebih transparan dengan bg-[#120a0f]/30) */}
-      <div className="relative z-30 w-full max-w-lg mx-auto p-6 md:p-9 rounded-3xl bg-[#120a0f]/30 border border-pink-500/20 shadow-2xl text-white text-center transform hover:scale-[1.01] transition-transform duration-500 space-y-4 pointer-events-auto my-auto">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-pink-500/20 border border-pink-300/40 text-[#fbcfe8] text-xs font-bold tracking-widest uppercase shadow-inner animate-pulse">
-          <i className="ri-heart-fill text-[#ec4899]"></i> Our Love Story
-        </div>
+      {/* Card di Tengah */}
+      <div className="absolute inset-0 z-30 flex items-center justify-center px-4 pointer-events-none">
+        <div className="relative w-full max-w-lg p-6 md:p-9 rounded-3xl bg-[#120a0f]/30 border border-pink-500/20 shadow-2xl text-white text-center transform hover:scale-[1.01] transition-transform duration-500 space-y-4 pointer-events-auto">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-pink-500/20 border border-pink-300/40 text-[#fbcfe8] text-xs font-bold tracking-widest uppercase shadow-inner animate-pulse">
+            <i className="ri-heart-fill text-[#ec4899]"></i> Our Love Story
+          </div>
 
-        <h2 className="text-sm md:text-base font-medium text-[#fbcfe8] tracking-wider">
-          Berdua, satu cerita
-        </h2>
+          <h2 className="text-sm md:text-base font-medium text-[#fbcfe8] tracking-wider">
+            Berdua, satu cerita
+          </h2>
 
-        <h1 className="text-3xl md:text-5xl font-black text-white leading-snug tracking-tight drop-shadow-md">
-          Petualangan Ini
-          <br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-rose-500">
-            Dimulai Dengan Kamu 🤍
-          </span>
-        </h1>
+          <h1 className="text-3xl md:text-5xl font-black text-white leading-snug tracking-tight drop-shadow-md">
+            Petualangan Ini
+            <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-rose-500">
+              Dimulai Dengan Kamu 🤍
+            </span>
+          </h1>
 
-        <div className="pt-2">
-          <Link
-            href="#about"
-            className="inline-flex items-center gap-2 px-7 py-3 rounded-full font-bold text-sm tracking-wider text-white shadow-xl transition-all duration-300 transform hover:-translate-y-1 hover:shadow-pink-500/40 active:translate-y-0 border border-pink-400/30 w-fit mx-auto"
-            style={{ background: "linear-gradient(135deg, #ec4899, #db2777)" }}
-          >
-            <span>Lihat Cerita</span>
-            <svg
-              className="w-4 h-4 animate-bounce"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          <div className="pt-2">
+            <Link
+              href="#about"
+              className="inline-flex items-center gap-2 px-7 py-3 rounded-full font-bold text-sm tracking-wider text-white shadow-xl transition-all duration-300 transform hover:-translate-y-1 hover:shadow-pink-500/40 active:translate-y-0 border border-pink-400/30 w-fit mx-auto"
+              style={{
+                background: "linear-gradient(135deg, #ec4899, #db2777)",
+              }}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 14l-7 7m0 0l-7-7m7 7V3"
-              />
-            </svg>
-          </Link>
+              <span>Lihat Cerita</span>
+              <svg
+                className="w-4 h-4 animate-bounce"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                />
+              </svg>
+            </Link>
+          </div>
         </div>
       </div>
 
