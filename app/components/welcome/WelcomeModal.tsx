@@ -46,11 +46,7 @@ export default function WelcomeLotsoModal() {
           {/* Efek Ketik TextType */}
           <div className="text-[#fbcfe8] text-lg mb-8 leading-relaxed font-medium min-h-[3.5rem] flex items-center justify-center">
             <TextType
-              text={[
-                "Ubur-ubur ikan lele, selamat datang di Altaf Story lee.",
-                "Ikan hiu makan teri, waktunya scroll di Altaf Story.",
-                "Makan bubur pakai sumpit, gabisa bang.",
-              ]}
+              text={["Ubur-ubur ikan lele, selamat datang di Altaf Story lee."]}
               typingSpeed={50}
               pauseDuration={2000}
               loop={true}
