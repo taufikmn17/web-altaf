@@ -54,7 +54,6 @@ export default function VirtualWish() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validasi ketat: pastikan teks tidak kosong atau hanya berisi spasi
     const trimmedText = wishText.trim();
     if (!trimmedText || trimmedText.length === 0 || isSubmitting) {
       return;
@@ -71,7 +70,7 @@ export default function VirtualWish() {
     const timestampStr = now.toISOString();
 
     const payload = {
-      text: trimmedText, // Menggunakan teks yang sudah dibersihkan dari spasi berlebih
+      text: trimmedText,
       color: lanternColor,
       date: dateStr,
       timestamp: timestampStr,
@@ -95,7 +94,6 @@ export default function VirtualWish() {
       };
       setWishes((prev) => [newWish, ...prev]);
 
-      // Animasi lentera terbang
       const newFlyingId = Date.now();
       const randomLeft = Math.floor(Math.random() * 80) + 10;
       setFlyingLanterns((prev) => [
@@ -125,7 +123,11 @@ export default function VirtualWish() {
   return (
     <section
       id="virtualWish"
-      className="py-24 bg-gradient-to-b from-[#1a0d14] via-[#120a0f] to-[#0a0508] overflow-hidden text-center relative"
+      className="py-24 overflow-hidden text-center relative"
+      style={{
+        // Disamakan agar mengalir dari #1a0d14 menuju #0a0508 di bagian bawah
+        background: "linear-gradient(to bottom, #1a0d14, #120a0f, #0a0508)",
+      }}
     >
       {/* Efek Cahaya Ambient Background */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-pink-500/10 blur-[120px] rounded-full pointer-events-none"></div>
@@ -150,7 +152,6 @@ export default function VirtualWish() {
         {/* Input Form Card (Glassmorphism) */}
         <div className="max-w-xl mx-auto bg-[#1a1017]/80 backdrop-blur-xl p-6 md:p-8 rounded-3xl border border-pink-500/20 shadow-2xl text-left transform transition-all duration-300 mb-16">
           <form onSubmit={handleSubmit}>
-            {/* Textarea Input */}
             <div className="mb-6">
               <label className="block text-xs font-bold uppercase tracking-wider text-pink-200/80 mb-2">
                 Ketik di Sini yaa :
@@ -170,7 +171,6 @@ export default function VirtualWish() {
               </div>
             </div>
 
-            {/* Pilihan Warna Lentera */}
             <div className="mb-8">
               <label className="block text-xs font-bold uppercase tracking-wider text-pink-200/80 mb-3">
                 Pilih Warna Lentera :
@@ -216,7 +216,6 @@ export default function VirtualWish() {
               </div>
             </div>
 
-            {/* Tombol Kirim / Terbangkan dengan Efek Loading */}
             <button
               type="submit"
               disabled={isSubmitting || !wishText.trim()}
@@ -261,7 +260,7 @@ export default function VirtualWish() {
           </form>
         </div>
 
-        {/* Papan Harapan Terbaru (Dibatasi 3 Saja) */}
+        {/* Papan Harapan Terbaru */}
         <div className="max-w-3xl mx-auto border-t border-pink-500/20 pt-10 relative">
           <h3 className="text-xl font-bold text-white mb-2 flex items-center justify-center gap-2">
             📌 Papan Harapan Terbaru
@@ -271,7 +270,6 @@ export default function VirtualWish() {
           </p>
 
           <div className="relative w-full min-h-[250px] bg-[#1a1017]/60 backdrop-blur-md rounded-3xl p-6 md:p-8 border border-pink-500/20 shadow-xl overflow-hidden flex items-center justify-center">
-            {/* Grid Pattern Background */}
             <div className="absolute inset-0 opacity-10 pointer-events-none bg-[linear-gradient(to_right,#ec4899_1px,transparent_1px),linear-gradient(to_bottom,#ec4899_1px,transparent_1px)] bg-[size:30px_30px]"></div>
 
             {isLoadingWishes ? (
@@ -314,7 +312,7 @@ export default function VirtualWish() {
         </div>
       </div>
 
-      {/* Container Animasi Lentera Terbang ke Langit (Fixed Fullscreen) */}
+      {/* Container Animasi Lentera Terbang */}
       <div
         id="lanternSkyContainer"
         className="fixed inset-0 overflow-hidden pointer-events-none z-50"
@@ -342,7 +340,6 @@ export default function VirtualWish() {
         ))}
       </div>
 
-      {/* Tambahan Style Keyframes untuk Animasi Terbang */}
       <style jsx>{`
         @keyframes flyUp {
           0% {
