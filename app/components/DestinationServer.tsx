@@ -67,7 +67,9 @@ export default async function Destination() {
       id="destinasi"
       className="py-28 relative overflow-hidden text-center"
       style={{
-        background: "linear-gradient(to bottom, #0a0508, #150b12, #1a0d14)",
+        // Diselaraskan agar mulai dari warna akhir VirtualWish (#0a0508)
+        // lalu mengalir ke tone gelap bernuansa pink/ungu lembut sebelum masuk ke section berikutnya
+        background: "linear-gradient(to bottom, #0a0508, #120a0f, #1a0d14)",
       }}
     >
       {/* Efek Cahaya Ambient Background */}
