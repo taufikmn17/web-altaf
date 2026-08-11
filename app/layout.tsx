@@ -1,17 +1,20 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+// HAPUS: import { Geist, Geist_Mono } from "next/font/google";
+import { Playfair_Display, Lora } from "next/font/google"; // TAMBAH: Import Google Fonts baru
 import "./globals.css";
-import WelcomeCatModal from "./components/welcome/WelcomeModal"; // Sesuaikan path jika berbeda
+import WelcomeCatModal from "./components/welcome/WelcomeModal";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Konfigurasi Playfair Display untuk Judul (Heading)
+const playfairDisplay = Playfair_Display({
   subsets: ["latin"],
-  display: "swap", // Mengoptimalkan performa teks agar tidak render blocking
+  variable: "--font-heading", // Variabel CSS untuk font heading
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+// Konfigurasi Lora untuk Teks Biasa (Body)
+const lora = Lora({
   subsets: ["latin"],
+  variable: "--font-body", // Variabel CSS untuk font body
   display: "swap",
 });
 
@@ -28,9 +31,11 @@ export default function RootLayout({
   return (
     <html
       lang="id"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      // Terapkan variabel font ke elemen html
+      className={`${playfairDisplay.variable} ${lora.variable} h-full antialiased scroll-smooth`}
     >
-      <body className="min-h-full flex flex-col bg-gray-50">
+      {/* Terapkan font body secara default ke body, dan set font heading melalui kelas */}
+      <body className="min-h-full flex flex-col bg-gray-50 font-body text-gray-900">
         {/* Welcome Modal */}
         <WelcomeCatModal />
 
