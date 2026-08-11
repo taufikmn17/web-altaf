@@ -71,13 +71,11 @@ export default async function CulinarySection() {
       id="kuliner"
       className="py-28 relative overflow-hidden text-center"
       style={{
-        // DISAMAKAN: Bagian atas dimulai dari #1a0d14 (warna akhir section Destinasi),
-        // mengalir lembut ke tone gelap di tengah, lalu kembali ke #1a0d14 di bagian bawah.
-        background: "linear-gradient(to bottom, #1a0d14, #120a0f, #1a0d14)",
+        background: "linear-gradient(to bottom, #1a0d14, #150b12, #0a0508)",
       }}
     >
       {/* Efek Cahaya Ambient Background */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[650px] bg-pink-600/10 blur-[150px] rounded-full pointer-events-none"></div>
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-pink-600/10 blur-[140px] rounded-full pointer-events-none"></div>
 
       <div className="container mx-auto px-6 relative z-10">
         {/* Header Section */}
