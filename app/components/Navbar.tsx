@@ -24,7 +24,7 @@ export default function Navbar() {
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled
-          ? "bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md shadow-sm py-4"
+          ? "bg-[#120912]/90 backdrop-blur-md shadow-lg shadow-black/20 border-b border-pink-500/10 py-4"
           : "bg-transparent py-6"
       }`}
     >
@@ -32,43 +32,42 @@ export default function Navbar() {
         {/* Logo / Nama Pasangan */}
         <Link
           href="/"
-          className="text-xl font-semibold tracking-tight text-pink-600 dark:text-pink-400"
+          className="text-xl font-semibold tracking-tight text-pink-400"
         >
-          Altaf<span className="text-zinc-800 dark:text-zinc-200">.story</span>
+          Altaf<span className="text-zinc-200">.story</span>
         </Link>
 
         {/* Menu Desktop */}
-        <div className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-600 dark:text-zinc-300">
-          <Link href="/" className="hover:text-pink-600 transition-colors">
+        <div className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-300">
+          <Link href="/" className="hover:text-pink-400 transition-colors">
             Beranda
           </Link>
-          {/* Diubah mengarah ke halaman /kisah-kita */}
           <Link
             href="/kisah-kita"
-            className="hover:text-pink-600 transition-colors"
+            className="hover:text-pink-400 transition-colors"
           >
             Kisah Kita
           </Link>
           <Link
             href="/destinasi"
-            className="hover:text-pink-600 transition-colors"
+            className="hover:text-pink-400 transition-colors"
           >
             Destinasi
           </Link>
           <Link
             href="/kuliner"
-            className="hover:text-pink-600 transition-colors"
+            className="hover:text-pink-400 transition-colors"
           >
             Kuliner
           </Link>
-          <Link href="/game" className="hover:text-pink-600 transition-colors">
+          <Link href="/game" className="hover:text-pink-400 transition-colors">
             Game
           </Link>
         </div>
 
-        {/* Tombol Aksi Kanan (Opsional) */}
+        {/* Tombol Aksi Kanan */}
         <div className="hidden md:block">
-          <span className="text-xs px-3 py-1.5 rounded-full bg-pink-100 dark:bg-pink-950/50 text-pink-600 dark:text-pink-300 font-medium border border-pink-200 dark:border-pink-800">
+          <span className="text-xs px-3 py-1.5 rounded-full bg-pink-950/50 text-pink-300 font-medium border border-pink-800/60 shadow-inner">
             Forever & Always 🤍
           </span>
         </div>
@@ -76,7 +75,7 @@ export default function Navbar() {
         {/* Hamburger Button (Mobile) */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="md:hidden text-zinc-700 dark:text-zinc-300 focus:outline-none"
+          className="md:hidden text-zinc-300 focus:outline-none"
         >
           <svg
             className="w-6 h-6"
@@ -105,40 +104,39 @@ export default function Navbar() {
 
       {/* Menu Mobile Dropdown */}
       {mobileMenuOpen && (
-        <div className="md:hidden absolute top-full left-0 right-0 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md shadow-lg border-b border-zinc-100 dark:border-zinc-800 py-4 px-6 flex flex-col gap-4 text-sm font-medium text-zinc-600 dark:text-zinc-300">
+        <div className="md:hidden absolute top-full left-0 right-0 bg-[#120912]/95 backdrop-blur-md shadow-2xl border-b border-pink-500/20 py-4 px-6 flex flex-col gap-4 text-sm font-medium text-zinc-300">
           <Link
             href="/"
             onClick={() => setMobileMenuOpen(false)}
-            className="hover:text-pink-600"
+            className="hover:text-pink-400"
           >
             Beranda
           </Link>
-          {/* Diubah mengarah ke halaman /kisah-kita */}
           <Link
             href="/kisah-kita"
             onClick={() => setMobileMenuOpen(false)}
-            className="hover:text-pink-600"
+            className="hover:text-pink-400"
           >
             Kisah Kita
           </Link>
           <Link
             href="/destinasi"
             onClick={() => setMobileMenuOpen(false)}
-            className="hover:text-pink-600"
+            className="hover:text-pink-400"
           >
             Destinasi
           </Link>
           <Link
             href="/kuliner"
             onClick={() => setMobileMenuOpen(false)}
-            className="hover:text-pink-600"
+            className="hover:text-pink-400"
           >
             Kuliner
           </Link>
           <Link
             href="/game"
             onClick={() => setMobileMenuOpen(false)}
-            className="hover:text-pink-600"
+            className="hover:text-pink-400"
           >
             Game
           </Link>

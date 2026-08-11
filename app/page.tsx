@@ -6,7 +6,7 @@ import FootPrints from "./components/FootPrints";
 import CharacterCards from "./components/CharacterCards";
 import VirtualWish from "./components/VirtualWish";
 import DestinationServer from "./components/DestinationServer";
-import CulinaryServer from "./components/CulinaryServer";
+import CulinaryServer from "./components/kuliner/CulinaryServer";
 import Footer from "./components/Footer";
 
 export const metadata: Metadata = {
