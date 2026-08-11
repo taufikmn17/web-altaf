@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import DepthCarousel from "./DepthCarousel"; // Sesuaikan path jika berbeda
+import DepthCarousel from "./DepthCarousel";
 
 interface KulinerItem {
   id: string;
@@ -20,51 +20,45 @@ export default function CulinaryClientWrapper({
 }: {
   culinaries: KulinerItem[];
 }) {
-  // State untuk modal foto/detail kuliner
   const [selectedCulinary, setSelectedCulinary] = useState<KulinerItem | null>(
     null
   );
 
-  // Batasi hanya 5 item saja yang diambil
   const limitedCulinaries = culinaries.slice(0, 5);
 
-  // Mapping data kuliner agar sesuai dengan format item yang diterima oleh DepthCarousel
   const carouselItems = limitedCulinaries.map((item) => ({
     image: item.src,
     alt: item.title,
   }));
 
-  // State untuk melacak index slide aktif pada DepthCarousel
   const [activeIndex, setActiveIndex] = useState(0);
-
-  // Ambil data kuliner yang sedang aktif berdasarkan index carousel
   const activeCulinary = limitedCulinaries[activeIndex] || limitedCulinaries[0];
 
   return (
     <>
       {limitedCulinaries.length === 0 ? (
-        <div className="w-full text-center py-12 text-sm text-pink-300/50 italic bg-[#1a1017]/60 backdrop-blur-md max-w-lg mx-auto rounded-3xl border border-pink-500/20 p-8">
+        <div className="w-full text-center py-10 text-sm text-pink-300/50 italic bg-[#1a1017]/60 backdrop-blur-md max-w-md mx-auto rounded-3xl border border-pink-500/20 p-6">
           Belum ada data kuliner di sheet &quot;kuliner&quot;.
         </div>
       ) : (
-        <div className="max-w-4xl mx-auto flex flex-col items-center">
-          {/* Depth Carousel Container */}
-          <div className="w-full h-[480px] relative mb-8">
+        <div className="w-full max-w-4xl mx-auto flex flex-col items-center px-4 sm:px-6">
+          {/* Depth Carousel Container yang menyesuaikan tinggi di berbagai device */}
+          <div className="w-full h-[340px] xs:h-[370px] sm:h-[420px] md:h-[460px] relative mb-2 sm:mb-4">
             <DepthCarousel
               items={carouselItems}
-              depth={220}
-              spread={90}
-              tilt={22}
+              depth={160}
+              spread={65}
+              tilt={16}
               tiltDirection="right"
-              perspective={1400}
-              visibleCards={5}
+              perspective={1200}
+              visibleCards={3}
               falloff={0.2}
-              blur={6}
+              blur={4}
               autoplay={false}
               loop
-              cardWidth={280}
-              cardHeight={360}
-              radius={18}
+              cardWidth={200}
+              cardHeight={260}
+              radius={16}
               tint="#05060a"
               duration={700}
               ease="power3.out"
@@ -74,14 +68,14 @@ export default function CulinaryClientWrapper({
             />
           </div>
 
-          {/* Informasi Detail Card yang Sedang Aktif di Bawah Carousel */}
+          {/* Informasi Detail Card Aktif - Dibuat rapat & pas tanpa jarak berlebih */}
           {activeCulinary && (
-            <div className="w-full max-w-xl bg-[#1a1017]/80 backdrop-blur-xl border border-pink-500/30 rounded-3xl p-6 shadow-2xl text-left transition-all duration-300 flex flex-col justify-between">
+            <div className="w-full max-w-md sm:max-w-lg bg-[#1a1017]/90 backdrop-blur-xl border border-pink-500/30 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-2xl text-left transition-all duration-300 flex flex-col justify-between">
               <div>
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <span className="flex items-center gap-1.5 font-semibold text-pink-300 text-xs">
+                <div className="flex items-center justify-between gap-2 mb-1.5 sm:mb-2">
+                  <span className="flex items-center gap-1 font-semibold text-pink-300 text-[11px] sm:text-xs truncate">
                     <svg
-                      className="w-4 h-4 text-pink-400 shrink-0"
+                      className="w-3.5 h-3.5 text-pink-400 shrink-0"
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="2"
@@ -99,41 +93,41 @@ export default function CulinaryClientWrapper({
                         d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
                       />
                     </svg>
-                    <span>
+                    <span className="truncate">
                       {activeCulinary.geo ? activeCulinary.geo : "Kuliner Kita"}
                     </span>
                   </span>
 
-                  <div className="flex items-center gap-2">
-                    <span className="bg-black/60 backdrop-blur-md text-amber-300 border border-white/10 text-[11px] font-bold px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1">
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="bg-black/60 backdrop-blur-md text-amber-300 border border-white/10 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg flex items-center gap-1">
                       ⭐ {activeCulinary.rating}
                     </span>
-                    <span className="text-pink-400/90 font-medium bg-black/40 border border-pink-500/20 px-2.5 py-0.5 rounded-md uppercase tracking-wider text-[10px] shrink-0">
+                    <span className="text-pink-400/90 font-medium bg-black/40 border border-pink-500/20 px-2 py-0.5 rounded-md uppercase tracking-wider text-[9px]">
                       {activeCulinary.status}
                     </span>
                   </div>
                 </div>
 
-                <h3 className="text-xl font-bold text-white mb-2">
+                <h3 className="text-base sm:text-lg font-bold text-white mb-1 line-clamp-1">
                   {activeCulinary.title}
                 </h3>
 
-                <p className="text-xs text-pink-200/70 leading-relaxed line-clamp-3 mb-4">
+                <p className="text-[11px] sm:text-xs text-pink-200/70 leading-relaxed line-clamp-2 mb-3">
                   {activeCulinary.desc}
                 </p>
               </div>
 
-              <div className="flex items-center justify-between pt-4 border-t border-pink-500/10">
-                <span className="text-[11px] bg-pink-500/10 border border-pink-500/30 text-pink-300 font-semibold px-2.5 py-0.5 rounded-full">
+              <div className="flex items-center justify-between pt-2.5 sm:pt-3 border-t border-pink-500/10">
+                <span className="text-[10px] bg-pink-500/10 border border-pink-500/30 text-pink-300 font-semibold px-2.5 py-0.5 rounded-full truncate max-w-[130px]">
                   {activeCulinary.tag}
                 </span>
 
                 <button
                   onClick={() => setSelectedCulinary(activeCulinary)}
-                  className="bg-pink-600/80 hover:bg-pink-600 text-white text-xs font-semibold px-4 py-2 rounded-full border border-pink-500/40 shadow-lg transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+                  className="bg-pink-600/80 hover:bg-pink-600 text-white text-xs font-semibold px-3.5 py-1.5 rounded-full border border-pink-500/40 shadow-lg transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
                 >
                   <svg
-                    className="w-4 h-4 text-white shrink-0"
+                    className="w-3.5 h-3.5 text-white shrink-0"
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="2"
@@ -146,18 +140,18 @@ export default function CulinaryClientWrapper({
                       d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                     />
                   </svg>
-                  <span>Lihat Detail</span>
+                  <span>Detail</span>
                 </button>
               </div>
             </div>
           )}
 
-          {/* Tombol Lihat Selengkapnya menuju halaman /kuliner */}
+          {/* Tombol Lihat Selengkapnya */}
           {culinaries.length > 5 && (
-            <div className="mt-10 text-center">
+            <div className="mt-5 sm:mt-6 text-center">
               <Link
                 href="/kuliner"
-                className="inline-block px-8 py-3 rounded-full text-xs font-bold uppercase tracking-widest text-pink-200 bg-pink-500/10 border border-pink-500/30 hover:bg-pink-500/20 hover:border-pink-500/60 transition-all duration-300 backdrop-blur-md shadow-lg active:scale-95"
+                className="inline-block px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest text-pink-200 bg-pink-500/10 border border-pink-500/30 hover:bg-pink-500/20 hover:border-pink-500/60 transition-all duration-300 backdrop-blur-md shadow-lg active:scale-95"
               >
                 Lihat Selengkapnya
               </Link>
@@ -166,12 +160,11 @@ export default function CulinaryClientWrapper({
         </div>
       )}
 
-      {/* Modal Popup Perbesar Foto & Detail Kuliner */}
+      {/* Modal Popup Detail */}
       {selectedCulinary && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex justify-center items-center p-4 pt-20 animate-fadeIn">
-          <div className="bg-[#1a0f18] border-2 border-pink-900/60 rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden relative transform transition-all scale-100 flex flex-col max-h-[85vh]">
-            {/* Foto Lebih Besar di Modal */}
-            <div className="relative h-56 md:h-64 w-full bg-black/60 flex-shrink-0">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex justify-center items-center p-4 pt-12 animate-fadeIn">
+          <div className="bg-[#1a0f18] border-2 border-pink-900/60 rounded-3xl max-w-md w-full shadow-2xl overflow-hidden relative transform transition-all scale-100 flex flex-col max-h-[85vh]">
+            <div className="relative h-48 sm:h-56 w-full bg-black/60 flex-shrink-0">
               <img
                 src={selectedCulinary.src}
                 alt={selectedCulinary.title}
@@ -179,15 +172,13 @@ export default function CulinaryClientWrapper({
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#1a0f18] via-transparent to-transparent"></div>
 
-              {/* Rating Badge di Modal */}
-              <span className="absolute top-4 right-4 bg-black/70 backdrop-blur-md text-amber-300 border border-white/10 text-xs font-bold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1">
+              <span className="absolute top-3 right-3 bg-black/70 backdrop-blur-md text-amber-300 border border-white/10 text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-1">
                 ⭐ {selectedCulinary.rating}
               </span>
             </div>
 
-            {/* Konten Detail di Modal */}
-            <div className="p-6 md:p-8 text-left overflow-y-auto flex-grow">
-              <div className="text-xs font-semibold text-pink-400 mb-1 normal-case">
+            <div className="p-4 sm:p-6 text-left overflow-y-auto flex-grow">
+              <div className="text-xs font-semibold text-pink-400 mb-1">
                 <span className="flex items-center gap-1.5">
                   <svg
                     className="w-4 h-4 text-pink-400 shrink-0"
@@ -216,16 +207,15 @@ export default function CulinaryClientWrapper({
                 </span>
               </div>
 
-              <h3 className="text-2xl font-black text-white mb-3">
+              <h3 className="text-xl font-black text-white mb-2">
                 {selectedCulinary.title}
               </h3>
 
-              <p className="text-zinc-300 text-sm leading-relaxed mb-4">
+              <p className="text-zinc-300 text-xs sm:text-sm leading-relaxed mb-4">
                 {selectedCulinary.desc}
               </p>
 
-              {/* Tag & Status di bawah deskripsi khusus dalam modal */}
-              <div className="flex items-center gap-2 flex-wrap mb-6">
+              <div className="flex items-center gap-2 flex-wrap mb-5">
                 <span className="text-xs bg-pink-500/10 border border-pink-500/30 text-pink-300 font-semibold px-3 py-1 rounded-full">
                   {selectedCulinary.tag}
                 </span>
@@ -236,7 +226,7 @@ export default function CulinaryClientWrapper({
 
               <button
                 onClick={() => setSelectedCulinary(null)}
-                className="w-full bg-pink-600 hover:bg-rose-600 text-white font-bold py-3 rounded-full transition-all shadow-md text-sm tracking-wider cursor-pointer"
+                className="w-full bg-pink-600 hover:bg-rose-600 text-white font-bold py-2.5 rounded-full transition-all shadow-md text-xs tracking-wider cursor-pointer"
               >
                 Tutup Kenangan 🤍
               </button>
