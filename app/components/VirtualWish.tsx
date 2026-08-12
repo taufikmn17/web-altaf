@@ -54,7 +54,6 @@ export default function VirtualWish() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validasi ketat: pastikan teks tidak kosong atau hanya berisi spasi
     const trimmedText = wishText.trim();
     if (!trimmedText || trimmedText.length === 0 || isSubmitting) {
       return;
@@ -71,18 +70,20 @@ export default function VirtualWish() {
     const timestampStr = now.toISOString();
 
     const payload = {
-      text: trimmedText, // Menggunakan teks yang sudah dibersihkan dari spasi berlebih
+      sheet: "lentera", // <-- Ditambahkan agar terbaca di body JSON doPost
+      text: trimmedText,
       color: lanternColor,
       date: dateStr,
       timestamp: timestampStr,
     };
 
     const baseUrl = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || "";
-    const targetUrl = `${baseUrl}?sheet=lentera`;
 
     try {
-      await fetch(targetUrl, {
+      // Menggunakan URL dasar tanpa query string untuk POST, mirip seperti pada game
+      await fetch(baseUrl, {
         method: "POST",
+        mode: "no-cors", // Opsional jika mengalami kendala CORS di browser mobile tertentu
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(payload),
       });
@@ -95,7 +96,6 @@ export default function VirtualWish() {
       };
       setWishes((prev) => [newWish, ...prev]);
 
-      // Animasi lentera terbang
       const newFlyingId = Date.now();
       const randomLeft = Math.floor(Math.random() * 80) + 10;
       setFlyingLanterns((prev) => [
