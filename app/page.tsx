@@ -1,13 +1,20 @@
 import { Metadata } from "next";
+import dynamic from "next/dynamic";
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
-import About from "./components/About";
-import FootPrints from "./components/FootPrints";
-import CharacterCards from "./components/CharacterCards";
-import VirtualWish from "./components/VirtualWish";
-import DestinationServer from "./components/DestinationServer";
-import CulinaryServer from "./components/kuliner/CulinaryServer";
-import Footer from "./components/Footer";
+
+// Komponen di bawah lipatan layar di-import secara dinamis (lazy load)
+const About = dynamic(() => import("./components/About"));
+const FootPrints = dynamic(() => import("./components/FootPrints"));
+const CharacterCards = dynamic(() => import("./components/CharacterCards"));
+const VirtualWish = dynamic(() => import("./components/VirtualWish"));
+const DestinationServer = dynamic(
+  () => import("./components/DestinationServer")
+);
+const CulinaryServer = dynamic(
+  () => import("./components/kuliner/CulinaryServer")
+);
+const Footer = dynamic(() => import("./components/Footer"));
 
 export const metadata: Metadata = {
   title: "Altaf | Cerita Kita",

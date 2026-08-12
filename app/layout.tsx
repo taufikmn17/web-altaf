@@ -35,7 +35,7 @@ export default function RootLayout({
       className={`${playfairDisplay.variable} ${lora.variable} h-full antialiased scroll-smooth`}
     >
       {/* Terapkan font body secara default ke body, dan set font heading melalui kelas */}
-      <body className="min-h-full flex flex-col bg-gray-50 font-body text-gray-900">
+      <body className="min-h-full flex flex-col font-body ">
         {/* Welcome Modal */}
         <WelcomeCatModal />
 
