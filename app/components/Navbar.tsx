@@ -73,10 +73,11 @@ export default function Navbar() {
           </span>
         </div>
 
-        {/* Hamburger Button (Mobile) */}
+        {/* Hamburger Button (Mobile) - Ditambahkan aria-label */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           className="md:hidden text-zinc-300 focus:outline-none"
+          aria-label={mobileMenuOpen ? "Tutup Menu" : "Buka Menu"}
         >
           <svg
             className="w-6 h-6"
