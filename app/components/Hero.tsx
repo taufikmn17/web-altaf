@@ -76,6 +76,7 @@ export default function Hero() {
 
     let animationFrameId: number;
     let hearts: Heart[] = [];
+    let isVisible = true;
 
     const resizeCanvas = () => {
       canvas.width = window.innerWidth;
@@ -128,6 +129,7 @@ export default function Hero() {
     };
 
     const animate = () => {
+      if (!isVisible) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       hearts.forEach((heart) => {
@@ -147,6 +149,18 @@ export default function Hero() {
     };
 
     animate();
+
+    // Optimasi Performa: Hentikan animasi canvas saat tab/window tidak aktif (Visibility API)
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        isVisible = false;
+        cancelAnimationFrame(animationFrameId);
+      } else {
+        isVisible = true;
+        animate();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     const handleCanvasClick = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
@@ -171,6 +185,7 @@ export default function Hero() {
 
     return () => {
       window.removeEventListener("resize", resizeCanvas);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       canvas.removeEventListener("click", handleCanvasClick);
       cancelAnimationFrame(animationFrameId);
     };
@@ -307,6 +322,7 @@ export default function Hero() {
               alt="Lotso Bear"
               fill
               priority
+              fetchPriority="high" // <-- Solusi utama LCP: Memberi prioritas unduh tinggi pada browser
               sizes="(max-width: 768px) 384px, 420px"
               className="object-contain object-bottom drop-shadow-[0_10px_25px_rgba(236,72,153,0.5)]"
             />
