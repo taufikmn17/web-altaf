@@ -69,10 +69,8 @@ export default async function CulinarySection() {
   return (
     <section
       id="kuliner"
-      className="py-28 relative overflow-hidden text-center"
-      style={{
-        background: "linear-gradient(to bottom, #1a0d14, #150b12, #0a0508)",
-      }}
+      style={{ fontFamily: "Georgia, serif" }}
+      className="py-28 relative overflow-hidden text-center bg-gradient-to-b from-[#1a0d14] via-[#150b12] to-[#0a0508]"
     >
       {/* Efek Cahaya Ambient Background */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-pink-600/10 blur-[140px] rounded-full pointer-events-none"></div>
@@ -84,7 +82,7 @@ export default async function CulinarySection() {
             Memory Lane
           </span>
 
-          <h2 className="text-3xl md:text-5xl font-extrabold text-white font-sans tracking-tight">
+          <h2 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight">
             Tempat Favorit & <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-rose-400 to-pink-500">
               Petualangan Kuliner Kita

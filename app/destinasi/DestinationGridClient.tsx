@@ -21,7 +21,10 @@ export default function DestinationGridClient({
 
   if (destinations.length === 0) {
     return (
-      <div className="w-full text-center py-16 text-sm text-pink-300/50 italic bg-[#1a1017]/60 backdrop-blur-md max-w-lg mx-auto rounded-3xl border border-pink-500/20 p-8">
+      <div
+        style={{ fontFamily: "Georgia, serif" }}
+        className="w-full text-center py-16 text-sm text-pink-300/50 italic bg-[#1a1017]/60 backdrop-blur-md max-w-lg mx-auto rounded-3xl border border-pink-500/20 p-8"
+      >
         Belum ada data destinasi yang tersimpan atau gagal memuat data.
       </div>
     );
@@ -122,7 +125,10 @@ export default function DestinationGridClient({
 
       {/* Modal Popup Perbesar Foto & Detail Destinasi */}
       {selectedDestination && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex justify-center items-center p-4 pt-20 animate-fadeIn">
+        <div
+          style={{ fontFamily: "Georgia, serif" }}
+          className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex justify-center items-center p-4 pt-20 animate-fadeIn"
+        >
           <div className="bg-[#1a0f18] border-2 border-pink-900/60 rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden relative transform transition-all scale-100 flex flex-col max-h-[85vh]">
             {/* Foto Lebih Besar di Modal */}
             <div className="relative h-56 md:h-64 w-full bg-black/60 flex-shrink-0">

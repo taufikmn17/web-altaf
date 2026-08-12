@@ -80,8 +80,9 @@ export default async function SemuaGaleriPage() {
 
   return (
     <div
-      className="min-h-screen relative overflow-hidden flex flex-col justify-between"
+      className="min-h-screen relative overflow-hidden text-white flex flex-col justify-between"
       style={{
+        fontFamily: "Georgia, serif",
         background: "linear-gradient(to bottom, #1a0d14, #150b12, #0a0508)",
       }}
     >
@@ -91,14 +92,14 @@ export default async function SemuaGaleriPage() {
         <div className="container mx-auto px-6 relative z-10">
           {/* Header Section dengan Efek Cahaya Ambient di belakangnya */}
           <div className="max-w-2xl mx-auto mb-16 text-center relative">
-            {/* Efek Cahaya Ambient Background (Dipindah ke sini agar pas di belakang header) */}
+            {/* Efek Cahaya Ambient Background */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-pink-600/10 blur-[140px] rounded-full pointer-events-none -z-10"></div>
 
             <span className="text-xs font-bold uppercase tracking-widest text-pink-300 bg-pink-500/10 border border-pink-500/30 px-4 py-1.5 rounded-full inline-block mb-3 backdrop-blur-md shadow-sm">
               Kuliner Kita
             </span>
 
-            <h1 className="text-3xl md:text-5xl font-extrabold text-white font-sans tracking-tight">
+            <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight">
               Semua Petualangan & <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-rose-400 to-pink-500">
                 Kuliner Favorit Kita

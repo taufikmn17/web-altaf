@@ -6,8 +6,10 @@ import TextType from "./TextType";
 
 export default function WelcomeLotsoModal() {
   const [isVisible, setIsVisible] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
     const hasSeenModal = sessionStorage.getItem("hasSeenLotsoModal");
     if (!hasSeenModal) {
       setIsVisible(true);
@@ -19,10 +21,14 @@ export default function WelcomeLotsoModal() {
     sessionStorage.setItem("hasSeenLotsoModal", "true");
   };
 
-  if (!isVisible) return null;
+  // Jangan render apa pun di SSR atau jika sudah dilihat untuk mencegah layout shift & render delay
+  if (!isMounted || !isVisible) return null;
 
   return (
-    <div className="fixed inset-0 bg-[#120a0f]/80 backdrop-blur-sm z-[9999] flex justify-center items-center p-4 animate-fadeIn">
+    <div
+      style={{ fontFamily: "Georgia, serif" }}
+      className="fixed inset-0 bg-[#120a0f]/85 backdrop-blur-md z-[9999] flex justify-center items-center p-4 animate-fadeIn"
+    >
       {/* Container Utama */}
       <div className="relative bg-[#120a0f] border-2 border-[#ec4899] rounded-3xl shadow-2xl shadow-[#ec4899]/30 w-full max-w-md p-8 pt-24 mt-20 animate-scaleIn">
         {/* Area Foto Lotso */}
@@ -33,6 +39,7 @@ export default function WelcomeLotsoModal() {
             width={160}
             height={160}
             priority={true}
+            unoptimized={true} // Opsional: bypass image optimization jika lokal untuk mempercepat load asset
             className="w-full h-full object-cover"
           />
         </div>
@@ -47,7 +54,7 @@ export default function WelcomeLotsoModal() {
           <div className="text-[#fbcfe8] text-lg mb-8 leading-relaxed font-medium min-h-[3.5rem] flex items-center justify-center">
             <TextType
               text={["Ubur-ubur ikan lele, selamat datang di Altaf Story lee."]}
-              typingSpeed={50}
+              typingSpeed={40}
               pauseDuration={2000}
               loop={true}
               showCursor={true}
@@ -64,41 +71,6 @@ export default function WelcomeLotsoModal() {
           </button>
         </div>
       </div>
-
-      {/* Animasi CSS */}
-      <style jsx>{`
-        @keyframes scaleIn {
-          0% {
-            opacity: 0;
-            transform: scale(0.3);
-          }
-          50% {
-            opacity: 1;
-            transform: scale(1.05);
-          }
-          70% {
-            transform: scale(0.95);
-          }
-          100% {
-            transform: scale(1);
-          }
-        }
-        .animate-scaleIn {
-          animation: scaleIn 0.4s ease-out forwards;
-        }
-
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out forwards;
-        }
-      `}</style>
     </div>
   );
 }

@@ -12,7 +12,6 @@
     --soft-pink: #fbcfe8;
     --accent-gold: #d4af37;
 
-    /* Variabel shadcn disesuaikan dengan tema gelap utama Anda agar tidak putih mencolok */
     --background: 0 0% 4%;
     --foreground: 0 0% 98%;
     --card: 0 0% 7%;
@@ -22,24 +21,22 @@
     --radius: 0.625rem;
   }
 
-  body {
-    background-color: #120a0f;
-    color: var(--text-main);
-    font-family: var(--font-body), sans-serif;
-    overflow-x: hidden;
-  }
-
-  html {
-    font-family: var(--font-body), sans-serif;
-  }
-
+  /* Mengatur Georgia sebagai font utama secara universal */
+  body,
+  html,
   h1,
   h2,
   h3,
   h4,
   h5,
   h6 {
-    font-family: var(--font-heading), serif;
+    font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+  }
+
+  body {
+    background-color: #120a0f;
+    color: var(--text-main);
+    overflow-x: hidden;
   }
 }
 
@@ -57,31 +54,26 @@
   border-radius: 9999px;
 }
 
-/* Footprints Animations */
-@keyframes star-movement-bottom {
-  0% {
-    transform: translateX(0%);
-  }
-  100% {
-    transform: translateX(-40%);
-  }
-}
+/* Konfigurasi Animasi & Keyframes untuk Tailwind CSS */
+@theme {
+  --animate-star-top: star-top 6s linear infinite;
+  --animate-star-bottom: star-bottom 6s linear infinite;
 
-@keyframes star-movement-top {
-  0% {
-    transform: translateX(0%);
+  @keyframes star-top {
+    0% {
+      transform: translateX(0%);
+    }
+    100% {
+      transform: translateX(50%);
+    }
   }
-  100% {
-    transform: translateX(40%);
+
+  @keyframes star-bottom {
+    0% {
+      transform: translateX(0%);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
   }
-}
-
-.animate-star-top {
-  animation: star-movement-top 4s ease-in-out infinite alternate;
-  will-change: transform;
-}
-
-.animate-star-bottom {
-  animation: star-movement-bottom 4s ease-in-out infinite alternate;
-  will-change: transform;
 }

@@ -1,6 +1,11 @@
+import React from "react";
+
 export default function Footer() {
   return (
-    <footer className="bg-[#0b050a] border-t border-pink-500/10 py-12 px-6">
+    <footer
+      style={{ fontFamily: "Georgia, serif" }}
+      className="bg-[#0b050a] border-t border-pink-500/10 py-12 px-6"
+    >
       <div className="max-w-6xl mx-auto flex flex-col items-center justify-center text-center gap-4">
         <h3 className="text-lg font-medium text-zinc-200">
           Altaf<span className="text-pink-500">.</span> Story

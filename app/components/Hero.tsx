@@ -179,6 +179,7 @@ export default function Hero() {
   return (
     <section
       id="home"
+      style={{ fontFamily: "Georgia, serif" }}
       className="relative min-h-screen w-full flex flex-col justify-between items-center overflow-hidden pt-24 pb-0 px-4"
     >
       <style jsx global>{`

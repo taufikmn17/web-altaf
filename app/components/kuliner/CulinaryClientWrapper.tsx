@@ -35,7 +35,7 @@ export default function CulinaryClientWrapper({
   const activeCulinary = limitedCulinaries[activeIndex] || limitedCulinaries[0];
 
   return (
-    <>
+    <div style={{ fontFamily: "Georgia, serif" }}>
       {limitedCulinaries.length === 0 ? (
         <div className="w-full text-center py-10 text-sm text-pink-300/50 italic bg-[#1a1017]/60 backdrop-blur-md max-w-md mx-auto rounded-3xl border border-pink-500/20 p-6">
           Belum ada data kuliner di sheet &quot;kuliner&quot;.
@@ -234,6 +234,6 @@ export default function CulinaryClientWrapper({
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

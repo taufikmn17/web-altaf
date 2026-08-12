@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import useSWR, { mutate } from "swr";
 import Navbar from "../../components/Navbar";
 
 interface Bird {
@@ -16,6 +17,17 @@ interface LeaderboardEntry {
   timestamp?: string;
 }
 
+// Fetcher khusus untuk SWR Leaderboard
+const leaderboardFetcher = async (url: string) => {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Gagal memuat leaderboard");
+  const data = await res.json();
+  if (Array.isArray(data)) {
+    return data.sort((a, b) => Number(b.score) - Number(a.score)).slice(0, 3);
+  }
+  return [];
+};
+
 export default function TangkapBurungGame() {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [score, setScore] = useState<number>(0);
@@ -26,39 +38,26 @@ export default function TangkapBurungGame() {
   const [showNameModal, setShowNameModal] = useState<boolean>(false);
   const [showScoreModal, setShowScoreModal] = useState<boolean>(false);
   const [playerName, setPlayerName] = useState<string>("");
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // Ref untuk menghindari masalah sinkronisasi state async & mencegah double submit
+  // Ref untuk menghindari masalah sinkronisasi state async
   const scoreRef = useRef<number>(0);
   const isEndedRef = useRef<boolean>(false);
 
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const baseUrl = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || "";
+  const leaderboardUrl = baseUrl ? `${baseUrl}?sheet=gamekicau` : null;
 
-  // Ambil data Leaderboard saat halaman dimuat
-  useEffect(() => {
-    fetchLeaderboard();
-  }, []);
+  // Menggunakan SWR untuk Leaderboard agar ter-cache dengan baik & otomatis revalidate
+  const { data: leaderboard = [], isValidating: isLoadingLeaderboard } = useSWR<
+    LeaderboardEntry[]
+  >(leaderboardUrl, leaderboardFetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 30000, // Cache selama 30 detik
+  });
 
-  const fetchLeaderboard = async () => {
-    if (!baseUrl) return;
-    try {
-      const res = await fetch(`${baseUrl}?sheet=gamekicau`);
-      const data = await res.json();
-      if (Array.isArray(data)) {
-        const sorted = data
-          .sort((a, b) => Number(b.score) - Number(a.score))
-          .slice(0, 3);
-        setLeaderboard(sorted);
-      }
-    } catch (error) {
-      console.error("Gagal memuat leaderboard:", error);
-    }
-  };
-
-  // Game Loop: Timer & Tingkat Kesulitan Dinamis (Burung Banyak, Muncul Cepat & Cepat Hilang)
+  // Game Loop: Timer & Tingkat Kesulitan Dinamis
   useEffect(() => {
     let timerInterval: NodeJS.Timeout;
     let birdInterval: NodeJS.Timeout;
@@ -79,7 +78,7 @@ export default function TangkapBurungGame() {
         });
       }, 1000);
 
-      // Interval Muncul Burung (Dibuat lebih cepat: setiap 400ms burung baru muncul)
+      // Interval Muncul Burung (Setiap 400ms)
       const spawnRate = 400;
 
       birdInterval = setInterval(() => {
@@ -97,10 +96,8 @@ export default function TangkapBurungGame() {
             y: randomY,
           };
 
-          // Kapasitas maksimal burung di layar diperbanyak (hingga 10 burung sekaligus)
           setBirds((prev) => [...prev.slice(-9), newBird]);
 
-          // Burung akan otomatis hilang sendiri setelah 1000ms (1 detik) jika tidak diklik agar tingkat kesulitan naik
           setTimeout(() => {
             setBirds((prev) => prev.filter((b) => b.id !== birdId));
           }, 1000);
@@ -149,6 +146,7 @@ export default function TangkapBurungGame() {
     isEndedRef.current = true;
 
     const finalScore = scoreRef.current;
+    const currentName = playerName;
 
     setIsPlaying(false);
     setBirds([]);
@@ -159,8 +157,22 @@ export default function TangkapBurungGame() {
 
     setShowScoreModal(true);
 
-    if (playerName && baseUrl) {
+    if (currentName && baseUrl) {
       setIsSubmitting(true);
+
+      // Optimistic Update untuk Leaderboard secara instan
+      const newEntry: LeaderboardEntry = {
+        name: currentName,
+        score: finalScore,
+        timestamp: "Baru saja",
+      };
+
+      const updatedLeaderboard = [...leaderboard, newEntry]
+        .sort((a, b) => Number(b.score) - Number(a.score))
+        .slice(0, 3);
+
+      mutate(leaderboardUrl, updatedLeaderboard, false);
+
       try {
         await fetch(baseUrl, {
           method: "POST",
@@ -170,19 +182,21 @@ export default function TangkapBurungGame() {
           },
           body: JSON.stringify({
             sheet: "gamekicau",
-            name: playerName,
+            name: currentName,
             score: Number(finalScore),
             timestamp: new Date().toLocaleString(),
           }),
         });
 
+        // Validasi ulang data asli dari server Google Sheets setelah beberapa detik
         setTimeout(() => {
-          fetchLeaderboard();
+          mutate(leaderboardUrl);
           setIsSubmitting(false);
-        }, 1500);
+        }, 2000);
       } catch (error) {
         console.error("Gagal menyimpan skor:", error);
         setIsSubmitting(false);
+        mutate(leaderboardUrl); // Rollback jika gagal
       }
     }
   };
@@ -192,6 +206,7 @@ export default function TangkapBurungGame() {
       className="min-h-screen pt-24 pb-16 px-4 sm:px-6 relative overflow-x-hidden text-white flex flex-col justify-between"
       style={{
         background: "linear-gradient(to bottom, #1a0d14, #150b12, #0a0508)",
+        fontFamily: "Georgia, serif",
       }}
     >
       <Navbar />
@@ -218,7 +233,7 @@ export default function TangkapBurungGame() {
           )}
         </div>
 
-        {/* Area Bermain (Responsif & Proporsional di HP) */}
+        {/* Area Bermain */}
         <div
           ref={gameAreaRef}
           className="relative w-full max-w-md mx-auto h-[380px] sm:h-[450px] bg-[#1a1017]/80 backdrop-blur-xl border-2 border-pink-500/30 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden my-4"
@@ -250,9 +265,13 @@ export default function TangkapBurungGame() {
             🏆 Leaderboard Top 3
           </h3>
           <div className="flex flex-col gap-2 max-w-xs mx-auto text-left">
-            {leaderboard.length === 0 ? (
+            {isLoadingLeaderboard && leaderboard.length === 0 ? (
               <p className="text-xs text-center text-pink-300/60 italic">
                 Memuat data leaderboard...
+              </p>
+            ) : leaderboard.length === 0 ? (
+              <p className="text-xs text-center text-pink-300/60 italic">
+                Belum ada skor tercatat. Jadilah yang pertama!
               </p>
             ) : (
               leaderboard.map((item, idx) => (
@@ -286,7 +305,7 @@ export default function TangkapBurungGame() {
         </div>
       </div>
 
-      {/* Modal Input Nama (Responsif) */}
+      {/* Modal Input Nama */}
       {showNameModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="bg-[#1a1017] border border-pink-500/30 p-6 sm:p-8 rounded-2xl sm:rounded-3xl text-center w-full max-w-sm shadow-2xl relative">
@@ -317,7 +336,7 @@ export default function TangkapBurungGame() {
         </div>
       )}
 
-      {/* Modal Skor Akhir (Responsif) */}
+      {/* Modal Skor Akhir */}
       {showScoreModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="bg-[#1a1017] border border-pink-500/30 p-6 sm:p-8 rounded-2xl sm:rounded-3xl text-center w-full max-w-sm shadow-2xl">
@@ -329,8 +348,8 @@ export default function TangkapBurungGame() {
             </p>
             <p className="text-xs mb-6 text-pink-300/60">
               {isSubmitting
-                ? "Menyimpan skor ke database..."
-                : "Skor berhasil disimpan ke database!"}
+                ? "Menyimpan skor..."
+                : "Skor berhasil disimpan ke leaderboard!"}
             </p>
             <button
               onClick={() => setShowScoreModal(false)}

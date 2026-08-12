@@ -32,6 +32,7 @@ export default function Footprints() {
   return (
     <section
       id="mapFootprints"
+      style={{ fontFamily: "Georgia, serif" }}
       className="py-24 bg-gradient-to-b from-[#1a0d14] via-[#120a0f] to-[#0a0508] overflow-hidden text-center relative"
     >
       <div className="container mx-auto px-6 relative z-10">
@@ -40,7 +41,7 @@ export default function Footprints() {
           <span className="text-xs font-bold uppercase tracking-widest text-pink-300 bg-pink-500/10 border border-pink-500/30 px-4 py-1.5 rounded-full inline-block mb-3 backdrop-blur-md shadow-sm">
             Our Footprints
           </span>
-          <h2 className="text-4xl font-extrabold text-[var(--text-main)] font-sans tracking-tight">
+          <h2 className="text-4xl font-extrabold text-[var(--text-main)] tracking-tight">
             Jejak Virtual <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-rose-500">
               Hingga Dunia Nyata
@@ -145,7 +146,10 @@ export default function Footprints() {
 
       {/* Modal Popup Interaktif */}
       {activeModal && modalContent[activeModal] && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex justify-center items-center px-4 animate-fadeIn">
+        <div
+          style={{ fontFamily: "Georgia, serif" }}
+          className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex justify-center items-center px-4 animate-fadeIn"
+        >
           <div className="bg-[#1a0f18] border border-[var(--primary-pink)]/40 rounded-3xl p-8 max-w-md w-full shadow-2xl text-center relative transform transition-all scale-100">
             <div className="w-16 h-16 bg-[#120a0f] rounded-full flex items-center justify-center text-3xl mx-auto mb-4 shadow-inner border border-[var(--primary-pink)]/30">
               {modalContent[activeModal].icon}

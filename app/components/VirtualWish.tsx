@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import useSWR, { mutate } from "swr";
 
 interface Wish {
   id: string;
@@ -9,55 +10,51 @@ interface Wish {
   timestamp: string;
 }
 
+// Fungsi fetcher untuk SWR
+const fetcher = async (url: string) => {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Gagal mengambil data dari server.");
+  const data = await res.json();
+
+  if (Array.isArray(data) && data.length > 0) {
+    return data.reverse().map((item: any, index: number) => ({
+      id: index.toString(),
+      text: item.text || "",
+      color: item.color || "pink",
+      timestamp: item.date ? item.date.toString().split("T")[0] : "Baru saja",
+    }));
+  }
+  return [];
+};
+
 export default function VirtualWish() {
   const [wishText, setWishText] = useState("");
   const [lanternColor, setLanternColor] = useState<"pink" | "amber">("pink");
-  const [wishes, setWishes] = useState<Wish[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoadingWishes, setIsLoadingWishes] = useState(true);
   const [flyingLanterns, setFlyingLanterns] = useState<
     { id: number; text: string; color: string; left: number }[]
   >([]);
 
   const maxLength = 150;
+  const baseUrl = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || "";
+  const targetUrl = baseUrl ? `${baseUrl}?sheet=lentera` : null;
 
-  // Mengambil data langsung dari Google Apps Script (sheet=lentera)
-  useEffect(() => {
-    setIsLoadingWishes(true);
-    const baseUrl = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || "";
-    const targetUrl = `${baseUrl}?sheet=lentera`;
+  // Menggunakan SWR untuk caching & otomatisasi revalidate tanpa loading terus-menerus
+  const { data: wishes = [], isValidating: isLoadingWishes } = useSWR<Wish[]>(
+    targetUrl,
+    fetcher,
+    {
+      revalidateOnFocus: false, // Tidak refetch otomatis saat pindah tab browser
+      dedupingInterval: 60000, // Cache data selama 1 menit untuk mencegah spam request ke GAS
+    }
+  );
 
-    fetch(targetUrl)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          const formattedWishes = data
-            .reverse()
-            .map((item: any, index: number) => ({
-              id: index.toString(),
-              text: item.text || "",
-              color: item.color || "pink",
-              timestamp: item.date
-                ? item.date.toString().split("T")[0]
-                : "Baru saja",
-            }));
-          setWishes(formattedWishes);
-        }
-      })
-      .catch((err) => console.error("Gagal memuat data lentera:", err))
-      .finally(() => {
-        setIsLoadingWishes(false);
-      });
-  }, []);
-
-  // Handle submit form langsung ke Google Apps Script (sheet=lentera)
+  // Handle submit form dengan Optimistic Update
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const trimmedText = wishText.trim();
-    if (!trimmedText || trimmedText.length === 0 || isSubmitting) {
-      return;
-    }
+    if (!trimmedText || isSubmitting) return;
 
     setIsSubmitting(true);
 
@@ -70,53 +67,60 @@ export default function VirtualWish() {
     const timestampStr = now.toISOString();
 
     const payload = {
-      sheet: "lentera", // <-- Ditambahkan agar terbaca di body JSON doPost
+      sheet: "lentera",
       text: trimmedText,
       color: lanternColor,
       date: dateStr,
       timestamp: timestampStr,
     };
 
-    const baseUrl = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || "";
+    // Data sementara untuk optimis UI (langsung tampil tanpa tunggu GAS selesai)
+    const newWish: Wish = {
+      id: Date.now().toString(),
+      text: trimmedText,
+      color: lanternColor,
+      timestamp: "Baru saja",
+    };
+
+    // Update cache secara instan (Optimistic Update)
+    mutate(targetUrl, [newWish, ...wishes], false);
+
+    // Animasi Lentera Terbang
+    const newFlyingId = Date.now();
+    const randomLeft = Math.floor(Math.random() * 80) + 10;
+    setFlyingLanterns((prev) => [
+      ...prev,
+      {
+        id: newFlyingId,
+        text: trimmedText,
+        color: lanternColor,
+        left: randomLeft,
+      },
+    ]);
+
+    setTimeout(() => {
+      setFlyingLanterns((prev) =>
+        prev.filter((item) => item.id !== newFlyingId)
+      );
+    }, 4000);
+
+    setWishText("");
 
     try {
-      // Menggunakan URL dasar tanpa query string untuk POST, mirip seperti pada game
+      // Kirim data ke Google Apps Script di background
       await fetch(baseUrl, {
         method: "POST",
-        mode: "no-cors", // Opsional jika mengalami kendala CORS di browser mobile tertentu
+        mode: "no-cors",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(payload),
       });
 
-      const newWish = {
-        id: Date.now().toString(),
-        text: trimmedText,
-        color: lanternColor,
-        timestamp: "Baru saja",
-      };
-      setWishes((prev) => [newWish, ...prev]);
-
-      const newFlyingId = Date.now();
-      const randomLeft = Math.floor(Math.random() * 80) + 10;
-      setFlyingLanterns((prev) => [
-        ...prev,
-        {
-          id: newFlyingId,
-          text: trimmedText,
-          color: lanternColor,
-          left: randomLeft,
-        },
-      ]);
-
-      setTimeout(() => {
-        setFlyingLanterns((prev) =>
-          prev.filter((item) => item.id !== newFlyingId)
-        );
-      }, 4000);
-
-      setWishText("");
+      // Validasi ulang data dari server setelah berhasil simpan
+      mutate(targetUrl);
     } catch (error) {
       console.error("Gagal menyimpan harapan:", error);
+      // Rollback cache jika gagal
+      mutate(targetUrl);
     } finally {
       setIsSubmitting(false);
     }
@@ -125,32 +129,28 @@ export default function VirtualWish() {
   return (
     <section
       id="virtualWish"
+      style={{ fontFamily: "Georgia, serif" }}
       className="py-24 bg-gradient-to-b from-[#1a0d14] via-[#120a0f] to-[#0a0508] overflow-hidden text-center relative"
     >
-      {/* Efek Cahaya Ambient Background */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-pink-500/10 blur-[120px] rounded-full pointer-events-none"></div>
 
       <div className="container mx-auto px-6 relative z-10">
-        {/* Header Section */}
         <div className="max-w-2xl mx-auto mb-10 text-center">
           <span className="text-xs font-bold uppercase tracking-widest text-pink-300 bg-pink-500/10 border border-pink-500/30 px-4 py-1.5 rounded-full inline-block mb-3 backdrop-blur-md shadow-sm">
             Sky Lantern
           </span>
-
-          <h2 className="text-4xl font-extrabold text-white font-sans tracking-tight">
+          <h2 className="text-4xl font-extrabold text-white tracking-tight">
             Make A Wish Virtual <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-rose-500">
               Terbangkan Lenteramu
             </span>
           </h2>
-
           <div className="w-16 h-1 bg-gradient-to-r from-pink-400 to-pink-600 mx-auto mt-4 rounded-full"></div>
         </div>
 
-        {/* Input Form Card (Glassmorphism) */}
-        <div className="max-w-xl mx-auto bg-[#1a1017]/80 backdrop-blur-xl p-6 md:p-8 rounded-3xl border border-pink-500/20 shadow-2xl text-left transform transition-all duration-300 mb-16">
+        {/* Input Form Card */}
+        <div className="max-w-xl mx-auto bg-[#1a1017]/80 backdrop-blur-xl p-6 md:p-8 rounded-3xl border border-pink-500/20 shadow-2xl text-left mb-16">
           <form onSubmit={handleSubmit}>
-            {/* Textarea Input */}
             <div className="mb-6">
               <label className="block text-xs font-bold uppercase tracking-wider text-pink-200/80 mb-2">
                 Ketik di Sini yaa :
@@ -170,7 +170,6 @@ export default function VirtualWish() {
               </div>
             </div>
 
-            {/* Pilihan Warna Lentera */}
             <div className="mb-8">
               <label className="block text-xs font-bold uppercase tracking-wider text-pink-200/80 mb-3">
                 Pilih Warna Lentera :
@@ -216,52 +215,22 @@ export default function VirtualWish() {
               </div>
             </div>
 
-            {/* Tombol Kirim / Terbangkan dengan Efek Loading */}
             <button
               type="submit"
               disabled={isSubmitting || !wishText.trim()}
-              className="w-full text-white font-bold text-sm py-4 px-6 rounded-2xl shadow-lg transform hover:-translate-y-0.5 active:translate-y-0 transition-all duration-150 flex items-center justify-center gap-2 tracking-wide uppercase cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full text-white font-bold text-sm py-4 px-6 rounded-2xl shadow-lg transition-all duration-150 flex items-center justify-center gap-2 tracking-wide uppercase cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 background:
                   "linear-gradient(to right, #ec4899, #db2777, #d4af37)",
                 boxShadow: "0 10px 20px -3px rgba(236, 72, 153, 0.4)",
               }}
             >
-              {isSubmitting ? (
-                <>
-                  <svg
-                    className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  Menerbangkan Lentera...
-                </>
-              ) : (
-                <>
-                  <span className="text-amber-200 animate-pulse">🔥</span>{" "}
-                  Terbangkan!
-                </>
-              )}
+              {isSubmitting ? "Menerbangkan Lentera..." : "🔥 Terbangkan!"}
             </button>
           </form>
         </div>
 
-        {/* Papan Harapan Terbaru (Dibatasi 3 Saja) */}
+        {/* Papan Harapan Terbaru */}
         <div className="max-w-3xl mx-auto border-t border-pink-500/20 pt-10 relative">
           <h3 className="text-xl font-bold text-white mb-2 flex items-center justify-center gap-2">
             📌 Papan Harapan Terbaru
@@ -271,10 +240,7 @@ export default function VirtualWish() {
           </p>
 
           <div className="relative w-full min-h-[250px] bg-[#1a1017]/60 backdrop-blur-md rounded-3xl p-6 md:p-8 border border-pink-500/20 shadow-xl overflow-hidden flex items-center justify-center">
-            {/* Grid Pattern Background */}
-            <div className="absolute inset-0 opacity-10 pointer-events-none bg-[linear-gradient(to_right,#ec4899_1px,transparent_1px),linear-gradient(to_bottom,#ec4899_1px,transparent_1px)] bg-[size:30px_30px]"></div>
-
-            {isLoadingWishes ? (
+            {isLoadingWishes && wishes.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 z-20">
                 <div className="w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full animate-spin mb-3"></div>
                 <p className="text-sm text-pink-300/70 italic">
@@ -314,11 +280,8 @@ export default function VirtualWish() {
         </div>
       </div>
 
-      {/* Container Animasi Lentera Terbang ke Langit (Fixed Fullscreen) */}
-      <div
-        id="lanternSkyContainer"
-        className="fixed inset-0 overflow-hidden pointer-events-none z-50"
-      >
+      {/* Animasi Lentera Terbang */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-50">
         {flyingLanterns.map((lantern) => (
           <div
             key={lantern.id}
@@ -331,7 +294,6 @@ export default function VirtualWish() {
                   ? "bg-pink-500 shadow-pink-500/50"
                   : "bg-amber-500 shadow-amber-500/50"
               }`}
-              style={{ filter: "drop-shadow(0 0 15px currentColor)" }}
             >
               🏮
             </div>
@@ -342,7 +304,6 @@ export default function VirtualWish() {
         ))}
       </div>
 
-      {/* Tambahan Style Keyframes untuk Animasi Terbang */}
       <style jsx>{`
         @keyframes flyUp {
           0% {

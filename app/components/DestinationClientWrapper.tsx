@@ -49,7 +49,7 @@ export default function DestinationClientWrapper({
   };
 
   return (
-    <>
+    <div style={{ fontFamily: "Georgia, serif" }}>
       <div
         ref={containerRef}
         id="destinasiGridContainer"
@@ -227,6 +227,6 @@ export default function DestinationClientWrapper({
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

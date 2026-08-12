@@ -65,6 +65,7 @@ export default async function Destination() {
   return (
     <section
       id="destinasi"
+      style={{ fontFamily: "Georgia, serif" }}
       className="py-24 bg-gradient-to-b from-[#0a0508] via-[#120a0f] to-[#1a0d14] overflow-hidden text-center relative"
     >
       {/* Efek Cahaya Ambient Background */}
@@ -77,7 +78,7 @@ export default async function Destination() {
             Our Adventure
           </span>
 
-          <h2 className="text-3xl md:text-5xl font-extrabold text-white font-sans tracking-tight">
+          <h2 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight">
             Geser Ke Kanan <br />
             <span className="text-pink-400">Lihat Berbagai Destinasi Kita</span>
           </h2>

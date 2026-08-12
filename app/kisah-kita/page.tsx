@@ -62,8 +62,9 @@ const timelineData: TimelineItem[] = [
 export default async function KisahKitaPage() {
   return (
     <div
-      className="min-h-screen relative overflow-hidden text-white font-sans flex flex-col justify-between"
+      className="min-h-screen relative overflow-hidden text-white flex flex-col justify-between"
       style={{
+        fontFamily: "Georgia, serif",
         background: "linear-gradient(to bottom, #1a0d14, #150b12, #0a0508)",
       }}
     >

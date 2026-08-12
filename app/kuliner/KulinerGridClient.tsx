@@ -24,14 +24,17 @@ export default function KulinerGridClient({
 
   if (culinaries.length === 0) {
     return (
-      <div className="w-full text-center py-16 text-sm text-pink-300/50 italic bg-[#1a1017]/60 backdrop-blur-md max-w-lg mx-auto rounded-3xl border border-pink-500/20 p-8">
+      <div
+        style={{ fontFamily: "Georgia, serif" }}
+        className="w-full text-center py-16 text-sm text-pink-300/50 italic bg-[#1a1017]/60 backdrop-blur-md max-w-lg mx-auto rounded-3xl border border-pink-500/20 p-8"
+      >
         Belum ada data galeri kuliner yang tersimpan atau gagal memuat data.
       </div>
     );
   }
 
   return (
-    <>
+    <div style={{ fontFamily: "Georgia, serif" }}>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto text-left">
         {culinaries.map((item) => (
           <div
@@ -208,6 +211,6 @@ export default function KulinerGridClient({
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

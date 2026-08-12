@@ -74,6 +74,7 @@ export default async function SemuaDestinasiPage() {
     <div
       className="min-h-screen relative overflow-hidden flex flex-col justify-between"
       style={{
+        fontFamily: "Georgia, serif",
         background: "linear-gradient(to bottom, #1a0d14, #150b12, #0a0508)",
       }}
     >
@@ -90,7 +91,7 @@ export default async function SemuaDestinasiPage() {
               Destinasi Kita
             </span>
 
-            <h1 className="text-3xl md:text-5xl font-extrabold text-white font-sans tracking-tight">
+            <h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight">
               Semua Destinasi & <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-rose-400 to-pink-500">
                 Tempat Wisata Favorit Kita

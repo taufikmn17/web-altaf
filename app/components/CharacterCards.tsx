@@ -50,6 +50,7 @@ export default function CharacterCards() {
   return (
     <section
       id="characterCards"
+      style={{ fontFamily: "Georgia, serif" }}
       className="py-24 bg-gradient-to-b from-[#0a0508] via-[#120a0f] to-[#1a0d14] overflow-hidden text-center relative"
     >
       <div className="container mx-auto px-6 relative z-10">
@@ -58,7 +59,7 @@ export default function CharacterCards() {
           <span className="text-xs font-bold uppercase tracking-widest text-pink-300 bg-pink-500/10 border border-pink-500/30 px-4 py-1.5 rounded-full inline-block mb-3 backdrop-blur-md shadow-sm">
             Player Profile
           </span>
-          <h2 className="text-4xl font-extrabold text-white font-sans tracking-tight">
+          <h2 className="text-4xl font-extrabold text-white tracking-tight">
             Karakter & Statistik <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 to-rose-500">
               Duo A6

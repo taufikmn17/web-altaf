@@ -43,26 +43,27 @@ const gameList: GameItem[] = [
 export default function DaftarGamePage() {
   return (
     <div
-      className="min-h-screen relative overflow-hidden flex flex-col justify-between"
+      className="min-h-screen relative overflow-hidden flex flex-col justify-between text-white"
       style={{
         background: "linear-gradient(to bottom, #1a0d14, #150b12, #0a0508)",
+        fontFamily: "Georgia, serif",
       }}
     >
       <Navbar />
 
       {/* Main content dengan pt-28 dan pb-24 agar tidak mepet footer */}
       <main className="pt-28 pb-24 relative flex-grow">
-        {/* Efek Cahaya Ambient Background */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-pink-600/10 blur-[140px] rounded-full pointer-events-none"></div>
-
         <div className="container mx-auto px-6 relative z-10">
-          {/* Header Section */}
-          <div className="max-w-2xl mx-auto mb-16 text-center">
+          {/* Header Section dengan Efek Cahaya Ambient di belakangnya */}
+          <div className="max-w-2xl mx-auto mb-16 text-center relative">
+            {/* Efek Cahaya Ambient Background */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-pink-600/10 blur-[140px] rounded-full pointer-events-none -z-10"></div>
+
             <span className="text-xs font-bold uppercase tracking-widest text-pink-300 bg-pink-500/10 border border-pink-500/30 px-4 py-1.5 rounded-full inline-block mb-3 backdrop-blur-md shadow-sm">
               Game Arena ✨
             </span>
 
-            <h1 className="text-3xl md:text-5xl font-extrabold text-white font-sans tracking-tight">
+            <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight">
               Pilih Game & <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-pink-400 via-rose-400 to-pink-500">
                 Mulai Permainan Seru
@@ -98,7 +99,7 @@ export default function DaftarGamePage() {
                   <span className="text-pink-400 group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
                     Mulai Mainkan →
                   </span>
-                  <span className="text-pink-300/60 bg-pink-500/10 px-3 py-1 rounded-full border border-pink-500/20">
+                  <span className="text-pink-300/60 bg-pink-500/10 px-3 py-1 rounded-full border border-pink-500/20 normal-case">
                     {game.status}
                   </span>
                 </div>
