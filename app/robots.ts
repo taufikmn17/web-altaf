@@ -11,6 +11,6 @@ export default function robots(): MetadataRoute.Robots {
       // Jika Anda memiliki halaman admin atau API rahasia, tambahkan di sini
       disallow: ["/api/"],
     },
-    sitemap: `${baseUrl}/sitemap.xml`,
+    sitemap: `${baseUrl}/sitemap.ts`,
   };
 }
