@@ -2,7 +2,7 @@
 import { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = "https://altafstory.my.id";
+  const baseUrl = "https://www.altafstory.my.id"; // Diubah menggunakan www
 
   return {
     rules: {
@@ -10,6 +10,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: "/",
       disallow: ["/api/"],
     },
-    sitemap: `${baseUrl}/sitemap.xml`, // ✅ diperbaiki
+    sitemap: `${baseUrl}/sitemap.xml`,
   };
 }

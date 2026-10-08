@@ -2,7 +2,7 @@
 import { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = "https://altafstory.my.id";
+  const baseUrl = "https://www.altafstory.my.id"; // Diubah menggunakan www
 
   return [
     {
@@ -15,12 +15,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url: `${baseUrl}/kisah-kita`,
       lastModified: new Date(),
       changeFrequency: "monthly",
-      priority: 0.9, // Prioritas tinggi karena ini konten utama bucin
+      priority: 0.9,
     },
     {
       url: `${baseUrl}/destinasi`,
       lastModified: new Date(),
-      changeFrequency: "weekly", // Sering update via Sheets
+      changeFrequency: "weekly",
       priority: 0.8,
     },
     {
