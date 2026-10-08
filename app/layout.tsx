@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   description:
     "Kumpulan cerita, destinasi, kuliner, dan game seru Altaf Story. Website bucin tempat menyimpan kenangan indah.",
   keywords: ["altaf story", "altaf", "cerita kita", "destinasi", "kuliner"],
-  metadataBase: new URL("https://altafstory.my.id"),
+  metadataBase: new URL("https://www.altafstory.my.id"),
 };
 
 export default function RootLayout({
