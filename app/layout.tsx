@@ -3,9 +3,12 @@ import "./globals.css";
 import WelcomeCatModal from "./components/welcome/WelcomeModal";
 
 export const metadata: Metadata = {
-  title: "Altaf Story - Cerita Kita",
+  title: {
+    default: "Altaf Story - Cerita Kita",
+    template: "%s | Altaf Story",
+  },
   description:
-    "Kumpulan cerita, destinasi, kuliner, dan game seru Altaf Story.",
+    "Kumpulan cerita, destinasi, kuliner, dan game seru Altaf Story. Website bucin tempat menyimpan kenangan indah.",
   keywords: ["altaf story", "altaf", "cerita kita", "destinasi", "kuliner"],
   metadataBase: new URL("https://altafstory.my.id"),
 };
