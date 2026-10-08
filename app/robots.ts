@@ -2,7 +2,7 @@
 import { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = "https://altafstory.my.id"; // Diubah menggunakan www
+  const baseUrl = "https://www.altafstory.my.id"; // Diubah menggunakan www
 
   return {
     rules: {
