@@ -5,7 +5,7 @@ import WelcomeCatModal from "./components/welcome/WelcomeModal";
 export const metadata: Metadata = {
   title: {
     default: "Altaf Story - Cerita Kita",
-    template: "%s | Altaf Story",
+    template: "%s",
   },
   description:
     "Kumpulan cerita, destinasi, kuliner, dan game seru Altaf Story. Website bucin tempat menyimpan kenangan indah.",
