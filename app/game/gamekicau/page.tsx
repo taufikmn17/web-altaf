@@ -17,7 +17,6 @@ interface LeaderboardEntry {
   timestamp?: string;
 }
 
-// Fetcher khusus untuk SWR Leaderboard
 const leaderboardFetcher = async (url: string) => {
   const res = await fetch(url);
   if (!res.ok) throw new Error("Gagal memuat leaderboard");
@@ -34,13 +33,11 @@ export default function TangkapBurungGame() {
   const [timeLeft, setTimeLeft] = useState<number>(35);
   const [birds, setBirds] = useState<Bird[]>([]);
 
-  // Modal & Leaderboard States
   const [showNameModal, setShowNameModal] = useState<boolean>(false);
   const [showScoreModal, setShowScoreModal] = useState<boolean>(false);
   const [playerName, setPlayerName] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // Ref untuk menghindari masalah sinkronisasi state async
   const scoreRef = useRef<number>(0);
   const isEndedRef = useRef<boolean>(false);
 
@@ -49,15 +46,13 @@ export default function TangkapBurungGame() {
   const baseUrl = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || "";
   const leaderboardUrl = baseUrl ? `${baseUrl}?sheet=gamekicau` : null;
 
-  // Menggunakan SWR untuk Leaderboard agar ter-cache dengan baik & otomatis revalidate
   const { data: leaderboard = [], isValidating: isLoadingLeaderboard } = useSWR<
     LeaderboardEntry[]
   >(leaderboardUrl, leaderboardFetcher, {
     revalidateOnFocus: false,
-    dedupingInterval: 30000, // Cache selama 30 detik
+    dedupingInterval: 30000,
   });
 
-  // Game Loop: Timer & Tingkat Kesulitan Dinamis
   useEffect(() => {
     let timerInterval: NodeJS.Timeout;
     let birdInterval: NodeJS.Timeout;
@@ -67,7 +62,6 @@ export default function TangkapBurungGame() {
         audioRef.current.play().catch(() => {});
       }
 
-      // Timer Mundur
       timerInterval = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
@@ -78,7 +72,6 @@ export default function TangkapBurungGame() {
         });
       }, 1000);
 
-      // Interval Muncul Burung (Setiap 400ms)
       const spawnRate = 400;
 
       birdInterval = setInterval(() => {
@@ -160,7 +153,6 @@ export default function TangkapBurungGame() {
     if (currentName && baseUrl) {
       setIsSubmitting(true);
 
-      // Optimistic Update untuk Leaderboard secara instan
       const newEntry: LeaderboardEntry = {
         name: currentName,
         score: finalScore,
@@ -188,7 +180,6 @@ export default function TangkapBurungGame() {
           }),
         });
 
-        // Validasi ulang data asli dari server Google Sheets setelah beberapa detik
         setTimeout(() => {
           mutate(leaderboardUrl);
           setIsSubmitting(false);
@@ -196,7 +187,7 @@ export default function TangkapBurungGame() {
       } catch (error) {
         console.error("Gagal menyimpan skor:", error);
         setIsSubmitting(false);
-        mutate(leaderboardUrl); // Rollback jika gagal
+        mutate(leaderboardUrl);
       }
     }
   };
@@ -221,27 +212,24 @@ export default function TangkapBurungGame() {
           Waktu: <span className="text-rose-400 font-bold">{timeLeft}</span>s
         </div>
 
-        {/* Tombol Mulai */}
-        <div>
-          {!isPlaying && (
-            <button
-              onClick={handleStartClick}
-              className="mb-4 sm:mb-6 px-6 sm:px-8 py-2.5 sm:py-3 bg-gradient-to-r from-pink-500 to-rose-600 text-white text-sm sm:text-base rounded-full font-bold shadow-lg hover:opacity-95 hover:scale-105 transition-all cursor-pointer"
-            >
-              Mulai Game
-            </button>
-          )}
-        </div>
-
         {/* Area Bermain */}
         <div
           ref={gameAreaRef}
           className="relative w-full max-w-md mx-auto h-[380px] sm:h-[450px] bg-[#1a1017]/80 backdrop-blur-xl border-2 border-pink-500/30 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden my-4"
         >
+          {/* Overlay: Instruksi + Tombol Mulai (di tengah area) */}
           {!isPlaying && timeLeft === 35 && (
-            <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-pink-200/70 text-xs sm:text-sm">
-              Mode Sulit Aktif! Burung akan muncul lebih cepat dan banyak.
-              Tangkap sebanyak-banyaknya sebelum waktu habis!
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center gap-5">
+              <p className="text-pink-200/70 text-xs sm:text-sm max-w-xs leading-relaxed">
+                Mode Sulit Aktif! Burung akan muncul lebih cepat dan banyak.
+                Tangkap sebanyak-banyaknya sebelum waktu habis!
+              </p>
+              <button
+                onClick={handleStartClick}
+                className="px-6 sm:px-8 py-2.5 sm:py-3 bg-gradient-to-r from-pink-500 to-rose-600 text-white text-sm sm:text-base rounded-full font-bold shadow-lg hover:opacity-95 hover:scale-105 transition-all cursor-pointer"
+              >
+                Mulai Game
+              </button>
             </div>
           )}
 
@@ -302,6 +290,9 @@ export default function TangkapBurungGame() {
           >
             <span>← Kembali ke Daftar Game</span>
           </Link>
+        </div>
+        <div className="text-center text-[9px] text-pink-300/40 pt-4 pb-1">
+          Altaf Story &copy; 2026
         </div>
       </div>
 
