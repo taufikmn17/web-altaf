@@ -2,15 +2,14 @@
 import { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = "https://altafstory.my.id"; // GANTI DENGAN DOMAIN ANDA
+  const baseUrl = "https://altafstory.my.id";
 
   return {
     rules: {
       userAgent: "*",
       allow: "/",
-      // Jika Anda memiliki halaman admin atau API rahasia, tambahkan di sini
       disallow: ["/api/"],
     },
-    sitemap: `${baseUrl}/sitemap.ts`,
+    sitemap: `${baseUrl}/sitemap.xml`, // ✅ diperbaiki
   };
 }

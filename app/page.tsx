@@ -16,11 +16,6 @@ const CulinaryServer = dynamic(
 );
 const Footer = dynamic(() => import("./components/Footer"));
 
-export const metadata: Metadata = {
-  title: "Altaf | Cerita Kita",
-  description: "Website perjalanan kisah cinta Taufik dan Alya",
-};
-
 export default function Home() {
   return (
     <main className="min-h-screen bg-soft-white text-pink-700 font-sans">
