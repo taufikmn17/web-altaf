@@ -11,6 +11,11 @@ export const metadata: Metadata = {
     "Kumpulan cerita, destinasi, kuliner, dan game seru Altaf Story. Website bucin tempat menyimpan kenangan indah.",
   keywords: ["altaf story", "altaf", "cerita kita", "destinasi", "kuliner"],
   metadataBase: new URL("https://www.altafstory.my.id"),
+  icons: {
+    icon: "/favicon.ico", // Menambahkan definisi favicon secara eksplisit
+    shortcut: "/favicon.ico",
+    apple: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
