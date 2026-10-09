@@ -16,6 +16,7 @@ interface GameItem {
 export const metadata: Metadata = {
   title: "Arsip Mini Games - Altaf Story",
   description: "Kumpulan mini games seru dan interaktif untuk dimainkan.",
+  keywords: ["game altaf", "game bucin", "altaf story game"],
 };
 
 // Daftar game yang tersedia
