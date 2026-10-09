@@ -18,7 +18,7 @@ interface KulinerItem {
 
 // Metadata SEO agar optimal di mesin pencari
 export const metadata: Metadata = {
-  title: "Arsip Galeri Kuliner & Petualangan | Altaf Story",
+  title: "Arsip Galeri Kuliner & Petualangan - Altaf Story",
   description:
     "Kumpulan lengkap daftar tempat makan favorit, kuliner hits, dan petualangan kuliner bersama.",
 };

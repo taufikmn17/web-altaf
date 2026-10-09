@@ -15,7 +15,7 @@ interface DestinasiItem {
 }
 
 export const metadata: Metadata = {
-  title: "Arsip Destinasi & Tempat Wisata Favorit | Altaf Story",
+  title: "Arsip Destinasi & Tempat Wisata Favorit - Altaf Story",
   description:
     "Kumpulan lengkap daftar destinasi wisata, tempat jalan-jalan, dan memori perjalanan favorit bersama.",
 };

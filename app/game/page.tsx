@@ -14,7 +14,7 @@ interface GameItem {
 }
 
 export const metadata: Metadata = {
-  title: "Arsip Mini Games | Altaf Story",
+  title: "Arsip Mini Games - Altaf Story",
   description: "Kumpulan mini games seru dan interaktif untuk dimainkan.",
 };
 
