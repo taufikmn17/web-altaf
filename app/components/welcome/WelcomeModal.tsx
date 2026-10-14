@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useSyncExternalStore } from "react";
+import React, { useEffect, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import TextType from "./TextType";
 
@@ -18,11 +18,26 @@ const getModalVisibility = () =>
   !window.sessionStorage.getItem("hasSeenLotsoModal");
 
 export default function WelcomeLotsoModal() {
+  const [celebrationKey, setCelebrationKey] = useState(0);
   const isVisible = useSyncExternalStore(
     subscribeToModalPreference,
     getModalVisibility,
     () => false
   );
+
+  useEffect(() => {
+    if (!isVisible) return;
+
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousRootOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousRootOverflow;
+    };
+  }, [isVisible]);
 
   const handleClose = () => {
     sessionStorage.setItem("hasSeenLotsoModal", "true");
@@ -34,50 +49,103 @@ export default function WelcomeLotsoModal() {
   return (
     <div
       style={{ fontFamily: "Georgia, serif" }}
-      className="fixed inset-0 bg-[#120a0f]/85 backdrop-blur-md z-[9999] flex justify-center items-center p-4 animate-fadeIn"
+      className="welcome-backdrop fixed inset-0 z-[9999] flex items-center justify-center p-4"
     >
-      {/* Container Utama */}
-      <div className="relative bg-[#120a0f] border-2 border-[#ec4899] rounded-3xl shadow-2xl shadow-[#ec4899]/30 w-full max-w-md p-8 pt-24 mt-20 animate-scaleIn">
-        {/* Area Foto Lotso */}
-        <div className="absolute -top-20 left-1/2 -translate-x-1/2 w-40 h-40 rounded-full bg-[#120a0f] border-4 border-[#ec4899] shadow-lg overflow-hidden flex items-center justify-center z-10">
-          <Image
-            src="/assets/img/lotso.png"
-            alt="Lotso Huggin' Bear"
-            width={160}
-            height={160}
-            priority={true}
-            unoptimized={true} // Opsional: bypass image optimization jika lokal untuk mempercepat load asset
-            className="w-full h-full object-cover"
-          />
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="welcome-title"
+        className="welcome-modal"
+      >
+        <div className="welcome-scene">
+          <div className="welcome-ring" aria-hidden="true" />
+          <span className="welcome-sparkle welcome-sparkle-one" aria-hidden="true">
+            ✦
+          </span>
+          <span className="welcome-sparkle welcome-sparkle-two" aria-hidden="true">
+            ✦
+          </span>
+          <span className="welcome-sparkle welcome-sparkle-three" aria-hidden="true">
+            ✦
+          </span>
+          <button
+            type="button"
+            className={`welcome-characters ${celebrationKey ? "is-celebrating" : ""}`}
+            aria-label="Ajak Lotso melompat dan menyapa"
+            onClick={() => setCelebrationKey((key) => key + 1)}
+          >
+            <span
+              key={`jumper-${celebrationKey}`}
+              className="welcome-sprite welcome-lotso-jumper"
+              aria-hidden="true"
+            >
+              <Image
+                src="/assets/img/lotso2.png"
+                alt=""
+                width={260}
+                height={260}
+                priority
+                unoptimized
+              />
+            </span>
+            <span
+              key={`waver-${celebrationKey}`}
+              className="welcome-sprite welcome-lotso-waver"
+              aria-hidden="true"
+            >
+              <Image
+                src="/assets/img/lotso4.png"
+                alt=""
+                width={320}
+                height={320}
+                priority
+                unoptimized
+              />
+            </span>
+            <span
+              key={`heart-left-${celebrationKey}`}
+              className="welcome-pop-heart welcome-pop-heart-left"
+              aria-hidden="true"
+            >
+              ♥
+            </span>
+            <span
+              key={`heart-right-${celebrationKey}`}
+              className="welcome-pop-heart welcome-pop-heart-right"
+              aria-hidden="true"
+            >
+              ♥
+            </span>
+          </button>
         </div>
 
-        {/* Konten Modal */}
-        <div className="text-center">
-          <h2 className="text-4xl font-extrabold text-[#fdf8f6] mb-4 tracking-tighter drop-shadow-md">
+        <div className="welcome-copy">
+          <p className="welcome-eyebrow">SEBUAH CERITA UNTUKMU</p>
+          <h2 id="welcome-title" className="welcome-title">
             Hii, Welcome!
           </h2>
 
-          {/* Efek Ketik TextType */}
-          <div className="text-[#fbcfe8] text-lg mb-8 leading-relaxed font-medium min-h-[3.5rem] flex items-center justify-center">
+          <div className="welcome-message">
             <TextType
+              className="welcome-typewriter"
               text={["Ubur-ubur ikan lele, selamat datang di Altaf Story lee."]}
-              typingSpeed={40}
-              pauseDuration={2000}
-              loop={true}
+              typingSpeed={38}
+              initialDelay={350}
+              pauseDuration={3000}
+              loop={false}
               showCursor={true}
               cursorCharacter="|"
             />
           </div>
 
-          {/* Tombol Aksi Utama */}
           <button
             onClick={handleClose}
-            className="w-full bg-[#ec4899] hover:bg-pink-600 text-[#fdf8f6] font-bold py-4 px-6 rounded-xl text-xl shadow-lg hover:scale-[1.02] active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
+            className="welcome-cta"
           >
             Mulai Jelajahi! ✨
           </button>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

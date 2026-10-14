@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import WelcomeCatModal from "./components/welcome/WelcomeModal";
+import PageTransition from "./components/PageTransition";
 
 export const metadata: Metadata = {
   title: {
@@ -34,6 +35,7 @@ export default function RootLayout({
         <WelcomeCatModal />
 
         {children}
+        <PageTransition />
       </body>
     </html>
   );

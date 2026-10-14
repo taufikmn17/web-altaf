@@ -40,8 +40,8 @@ export default function Hero() {
     }
 
     const colors = ["#f472b6", "#fb7185", "#fbcfe8", "#ffffff", "#f43f5e"];
-    const nextSparkles = Array.from({ length: 20 }, () => ({
-      id: Date.now() + Math.random(),
+    const nextSparkles = Array.from({ length: 20 }, (_, index) => ({
+      id: index,
       x: (Math.random() - 0.5) * 200,
       y: Math.random() * -50 - 10,
       size: Math.random() * 6 + 4,
