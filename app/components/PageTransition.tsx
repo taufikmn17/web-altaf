@@ -23,6 +23,19 @@ export default function PageTransition() {
   const [message, setMessage] = useState(TRANSITION_MESSAGES[0]);
 
   useEffect(() => {
+    const startTransition = () => {
+      setMessage(
+        TRANSITION_MESSAGES[messageIndex.current % TRANSITION_MESSAGES.length]
+      );
+      messageIndex.current += 1;
+      setIsTransitioning(true);
+
+      if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
+      fallbackTimer.current = setTimeout(() => {
+        setIsTransitioning(false);
+      }, TRANSITION_FALLBACK_MS);
+    };
+
     const handleNavigationClick = (event: MouseEvent) => {
       if (
         event.defaultPrevented ||
@@ -53,21 +66,16 @@ export default function PageTransition() {
         return;
       }
 
-      setMessage(
-        TRANSITION_MESSAGES[messageIndex.current % TRANSITION_MESSAGES.length]
-      );
-      messageIndex.current += 1;
-      setIsTransitioning(true);
-
-      if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
-      fallbackTimer.current = setTimeout(() => {
-        setIsTransitioning(false);
-      }, TRANSITION_FALLBACK_MS);
+      startTransition();
     };
 
+    const handleHistoryNavigation = () => startTransition();
+
     document.addEventListener("click", handleNavigationClick, true);
+    window.addEventListener("popstate", handleHistoryNavigation);
     return () => {
       document.removeEventListener("click", handleNavigationClick, true);
+      window.removeEventListener("popstate", handleHistoryNavigation);
       if (hideTimer.current) clearTimeout(hideTimer.current);
       if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
     };
