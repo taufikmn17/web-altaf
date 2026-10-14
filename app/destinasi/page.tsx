@@ -71,8 +71,11 @@ const formatDriveImage = (url: string) => {
 
 async function getDestinations(): Promise<DestinasiItem[]> {
   try {
-    const baseUrl = process.env.GOOGLE_SCRIPT_URL || "";
-    const targetUrl = `${baseUrl}?sheet=destinasi`;
+    const baseUrl = process.env.GOOGLE_SCRIPT_URL;
+    if (!baseUrl) return [];
+
+    const targetUrl = new URL(baseUrl);
+    targetUrl.searchParams.set("sheet", "destinasi");
 
     const res = await fetch(targetUrl, {
       next: { revalidate: 60 },

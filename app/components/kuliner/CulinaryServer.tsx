@@ -33,8 +33,11 @@ const formatDriveImage = (url: string) => {
 // Fungsi fetch menggunakan arsitektur ISR (revalidate 60 detik)
 async function getCulinaries(): Promise<KulinerItem[]> {
   try {
-    const baseUrl = process.env.GOOGLE_SCRIPT_URL || "";
-    const targetUrl = `${baseUrl}?sheet=kuliner`;
+    const baseUrl = process.env.GOOGLE_SCRIPT_URL;
+    if (!baseUrl) return [];
+
+    const targetUrl = new URL(baseUrl);
+    targetUrl.searchParams.set("sheet", "kuliner");
 
     const res = await fetch(targetUrl, {
       next: { revalidate: 60 },
