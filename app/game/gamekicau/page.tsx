@@ -18,7 +18,7 @@ interface LeaderboardEntry {
 }
 
 const leaderboardFetcher = async (url: string) => {
-  const res = await fetch(url);
+  const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error("Gagal memuat leaderboard");
   const data = await res.json();
   if (Array.isArray(data)) {
@@ -49,8 +49,9 @@ export default function TangkapBurungGame() {
   const { data: leaderboard = [], isValidating: isLoadingLeaderboard } = useSWR<
     LeaderboardEntry[]
   >(leaderboardUrl, leaderboardFetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 30000,
+    refreshInterval: 20000,
+    revalidateOnFocus: true,
+    dedupingInterval: 5000,
   });
 
   const endGame = async () => {

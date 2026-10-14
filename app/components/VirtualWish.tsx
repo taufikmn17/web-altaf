@@ -43,8 +43,9 @@ export default function VirtualWish() {
     targetUrl,
     fetcher,
     {
-      revalidateOnFocus: false, // Tidak refetch otomatis saat pindah tab browser
-      dedupingInterval: 60000, // Cache data selama 1 menit untuk mencegah spam request ke GAS
+      refreshInterval: 20000,
+      revalidateOnFocus: true,
+      dedupingInterval: 5000,
     }
   );
 

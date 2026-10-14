@@ -36,7 +36,7 @@ export async function GET() {
     const targetUrl = new URL(SCRIPT_URL);
     targetUrl.searchParams.set("sheet", "lentera");
 
-    const response = await fetch(targetUrl);
+    const response = await fetch(targetUrl, { cache: "no-store" });
     if (!response.ok) {
       return NextResponse.json([], { status: 200 });
     }

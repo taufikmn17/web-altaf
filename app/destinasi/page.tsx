@@ -2,15 +2,7 @@ import { Metadata } from "next";
 import Navbar from "../components/Navbar";
 import DestinationGridClient from "./DestinationGridClient";
 import Footer from "../components/Footer";
-
-interface DestinasiItem {
-  id: string;
-  src: string;
-  title: string;
-  tag: string;
-  desc: string;
-  geo: string;
-}
+import { getDestinations } from "@/app/lib/google-sheets";
 
 export const metadata: Metadata = {
   title: "Destinasi Favorit & Tempat Wisata - Altaf Story",
@@ -51,57 +43,6 @@ export const metadata: Metadata = {
     images: ["/assets/img/hero.jpeg"],
   },
 };
-
-const formatDriveImage = (url: string) => {
-  if (!url) return "";
-  const cleanUrl = url.trim();
-
-  if (cleanUrl.includes("drive.google.com")) {
-    const match = cleanUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    if (match && match[1]) {
-      return `https://lh3.googleusercontent.com/d/${match[1]}`;
-    }
-    const idMatch = cleanUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-    if (idMatch && idMatch[1]) {
-      return `https://lh3.googleusercontent.com/d/${idMatch[1]}`;
-    }
-  }
-  return cleanUrl;
-};
-
-async function getDestinations(): Promise<DestinasiItem[]> {
-  try {
-    const baseUrl = process.env.GOOGLE_SCRIPT_URL;
-    if (!baseUrl) return [];
-
-    const targetUrl = new URL(baseUrl);
-    targetUrl.searchParams.set("sheet", "destinasi");
-
-    const res = await fetch(targetUrl, {
-      next: { revalidate: 60 },
-    });
-    const data = await res.json();
-
-    if (Array.isArray(data)) {
-      const records = data as Array<Record<string, unknown>>;
-      const formatted = records.map((item, index) => ({
-        id: index.toString(),
-        src: formatDriveImage(
-          String(item.src ?? item.image ?? item.foto ?? item.gambar ?? "")
-        ),
-        title: String(item.title ?? item.nama ?? item.judul ?? "Tanpa Judul"),
-        tag: String(item.tag ?? item.category ?? item.kategori ?? "Destinasi"),
-        desc: String(item.desc ?? item.description ?? item.deskripsi ?? ""),
-        geo: String(item.geo ?? item.location ?? item.lokasi ?? ""),
-      }));
-      return formatted.reverse();
-    }
-    return [];
-  } catch (err) {
-    console.error("Gagal memuat data destinasi:", err);
-    return [];
-  }
-}
 
 export default async function SemuaDestinasiPage() {
   const destinations = await getDestinations();

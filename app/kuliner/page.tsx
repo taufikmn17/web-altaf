@@ -2,17 +2,7 @@ import { Metadata } from "next";
 import Navbar from "../components/Navbar";
 import KulinerGridClient from "./KulinerGridClient";
 import Footer from "../components/Footer";
-
-interface KulinerItem {
-  id: string;
-  src: string;
-  title: string;
-  rating: string;
-  tag: string;
-  desc: string;
-  geo: string;
-  status: string;
-}
+import { getCulinaries } from "@/app/lib/google-sheets";
 
 // Metadata SEO agar optimal di mesin pencari
 export const metadata: Metadata = {
@@ -54,81 +44,6 @@ export const metadata: Metadata = {
     images: ["/assets/img/hero.jpeg"],
   },
 };
-
-// Helper untuk mengonversi link Google Drive agar langsung tampil
-const formatDriveImage = (url: string) => {
-  if (!url) return "";
-  const cleanUrl = url.trim();
-
-  if (cleanUrl.includes("drive.google.com")) {
-    const match = cleanUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
-    if (match && match[1]) {
-      return `https://lh3.googleusercontent.com/d/${match[1]}`;
-    }
-    const idMatch = cleanUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-    if (idMatch && idMatch[1]) {
-      return `https://lh3.googleusercontent.com/d/${idMatch[1]}`;
-    }
-  }
-  return cleanUrl;
-};
-
-// Fungsi untuk mengambil data menggunakan arsitektur ISR
-async function getCulinaries(): Promise<KulinerItem[]> {
-  try {
-    const baseUrl = process.env.GOOGLE_SCRIPT_URL;
-    if (!baseUrl) return [];
-
-    const targetUrl = new URL(baseUrl);
-    targetUrl.searchParams.set("sheet", "kuliner");
-
-    // Menggunakan ISR dengan revalidate 60 detik agar tidak selalu fetch ulang secara instan
-    const res = await fetch(targetUrl, {
-      next: { revalidate: 60 },
-    });
-    const data = await res.json();
-
-    if (Array.isArray(data)) {
-      const formatted = data.map((item: Record<string, unknown>, index: number) => ({
-        id: index.toString(),
-        src: formatDriveImage(
-          (item.src as string) ||
-            (item.image as string) ||
-            (item.foto as string) ||
-            (item.gambar as string) ||
-            ""
-        ),
-        title:
-          (item.title as string) ||
-          (item.nama as string) ||
-          (item.judul as string) ||
-          "Tanpa Judul",
-        rating: (item.rating as string) || (item.skor as string) || "5.0",
-        tag:
-          (item.tag as string) ||
-          (item.category as string) ||
-          (item.kategori as string) ||
-          "Kuliner",
-        desc:
-          (item.desc as string) ||
-          (item.description as string) ||
-          (item.deskripsi as string) ||
-          "",
-        geo:
-          (item.geo as string) ||
-          (item.location as string) ||
-          (item.lokasi as string) ||
-          "",
-        status: (item.status as string) || (item.state as string) || "Favorite",
-      }));
-      return formatted.reverse(); // Dibalik agar yang terbaru di atas
-    }
-    return [];
-  } catch (err) {
-    console.error("Gagal memuat data kuliner:", err);
-    return [];
-  }
-}
 
 export default async function SemuaGaleriPage() {
   const culinaries = await getCulinaries();

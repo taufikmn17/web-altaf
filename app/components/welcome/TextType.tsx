@@ -6,6 +6,7 @@ import React, {
   useRef,
   useState,
   useMemo,
+  createElement,
   useCallback,
 } from "react";
 import "./TextType.css";
@@ -55,7 +56,7 @@ const TextType = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [currentTextIndex, setCurrentTextIndex] = useState(0);
   const [isVisible, setIsVisible] = useState(!startOnVisible);
-  const containerRef = useRef<HTMLElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const textArray = useMemo(
     () => (Array.isArray(text) ? text : [text]),
@@ -190,20 +191,17 @@ const TextType = ({
     </>
   );
 
-  if (typeof Component === "string") {
-    const Tag = Component as any;
-    return (
-      <Tag ref={containerRef} className={`text-type ${className}`} {...props}>
-        {content}
-      </Tag>
-    );
+  const element = createElement(
+    Component,
+    { className: `text-type ${className}`, ...props },
+    content
+  );
+
+  if (startOnVisible) {
+    return <div ref={containerRef}>{element}</div>;
   }
 
-  return (
-    <div className={`text-type ${className}`} {...props}>
-      {content}
-    </div>
-  );
+  return element;
 };
 
 export default TextType;
