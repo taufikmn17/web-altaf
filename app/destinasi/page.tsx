@@ -1,5 +1,3 @@
-import React from "react";
-import Link from "next/link";
 import { Metadata } from "next";
 import Navbar from "../components/Navbar";
 import DestinationGridClient from "./DestinationGridClient";
@@ -15,9 +13,43 @@ interface DestinasiItem {
 }
 
 export const metadata: Metadata = {
-  title: "Arsip Destinasi & Tempat Wisata Favorit - Altaf Story",
+  title: "Destinasi Favorit & Tempat Wisata - Altaf Story",
   description:
-    "Kumpulan lengkap daftar destinasi wisata, tempat jalan-jalan, dan memori perjalanan favorit bersama.",
+    "Jelajahi destinasi favorit, tempat wisata romantis, dan momen perjalanan indah di Altaf Story.",
+  keywords: [
+    "destinasi wisata",
+    "tempat wisata favorit",
+    "jalan-jalan romantis",
+    "Altaf Story",
+    "kisah perjalanan",
+  ],
+  alternates: {
+    canonical: "/destinasi",
+  },
+  openGraph: {
+    title: "Destinasi Favorit & Tempat Wisata - Altaf Story",
+    description:
+      "Temukan destinasi favorit dan momen perjalanan indah yang menjadi bagian dari kisah kita di Altaf Story.",
+    url: "/destinasi",
+    siteName: "Altaf Story",
+    locale: "id_ID",
+    type: "website",
+    images: [
+      {
+        url: "/assets/img/hero.jpeg",
+        width: 1200,
+        height: 630,
+        alt: "Halaman destinasi Altaf Story",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Destinasi Favorit & Tempat Wisata - Altaf Story",
+    description:
+      "Temukan destinasi favorit dan momen perjalanan indah yang menjadi bagian dari kisah kita di Altaf Story.",
+    images: ["/assets/img/hero.jpeg"],
+  },
 };
 
 const formatDriveImage = (url: string) => {
@@ -39,7 +71,7 @@ const formatDriveImage = (url: string) => {
 
 async function getDestinations(): Promise<DestinasiItem[]> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || "";
+    const baseUrl = process.env.GOOGLE_SCRIPT_URL || "";
     const targetUrl = `${baseUrl}?sheet=destinasi`;
 
     const res = await fetch(targetUrl, {
@@ -48,15 +80,16 @@ async function getDestinations(): Promise<DestinasiItem[]> {
     const data = await res.json();
 
     if (Array.isArray(data)) {
-      const formatted = data.map((item: any, index: number) => ({
+      const records = data as Array<Record<string, unknown>>;
+      const formatted = records.map((item, index) => ({
         id: index.toString(),
         src: formatDriveImage(
-          item.src || item.image || item.foto || item.gambar || ""
+          String(item.src ?? item.image ?? item.foto ?? item.gambar ?? "")
         ),
-        title: item.title || item.nama || item.judul || "Tanpa Judul",
-        tag: item.tag || item.category || item.kategori || "Destinasi",
-        desc: item.desc || item.description || item.deskripsi || "",
-        geo: item.geo || item.location || item.lokasi || "",
+        title: String(item.title ?? item.nama ?? item.judul ?? "Tanpa Judul"),
+        tag: String(item.tag ?? item.category ?? item.kategori ?? "Destinasi"),
+        desc: String(item.desc ?? item.description ?? item.deskripsi ?? ""),
+        geo: String(item.geo ?? item.location ?? item.lokasi ?? ""),
       }));
       return formatted.reverse();
     }

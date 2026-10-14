@@ -6,9 +6,43 @@ import Footer from "../components/Footer";
 
 // Metadata khusus untuk SEO halaman Kisah Kita
 export const metadata: Metadata = {
-  title: "Kisah Cinta Taufik & Alya - Perjalanan Lengkap Cerita Kita",
+  title: "Kisah Cinta & Perjalanan Kita - Altaf Story",
   description:
-    "Baca perjalanan lengkap kisah cinta Taufik dan Alya dari awal pertemuan hingga melangkah bersama menuju masa depan.",
+    "Baca perjalanan lengkap kisah cinta, momen indah, dan jejak langkah bersama di halaman kisah kita Altaf Story.",
+  keywords: [
+    "kisah cinta",
+    "kisah kita",
+    "cerita cinta",
+    "perjalanan cinta",
+    "Altaf Story",
+  ],
+  alternates: {
+    canonical: "/kisah-kita",
+  },
+  openGraph: {
+    title: "Kisah Cinta & Perjalanan Kita - Altaf Story",
+    description:
+      "Baca perjalanan lengkap kisah cinta, momen indah, dan jejak langkah bersama di halaman kisah kita Altaf Story.",
+    url: "/kisah-kita",
+    siteName: "Altaf Story",
+    locale: "id_ID",
+    type: "website",
+    images: [
+      {
+        url: "/assets/img/hero.jpeg",
+        width: 1200,
+        height: 630,
+        alt: "Halaman kisah cinta Altaf Story",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Kisah Cinta & Perjalanan Kita - Altaf Story",
+    description:
+      "Baca perjalanan lengkap kisah cinta, momen indah, dan jejak langkah bersama di halaman kisah kita Altaf Story.",
+    images: ["/assets/img/hero.jpeg"],
+  },
 };
 
 interface TimelineItem {

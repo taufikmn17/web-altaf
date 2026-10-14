@@ -1,28 +1,35 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useSyncExternalStore } from "react";
 import Image from "next/image";
 import TextType from "./TextType";
 
-export default function WelcomeLotsoModal() {
-  const [isVisible, setIsVisible] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
+const subscribeToModalPreference = (callback: () => void) => {
+  window.addEventListener("storage", callback);
+  window.addEventListener("welcome-modal-preference", callback);
 
-  useEffect(() => {
-    setIsMounted(true);
-    const hasSeenModal = sessionStorage.getItem("hasSeenLotsoModal");
-    if (!hasSeenModal) {
-      setIsVisible(true);
-    }
-  }, []);
+  return () => {
+    window.removeEventListener("storage", callback);
+    window.removeEventListener("welcome-modal-preference", callback);
+  };
+};
+
+const getModalVisibility = () =>
+  !window.sessionStorage.getItem("hasSeenLotsoModal");
+
+export default function WelcomeLotsoModal() {
+  const isVisible = useSyncExternalStore(
+    subscribeToModalPreference,
+    getModalVisibility,
+    () => false
+  );
 
   const handleClose = () => {
-    setIsVisible(false);
     sessionStorage.setItem("hasSeenLotsoModal", "true");
+    window.dispatchEvent(new Event("welcome-modal-preference"));
   };
 
-  // Jangan render apa pun di SSR atau jika sudah dilihat untuk mencegah layout shift & render delay
-  if (!isMounted || !isVisible) return null;
+  if (!isVisible) return null;
 
   return (
     <div

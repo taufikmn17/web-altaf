@@ -33,7 +33,7 @@ const formatDriveImage = (url: string) => {
 // Fungsi fetch menggunakan arsitektur ISR (revalidate 60 detik)
 async function getCulinaries(): Promise<KulinerItem[]> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || "";
+    const baseUrl = process.env.GOOGLE_SCRIPT_URL || "";
     const targetUrl = `${baseUrl}?sheet=kuliner`;
 
     const res = await fetch(targetUrl, {
@@ -42,17 +42,37 @@ async function getCulinaries(): Promise<KulinerItem[]> {
     const data = await res.json();
 
     if (Array.isArray(data)) {
-      const formatted = data.map((item: any, index: number) => ({
+      const formatted = data.map((item: Record<string, unknown>, index: number) => ({
         id: index.toString(),
         src: formatDriveImage(
-          item.src || item.image || item.foto || item.gambar || ""
+          (item.src as string) ||
+            (item.image as string) ||
+            (item.foto as string) ||
+            (item.gambar as string) ||
+            ""
         ),
-        title: item.title || item.nama || item.judul || "Tanpa Judul",
-        rating: item.rating || item.skor || "5.0",
-        tag: item.tag || item.category || item.kategori || "Kuliner",
-        desc: item.desc || item.description || item.deskripsi || "",
-        geo: item.geo || item.location || item.lokasi || "",
-        status: item.status || item.state || "Favorite",
+        title:
+          (item.title as string) ||
+          (item.nama as string) ||
+          (item.judul as string) ||
+          "Tanpa Judul",
+        rating: (item.rating as string) || (item.skor as string) || "5.0",
+        tag:
+          (item.tag as string) ||
+          (item.category as string) ||
+          (item.kategori as string) ||
+          "Kuliner",
+        desc:
+          (item.desc as string) ||
+          (item.description as string) ||
+          (item.deskripsi as string) ||
+          "",
+        geo:
+          (item.geo as string) ||
+          (item.location as string) ||
+          (item.lokasi as string) ||
+          "",
+        status: (item.status as string) || (item.state as string) || "Favorite",
       }));
       return formatted.reverse(); // Dibalik agar data terbaru di Google Sheets tampil di atas
     }

@@ -17,11 +17,11 @@ const fetcher = async (url: string) => {
   const data = await res.json();
 
   if (Array.isArray(data) && data.length > 0) {
-    return data.reverse().map((item: any, index: number) => ({
+    return data.reverse().map((item: Record<string, unknown>, index: number) => ({
       id: index.toString(),
-      text: item.text || "",
-      color: item.color || "pink",
-      timestamp: item.date ? item.date.toString().split("T")[0] : "Baru saja",
+      text: (item.text as string) || "",
+      color: (item.color as Wish["color"]) || "pink",
+      timestamp: item.date ? (item.date as string).toString().split("T")[0] : "Baru saja",
     }));
   }
   return [];
@@ -36,8 +36,7 @@ export default function VirtualWish() {
   >([]);
 
   const maxLength = 150;
-  const baseUrl = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || "";
-  const targetUrl = baseUrl ? `${baseUrl}?sheet=lentera` : null;
+  const targetUrl = "/api/wish";
 
   // Menggunakan SWR untuk caching & otomatisasi revalidate tanpa loading terus-menerus
   const { data: wishes = [], isValidating: isLoadingWishes } = useSWR<Wish[]>(
@@ -107,13 +106,17 @@ export default function VirtualWish() {
     setWishText("");
 
     try {
-      // Kirim data ke Google Apps Script di background
-      await fetch(baseUrl, {
+      const response = await fetch("/api/wish", {
         method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(result?.error || "Gagal menyimpan harapan");
+      }
 
       // Validasi ulang data dari server setelah berhasil simpan
       mutate(targetUrl);

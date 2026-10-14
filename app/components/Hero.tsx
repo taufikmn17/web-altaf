@@ -31,39 +31,47 @@ export default function Hero() {
   const [sparkles, setSparkles] = useState<Sparkle[]>([]);
 
   useEffect(() => {
+    if (!isLotsoVisible) {
+      const cleanupTimer = setTimeout(() => {
+        setSparkles([]);
+      }, 0);
+
+      return () => clearTimeout(cleanupTimer);
+    }
+
+    const colors = ["#f472b6", "#fb7185", "#fbcfe8", "#ffffff", "#f43f5e"];
+    const nextSparkles = Array.from({ length: 20 }, () => ({
+      id: Date.now() + Math.random(),
+      x: (Math.random() - 0.5) * 200,
+      y: Math.random() * -50 - 10,
+      size: Math.random() * 6 + 4,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      speedX: (Math.random() - 0.5) * 4,
+      speedY: Math.random() * -3 - 1,
+      opacity: 1,
+    }));
+
+    const schedule = setTimeout(() => {
+      setSparkles(nextSparkles);
+    }, 0);
+
+    const sparkleTimer = setTimeout(() => {
+      setSparkles([]);
+    }, 1500);
+
+    return () => {
+      clearTimeout(schedule);
+      clearTimeout(sparkleTimer);
+    };
+  }, [isLotsoVisible]);
+
+  useEffect(() => {
     const cycleInterval = setInterval(() => {
       setIsLotsoVisible((prev) => !prev);
     }, 5000);
 
     return () => clearInterval(cycleInterval);
   }, []);
-
-  useEffect(() => {
-    if (isLotsoVisible) {
-      const newSparkles: Sparkle[] = [];
-      const colors = ["#f472b6", "#fb7185", "#fbcfe8", "#ffffff", "#f43f5e"];
-
-      for (let i = 0; i < 20; i++) {
-        newSparkles.push({
-          id: Math.random(),
-          x: (Math.random() - 0.5) * 200,
-          y: Math.random() * -50 - 10,
-          size: Math.random() * 6 + 4,
-          color: colors[Math.floor(Math.random() * colors.length)],
-          speedX: (Math.random() - 0.5) * 4,
-          speedY: Math.random() * -3 - 1,
-          opacity: 1,
-        });
-      }
-      setSparkles(newSparkles);
-
-      const sparkleTimer = setTimeout(() => {
-        setSparkles([]);
-      }, 1500);
-
-      return () => clearTimeout(sparkleTimer);
-    }
-  }, [isLotsoVisible]);
 
   useEffect(() => {
     const canvas = document.getElementById(
@@ -75,7 +83,7 @@ export default function Hero() {
     if (!ctx) return;
 
     let animationFrameId: number;
-    let hearts: Heart[] = [];
+    const hearts: Heart[] = [];
     let isVisible = true;
 
     const resizeCanvas = () => {
@@ -230,7 +238,7 @@ export default function Hero() {
       <div className="absolute inset-0 z-0">
         <Image
           src="/assets/img/hero.jpeg"
-          alt="Hero Background"
+          alt="Pemandangan utama halaman depan Altaf Story dengan tema kisah cinta"
           fill
           priority
           sizes="100vw"
@@ -319,7 +327,7 @@ export default function Hero() {
           >
             <Image
               src="/assets/img/lotso3.png"
-              alt="Lotso Bear"
+              alt="Karakter teddy bear Lotso di halaman utama Altaf Story"
               fill
               priority
               fetchPriority="high" // <-- Solusi utama LCP: Memberi prioritas unduh tinggi pada browser

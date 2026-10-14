@@ -141,13 +141,6 @@ export default function GameLabirinPage() {
   const [isWon, setIsWon] = useState(false);
   const [moves, setMoves] = useState(0);
 
-  useEffect(() => {
-    const newCoords = getCoords(activeMazeData.map);
-    setPlayerPosition(newCoords.start);
-    setMoves(0);
-    setIsWon(false);
-  }, [currentMazeIndex]);
-
   const movePlayer = (dx: number, dy: number) => {
     if (isWon) return;
 
@@ -169,6 +162,13 @@ export default function GameLabirinPage() {
         }
       }
     }
+  };
+
+  const resetGame = () => {
+    const newCoords = getCoords(activeMazeData.map);
+    setPlayerPosition(newCoords.start);
+    setIsWon(false);
+    setMoves(0);
   };
 
   useEffect(() => {
@@ -193,14 +193,7 @@ export default function GameLabirinPage() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [playerPosition, isWon, activeMazeData]);
-
-  const resetGame = () => {
-    const newCoords = getCoords(activeMazeData.map);
-    setPlayerPosition(newCoords.start);
-    setIsWon(false);
-    setMoves(0);
-  };
+  }, [movePlayer, playerPosition, isWon, activeMazeData]);
 
   const nextMaze = () => {
     const nextIdx = (currentMazeIndex + 1) % rawMazeVariations.length;

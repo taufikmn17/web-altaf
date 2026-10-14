@@ -14,9 +14,43 @@ interface GameItem {
 }
 
 export const metadata: Metadata = {
-  title: "Arsip Mini Games - Altaf Story",
-  description: "Kumpulan mini games seru dan interaktif untuk dimainkan.",
-  keywords: ["game altaf", "game bucin", "altaf story game"],
+  title: "Mini Games Seru & Interaktif - Altaf Story",
+  description:
+    "Mainkan game seru dan interaktif seperti labirin, ular, dan game bucin di Altaf Story.",
+  keywords: [
+    "game altaf",
+    "game bucin",
+    "altaf story game",
+    "mini games",
+    "game interaktif",
+  ],
+  alternates: {
+    canonical: "/game",
+  },
+  openGraph: {
+    title: "Mini Games Seru & Interaktif - Altaf Story",
+    description:
+      "Mainkan game seru dan interaktif seperti labirin, ular, dan game bucin di Altaf Story.",
+    url: "/game",
+    siteName: "Altaf Story",
+    locale: "id_ID",
+    type: "website",
+    images: [
+      {
+        url: "/assets/img/hero.jpeg",
+        width: 1200,
+        height: 630,
+        alt: "Halaman game Altaf Story",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Mini Games Seru & Interaktif - Altaf Story",
+    description:
+      "Mainkan game seru dan interaktif seperti labirin, ular, dan game bucin di Altaf Story.",
+    images: ["/assets/img/hero.jpeg"],
+  },
 };
 
 // Daftar game yang tersedia

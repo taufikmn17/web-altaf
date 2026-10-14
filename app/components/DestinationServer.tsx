@@ -31,7 +31,7 @@ const formatDriveImage = (url: string) => {
 // Fungsi untuk mengambil data destinasi menggunakan arsitektur ISR (revalidate 60 detik)
 async function getDestinations(): Promise<DestinasiItem[]> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || "";
+    const baseUrl = process.env.GOOGLE_SCRIPT_URL || "";
     const targetUrl = `${baseUrl}?sheet=destinasi`;
 
     const res = await fetch(targetUrl, {
@@ -40,15 +40,35 @@ async function getDestinations(): Promise<DestinasiItem[]> {
     const data = await res.json();
 
     if (Array.isArray(data)) {
-      const formatted = data.map((item: any, index: number) => ({
+      const formatted = data.map((item: Record<string, unknown>, index: number) => ({
         id: index.toString(),
         src: formatDriveImage(
-          item.src || item.image || item.foto || item.gambar || ""
+          (item.src as string) ||
+            (item.image as string) ||
+            (item.foto as string) ||
+            (item.gambar as string) ||
+            ""
         ),
-        title: item.title || item.nama || item.judul || "Tanpa Judul",
-        tag: item.tag || item.category || item.kategori || "Destinasi",
-        desc: item.desc || item.description || item.deskripsi || "",
-        geo: item.geo || item.location || item.lokasi || "",
+        title:
+          (item.title as string) ||
+          (item.nama as string) ||
+          (item.judul as string) ||
+          "Tanpa Judul",
+        tag:
+          (item.tag as string) ||
+          (item.category as string) ||
+          (item.kategori as string) ||
+          "Destinasi",
+        desc:
+          (item.desc as string) ||
+          (item.description as string) ||
+          (item.deskripsi as string) ||
+          "",
+        geo:
+          (item.geo as string) ||
+          (item.location as string) ||
+          (item.lokasi as string) ||
+          "",
       }));
       return formatted.reverse(); // Dibalik agar data terbaru tampil di urutan pertama
     }

@@ -26,19 +26,28 @@ export default function GameUlarPage() {
   const [gameOver, setGameOver] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [score, setScore] = useState(0);
-  const [highScore, setHighScore] = useState(0);
+  const [highScore, setHighScore] = useState<number>(() => {
+    if (typeof window === "undefined") return 0;
+    const saved = localStorage.getItem("altaf_snake_highscore");
+    return saved ? Number.parseInt(saved, 10) || 0 : 0;
+  });
 
   const directionRef = useRef<Direction>("UP");
   const snakeRef = useRef<Position[]>(snake);
   const foodRef = useRef<Position>(food);
   const scoreRef = useRef<number>(0);
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("altaf_snake_highscore");
-      if (saved) setHighScore(parseInt(saved, 10));
+  const handleGameOver = useCallback(() => {
+    setGameOver(true);
+    setGameStarted(false);
+    const finalScore = scoreRef.current;
+    if (finalScore > highScore) {
+      setHighScore(finalScore);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("altaf_snake_highscore", finalScore.toString());
+      }
     }
-  }, []);
+  }, [highScore]);
 
   useEffect(() => {
     snakeRef.current = snake;
@@ -80,7 +89,7 @@ export default function GameUlarPage() {
       const currentFood = foodRef.current;
 
       const head = currentSnake[0];
-      let newHead: Position = { ...head };
+      const newHead: Position = { ...head };
 
       switch (currentDirection) {
         case "UP":
@@ -126,19 +135,7 @@ export default function GameUlarPage() {
     }, speed);
 
     return () => clearInterval(interval);
-  }, [gameStarted, gameOver, isPaused, score, generateFood]);
-
-  const handleGameOver = () => {
-    setGameOver(true);
-    setGameStarted(false);
-    const finalScore = scoreRef.current;
-    if (finalScore > highScore) {
-      setHighScore(finalScore);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("altaf_snake_highscore", finalScore.toString());
-      }
-    }
-  };
+  }, [gameStarted, gameOver, isPaused, score, generateFood, handleGameOver]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

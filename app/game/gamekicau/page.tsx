@@ -43,8 +43,8 @@ export default function TangkapBurungGame() {
 
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const baseUrl = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || "";
-  const leaderboardUrl = baseUrl ? `${baseUrl}?sheet=gamekicau` : null;
+  const leaderboardUrl = "/api/game/leaderboard";
+  const submitUrl = "/api/game/submit";
 
   const { data: leaderboard = [], isValidating: isLoadingLeaderboard } = useSWR<
     LeaderboardEntry[]
@@ -52,6 +52,69 @@ export default function TangkapBurungGame() {
     revalidateOnFocus: false,
     dedupingInterval: 30000,
   });
+
+  const endGame = async () => {
+    if (isEndedRef.current) return;
+    isEndedRef.current = true;
+
+    const finalScore = scoreRef.current;
+    const currentName = playerName;
+
+    setIsPlaying(false);
+    setBirds([]);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+
+    setShowScoreModal(true);
+
+    if (currentName) {
+      setIsSubmitting(true);
+
+      const newEntry: LeaderboardEntry = {
+        name: currentName,
+        score: finalScore,
+        timestamp: "Baru saja",
+      };
+
+      const updatedLeaderboard = [...leaderboard, newEntry]
+        .sort((a, b) => Number(b.score) - Number(a.score))
+        .slice(0, 3);
+
+      mutate(leaderboardUrl, updatedLeaderboard, false);
+
+      try {
+        const response = await fetch(submitUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            sheet: "gamekicau",
+            name: currentName,
+            score: Number(finalScore),
+            timestamp: new Date().toISOString(),
+          }),
+        });
+
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(result?.error || "Gagal menyimpan skor");
+        }
+
+        setTimeout(() => {
+          mutate(leaderboardUrl);
+          setIsSubmitting(false);
+        }, 2000);
+      } catch (error) {
+        console.error("Gagal menyimpan skor:", error);
+        setIsSubmitting(false);
+        mutate(leaderboardUrl);
+      }
+    }
+  };
 
   useEffect(() => {
     let timerInterval: NodeJS.Timeout;
@@ -65,7 +128,7 @@ export default function TangkapBurungGame() {
       timerInterval = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
-            endGame();
+            void endGame();
             return 0;
           }
           return prev - 1;
@@ -102,7 +165,7 @@ export default function TangkapBurungGame() {
       clearInterval(timerInterval);
       clearInterval(birdInterval);
     };
-  }, [isPlaying]);
+  }, [endGame, isPlaying]);
 
   const handleStartClick = () => {
     setShowNameModal(true);
@@ -134,63 +197,6 @@ export default function TangkapBurungGame() {
     setBirds((prev) => prev.filter((b) => b.id !== birdId));
   };
 
-  const endGame = async () => {
-    if (isEndedRef.current) return;
-    isEndedRef.current = true;
-
-    const finalScore = scoreRef.current;
-    const currentName = playerName;
-
-    setIsPlaying(false);
-    setBirds([]);
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
-
-    setShowScoreModal(true);
-
-    if (currentName && baseUrl) {
-      setIsSubmitting(true);
-
-      const newEntry: LeaderboardEntry = {
-        name: currentName,
-        score: finalScore,
-        timestamp: "Baru saja",
-      };
-
-      const updatedLeaderboard = [...leaderboard, newEntry]
-        .sort((a, b) => Number(b.score) - Number(a.score))
-        .slice(0, 3);
-
-      mutate(leaderboardUrl, updatedLeaderboard, false);
-
-      try {
-        await fetch(baseUrl, {
-          method: "POST",
-          mode: "no-cors",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            sheet: "gamekicau",
-            name: currentName,
-            score: Number(finalScore),
-            timestamp: new Date().toLocaleString(),
-          }),
-        });
-
-        setTimeout(() => {
-          mutate(leaderboardUrl);
-          setIsSubmitting(false);
-        }, 2000);
-      } catch (error) {
-        console.error("Gagal menyimpan skor:", error);
-        setIsSubmitting(false);
-        mutate(leaderboardUrl);
-      }
-    }
-  };
 
   return (
     <main

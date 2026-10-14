@@ -1,5 +1,3 @@
-import React from "react";
-import Link from "next/link";
 import { Metadata } from "next";
 import Navbar from "../components/Navbar";
 import KulinerGridClient from "./KulinerGridClient";
@@ -18,9 +16,43 @@ interface KulinerItem {
 
 // Metadata SEO agar optimal di mesin pencari
 export const metadata: Metadata = {
-  title: "Arsip Galeri Kuliner & Petualangan - Altaf Story",
+  title: "Kuliner Favorit & Tempat Makan - Altaf Story",
   description:
-    "Kumpulan lengkap daftar tempat makan favorit, kuliner hits, dan petualangan kuliner bersama.",
+    "Temukan kuliner favorit, tempat makan hits, dan petualangan rasa yang menjadi bagian dari cerita kita di Altaf Story.",
+  keywords: [
+    "kuliner favorit",
+    "tempat makan",
+    "petualangan kuliner",
+    "Altaf Story",
+    "wisata kuliner",
+  ],
+  alternates: {
+    canonical: "/kuliner",
+  },
+  openGraph: {
+    title: "Kuliner Favorit & Tempat Makan - Altaf Story",
+    description:
+      "Temukan kuliner favorit, tempat makan hits, dan petualangan rasa yang menjadi bagian dari cerita kita di Altaf Story.",
+    url: "/kuliner",
+    siteName: "Altaf Story",
+    locale: "id_ID",
+    type: "website",
+    images: [
+      {
+        url: "/assets/img/hero.jpeg",
+        width: 1200,
+        height: 630,
+        alt: "Halaman kuliner Altaf Story",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Kuliner Favorit & Tempat Makan - Altaf Story",
+    description:
+      "Temukan kuliner favorit, tempat makan hits, dan petualangan rasa yang menjadi bagian dari cerita kita di Altaf Story.",
+    images: ["/assets/img/hero.jpeg"],
+  },
 };
 
 // Helper untuk mengonversi link Google Drive agar langsung tampil
@@ -44,7 +76,7 @@ const formatDriveImage = (url: string) => {
 // Fungsi untuk mengambil data menggunakan arsitektur ISR
 async function getCulinaries(): Promise<KulinerItem[]> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_GOOGLE_SCRIPT_URL || "";
+    const baseUrl = process.env.GOOGLE_SCRIPT_URL || "";
     const targetUrl = `${baseUrl}?sheet=kuliner`;
 
     // Menggunakan ISR dengan revalidate 60 detik agar tidak selalu fetch ulang secara instan
@@ -54,17 +86,37 @@ async function getCulinaries(): Promise<KulinerItem[]> {
     const data = await res.json();
 
     if (Array.isArray(data)) {
-      const formatted = data.map((item: any, index: number) => ({
+      const formatted = data.map((item: Record<string, unknown>, index: number) => ({
         id: index.toString(),
         src: formatDriveImage(
-          item.src || item.image || item.foto || item.gambar || ""
+          (item.src as string) ||
+            (item.image as string) ||
+            (item.foto as string) ||
+            (item.gambar as string) ||
+            ""
         ),
-        title: item.title || item.nama || item.judul || "Tanpa Judul",
-        rating: item.rating || item.skor || "5.0",
-        tag: item.tag || item.category || item.kategori || "Kuliner",
-        desc: item.desc || item.description || item.deskripsi || "",
-        geo: item.geo || item.location || item.lokasi || "",
-        status: item.status || item.state || "Favorite",
+        title:
+          (item.title as string) ||
+          (item.nama as string) ||
+          (item.judul as string) ||
+          "Tanpa Judul",
+        rating: (item.rating as string) || (item.skor as string) || "5.0",
+        tag:
+          (item.tag as string) ||
+          (item.category as string) ||
+          (item.kategori as string) ||
+          "Kuliner",
+        desc:
+          (item.desc as string) ||
+          (item.description as string) ||
+          (item.deskripsi as string) ||
+          "",
+        geo:
+          (item.geo as string) ||
+          (item.location as string) ||
+          (item.lokasi as string) ||
+          "",
+        status: (item.status as string) || (item.state as string) || "Favorite",
       }));
       return formatted.reverse(); // Dibalik agar yang terbaru di atas
     }
