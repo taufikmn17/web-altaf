@@ -22,11 +22,13 @@ export interface CulinaryItem {
   status: string;
 }
 
-const SHEETS_REVALIDATE_SECONDS = 300;
+const SHEETS_REVALIDATE_SECONDS = 3600;
 
 async function fetchSheetRows(sheet: "destinasi" | "kuliner"): Promise<SheetRow[]> {
   const scriptUrl = process.env.GOOGLE_SCRIPT_URL?.trim();
-  if (!scriptUrl) return [];
+  if (!scriptUrl) {
+    throw new Error("GOOGLE_SCRIPT_URL is not configured");
+  }
 
   const targetUrl = new URL(scriptUrl);
   targetUrl.searchParams.set("sheet", sheet);
@@ -34,7 +36,10 @@ async function fetchSheetRows(sheet: "destinasi" | "kuliner"): Promise<SheetRow[
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const response = await fetch(targetUrl, {
-        next: { revalidate: SHEETS_REVALIDATE_SECONDS },
+        next: {
+          revalidate: SHEETS_REVALIDATE_SECONDS,
+          tags: [`google-sheet:${sheet}`],
+        },
         signal: AbortSignal.timeout(10_000),
       });
 
@@ -43,7 +48,10 @@ async function fetchSheetRows(sheet: "destinasi" | "kuliner"): Promise<SheetRow[
       }
 
       const data: unknown = await response.json();
-      if (!Array.isArray(data)) {
+      if (
+        !Array.isArray(data) ||
+        (typeof data === "object" && data !== null && "error" in data)
+      ) {
         throw new Error(`Google Sheets returned invalid data for ${sheet}`);
       }
 
@@ -54,7 +62,7 @@ async function fetchSheetRows(sheet: "destinasi" | "kuliner"): Promise<SheetRow[
     } catch (error) {
       if (attempt === 1) {
         console.error(`Failed to load Google Sheets data for ${sheet}:`, error);
-        return [];
+        throw error;
       }
 
       await new Promise((resolve) => setTimeout(resolve, 300));
