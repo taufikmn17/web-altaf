@@ -18,6 +18,16 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+## Tap Rush Online
+
+Tap Rush uses Supabase Realtime Presence and Broadcast for online rooms. No database table is required.
+
+1. Create a Supabase project and copy the project URL and publishable/anon key.
+2. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in `.env.local`. The legacy `NEXT_PUBLIC_SUPABASE_ANON_KEY` is also supported.
+3. Add the same variables to the Vercel project and redeploy.
+
+The key is a client-side publishable/anon key. Do not put a Supabase `service_role` key in `NEXT_PUBLIC_*` variables.
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More
