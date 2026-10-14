@@ -10,8 +10,8 @@ const TRANSITION_MESSAGES = [
   "Jangan ke mana-mana, Lotso lagi nyari cerita paling gemas buatmu.",
   "Halaman baru otw! Lotso bilang: siap-siap senyum yaa.",
 ];
-const TRANSITION_DISPLAY_MS = 5000;
-const TRANSITION_FALLBACK_MS = 15000;
+const TRANSITION_DISPLAY_MS = 3000;
+const TRANSITION_FALLBACK_MS = 12000;
 
 export default function PageTransition() {
   const pathname = usePathname();
