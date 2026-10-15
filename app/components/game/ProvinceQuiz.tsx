@@ -15,11 +15,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getSupabaseBrowserClient } from "@/app/lib/supabase-browser";
-import {
-  PROVINCES_ID,
-  getProvinceAliases,
-  normalizeProvince,
-} from "@/app/lib/provinces-id";
+import { PROVINCES_ID, isAnswerCorrect } from "@/app/lib/provinces-id";
 
 type RoomPlayer = {
   id: string;
@@ -32,7 +28,7 @@ type GamePhase = "lobby" | "playing" | "results";
 
 type RoundData = {
   round: number;
-  index: number; // 1-38
+  index: number;
   imageUrl: string;
   answer: string;
 };
@@ -40,7 +36,6 @@ type RoundData = {
 const TOTAL_ROUNDS = 5;
 const ANSWER_WINDOW_MS = 20_000;
 const REVEAL_DURATION_MS = 3_500;
-const API_BASE = "https://symbolsofIndonesia.vercel.app";
 const ROOM_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 function makeRoomCode() {
@@ -53,10 +48,10 @@ function makeRoomCode() {
 }
 
 function pickRandomProvince(exclude: Set<number>): number {
-  const pool = Array.from({ length: 38 }, (_, i) => i + 1).filter(
+  const pool = Array.from({ length: PROVINCES_ID.length }, (_, i) => i).filter(
     (i) => !exclude.has(i),
   );
-  if (pool.length === 0) return Math.floor(Math.random() * 38) + 1;
+  if (pool.length === 0) return Math.floor(Math.random() * PROVINCES_ID.length);
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
@@ -243,14 +238,14 @@ export default function ProvinceQuiz() {
   const broadcastNewRound = async (roundNumber: number) => {
     const idx = pickRandomProvince(usedIndicesRef.current);
     usedIndicesRef.current.add(idx);
-    const answer = PROVINCES_ID[idx - 1] ?? "Tidak diketahui";
-    const imageUrl = `${API_BASE}/provinces/${idx}/300`;
+    const province = PROVINCES_ID[idx];
+    if (!province) return;
 
     const data: RoundData = {
       round: roundNumber,
       index: idx,
-      imageUrl,
-      answer,
+      imageUrl: province.emblem,
+      answer: province.name,
     };
 
     setRound(roundNumber);
@@ -329,9 +324,7 @@ export default function ProvinceQuiz() {
     const trimmed = answerInput.trim();
     if (!trimmed) return;
 
-    const normalizedInput = normalizeProvince(trimmed);
-    const aliases = getProvinceAliases(roundData.answer);
-    const isCorrect = aliases.includes(normalizedInput);
+    const isCorrect = isAnswerCorrect(trimmed, roundData.answer);
 
     if (isCorrect) {
       const myName = players.find((p) => p.id === playerId)?.name ?? "Pemain";
@@ -640,7 +633,7 @@ export default function ProvinceQuiz() {
                     </button>
                     {myWrongAnswer && (
                       <p className="province-wrong">
-                        "{myWrongAnswer}" belum tepat, coba lagi!
+                        &quot;{myWrongAnswer}&quot; belum tepat, coba lagi!
                       </p>
                     )}
                   </form>
