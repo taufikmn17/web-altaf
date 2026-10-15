@@ -32,24 +32,59 @@ type HeadType =
   | "star"
   | "hexagon";
 
-type Shape = {
+type PartColor =
+  | "#fbbf24"
+  | "#f97316"
+  | "#ec4899"
+  | "#22d3ee"
+  | "#a3e635"
+  | "#a78bfa";
+
+type GameObject = {
   id: number;
-  teeth: boolean[];
   head: HeadType;
+  teeth: boolean[];
+  headColor: PartColor;
+  bodyColor: PartColor;
+  teethColor: PartColor;
 };
+
+type RoundPhase = "phase1" | "phase2";
 
 type Round = {
   index: number;
-  keyShape: Shape;
-  holeShape: Shape;
-  keyOptions: Shape[];
-  holeOptions: Shape[];
+  // Objek rahasia
+  secretForHost: GameObject;
+  secretForGuest: GameObject;
+  // Opsi tebak: untuk guest menebak objek host (4 opsi)
+  guessOptionsForGuest: GameObject[];
+  // Opsi tebak: untuk host menebak objek guest (4 opsi)
+  guessOptionsForHost: GameObject[];
 };
 
-const TOTAL_ROUNDS = 10;
-const ROUND_TIME_MS = 25_000;
+const TOTAL_ROUNDS = 5;
+const ROUND_TIME_MS = 30_000;
+const PHASE_TIME_MS = 15_000;
 const START_LIVES = 3;
 const ROOM_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+const ALL_COLORS: PartColor[] = [
+  "#fbbf24",
+  "#f97316",
+  "#ec4899",
+  "#22d3ee",
+  "#a3e635",
+  "#a78bfa",
+];
+
+const HEAD_TYPES: HeadType[] = [
+  "circle",
+  "square",
+  "triangle",
+  "diamond",
+  "star",
+  "hexagon",
+];
 
 function makeRoomCode() {
   const values = new Uint32Array(6);
@@ -58,6 +93,10 @@ function makeRoomCode() {
     values,
     (value) => ROOM_CHARACTERS[value % ROOM_CHARACTERS.length],
   ).join("");
+}
+
+function pick<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
 function randomTeeth(): boolean[] {
@@ -70,82 +109,88 @@ function randomTeeth(): boolean[] {
   return arr;
 }
 
-function makeShape(id: number): Shape {
-  const heads: HeadType[] = [
-    "circle",
-    "square",
-    "triangle",
-    "diamond",
-    "star",
-    "hexagon",
-  ];
+function makeGameObject(id: number): GameObject {
+  // Warna unik per part biar rumit
+  const colors = [...ALL_COLORS].sort(() => Math.random() - 0.5);
   return {
     id,
+    head: pick(HEAD_TYPES),
     teeth: randomTeeth(),
-    head: heads[Math.floor(Math.random() * heads.length)],
+    headColor: colors[0],
+    bodyColor: colors[1],
+    teethColor: colors[2],
   };
 }
 
-function cloneShape(s: Shape): Shape {
-  return { ...s, teeth: [...s.teeth] };
-}
-
-function shapesEqual(a: Shape, b: Shape): boolean {
+function objectsEqual(a: GameObject, b: GameObject): boolean {
   if (a.head !== b.head) return false;
   for (let i = 0; i < 4; i += 1) {
     if (a.teeth[i] !== b.teeth[i]) return false;
   }
-  return true;
+  return (
+    a.headColor === b.headColor &&
+    a.bodyColor === b.bodyColor &&
+    a.teethColor === b.teethColor
+  );
+}
+
+function makeDistinctObject(exclude: GameObject[]): GameObject {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const candidate = makeGameObject(0);
+    if (exclude.some((e) => objectsEqual(e, candidate))) continue;
+    return candidate;
+  }
+  return makeGameObject(0);
 }
 
 function buildRound(roundIndex: number): Round {
-  const correctKey = makeShape(0);
-  const correctHole: Shape = {
-    id: 0,
-    teeth: [...correctKey.teeth],
-    head: correctKey.head,
-  };
+  const secretForHost = makeGameObject(0);
+  const secretForGuest = makeDistinctObject([secretForHost]);
 
-  const keyOptions: Shape[] = [cloneShape(correctKey)];
-  while (keyOptions.length < 4) {
-    const candidate = makeShape(keyOptions.length);
-    if (shapesEqual(candidate, correctKey)) continue;
-    if (keyOptions.some((k) => shapesEqual(k, candidate))) continue;
-    keyOptions.push(candidate);
+  // Opsi untuk GUEST (menebak objek HOST):
+  // correct = secretForHost, distractor = 3 objek acak yang BUKAN secretForHost
+  const optsForGuest: GameObject[] = [secretForHost];
+  while (optsForGuest.length < 4) {
+    const candidate = makeGameObject(optsForGuest.length);
+    if (objectsEqual(candidate, secretForHost)) continue;
+    if (optsForGuest.some((o) => objectsEqual(o, candidate))) continue;
+    optsForGuest.push(candidate);
   }
-  keyOptions.sort(() => Math.random() - 0.5);
-  keyOptions.forEach((k, i) => (k.id = i));
+  optsForGuest.sort(() => Math.random() - 0.5);
+  optsForGuest.forEach((o, i) => (o.id = i));
 
-  const holeOptions: Shape[] = [cloneShape(correctHole)];
-  while (holeOptions.length < 4) {
-    const candidate = makeShape(holeOptions.length);
-    if (shapesEqual(candidate, correctHole)) continue;
-    if (holeOptions.some((h) => shapesEqual(h, candidate))) continue;
-    holeOptions.push(candidate);
+  // Opsi untuk HOST (menebak objek GUEST):
+  const optsForHost: GameObject[] = [secretForGuest];
+  while (optsForHost.length < 4) {
+    const candidate = makeGameObject(optsForHost.length);
+    if (objectsEqual(candidate, secretForGuest)) continue;
+    if (optsForHost.some((o) => objectsEqual(o, candidate))) continue;
+    optsForHost.push(candidate);
   }
-  holeOptions.sort(() => Math.random() - 0.5);
-  holeOptions.forEach((h, i) => (h.id = i));
+  optsForHost.sort(() => Math.random() - 0.5);
+  optsForHost.forEach((o, i) => (o.id = i));
 
   return {
     index: roundIndex,
-    keyShape: correctKey,
-    holeShape: correctHole,
-    keyOptions,
-    holeOptions,
+    secretForHost,
+    secretForGuest,
+    guessOptionsForGuest: optsForGuest,
+    guessOptionsForHost: optsForHost,
   };
 }
 
-function findCorrectId(options: Shape[], target: Shape): number {
-  return options.find((o) => shapesEqual(o, target))?.id ?? -1;
+function findCorrectId(options: GameObject[], target: GameObject): number {
+  return options.find((o) => objectsEqual(o, target))?.id ?? -1;
 }
 
-function ShapePreview({
-  shape,
-  variant,
+// ---- Preview SVG ----
+function ObjectPreview({
+  obj,
+  variant = "default",
   size = 96,
 }: {
-  shape: Shape;
-  variant: "key" | "hole";
+  obj: GameObject;
+  variant?: "default" | "muted";
   size?: number;
 }) {
   const cx = size / 2;
@@ -154,24 +199,24 @@ function ShapePreview({
   const toothLen = size * 0.16;
   const toothW = size * 0.09;
   const headSize = size * 0.2;
-  const stroke = variant === "key" ? "#fbbf24" : "#f97316";
-  const fill =
-    variant === "key" ? "rgba(251,191,36,0.15)" : "rgba(249,115,22,0.2)";
+
+  const headStroke = obj.headColor;
+  const bodyStroke = obj.bodyColor;
+  const teethStroke = obj.teethColor;
+
+  const headFill = hexToRgba(obj.headColor, 0.18);
+  const bodyFill = hexToRgba(obj.bodyColor, 0.25);
 
   const renderHead = () => {
-    if (shape.head === "circle") {
-      return (
-        <circle
-          cx={cx}
-          cy={cy}
-          r={headSize}
-          fill={fill}
-          stroke={stroke}
-          strokeWidth={3}
-        />
-      );
+    const common = {
+      fill: headFill,
+      stroke: headStroke,
+      strokeWidth: 3,
+    };
+    if (obj.head === "circle") {
+      return <circle cx={cx} cy={cy} r={headSize} {...common} />;
     }
-    if (shape.head === "square") {
+    if (obj.head === "square") {
       return (
         <rect
           x={cx - headSize}
@@ -179,21 +224,19 @@ function ShapePreview({
           width={headSize * 2}
           height={headSize * 2}
           rx={4}
-          fill={fill}
-          stroke={stroke}
-          strokeWidth={3}
+          {...common}
         />
       );
     }
-    if (shape.head === "triangle") {
+    if (obj.head === "triangle") {
       const p = `${cx},${cy - headSize} ${cx + headSize},${cy + headSize * 0.8} ${cx - headSize},${cy + headSize * 0.8}`;
-      return <polygon points={p} fill={fill} stroke={stroke} strokeWidth={3} />;
+      return <polygon points={p} {...common} />;
     }
-    if (shape.head === "diamond") {
+    if (obj.head === "diamond") {
       const p = `${cx},${cy - headSize} ${cx + headSize},${cy} ${cx},${cy + headSize} ${cx - headSize},${cy}`;
-      return <polygon points={p} fill={fill} stroke={stroke} strokeWidth={3} />;
+      return <polygon points={p} {...common} />;
     }
-    if (shape.head === "star") {
+    if (obj.head === "star") {
       const points: string[] = [];
       const outerR = headSize * 1.15;
       const innerR = headSize * 0.5;
@@ -202,14 +245,7 @@ function ShapePreview({
         const angle = (Math.PI / 5) * i - Math.PI / 2;
         points.push(`${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`);
       }
-      return (
-        <polygon
-          points={points.join(" ")}
-          fill={fill}
-          stroke={stroke}
-          strokeWidth={3}
-        />
-      );
+      return <polygon points={points.join(" ")} {...common} />;
     }
     const points: string[] = [];
     for (let i = 0; i < 6; i += 1) {
@@ -218,14 +254,7 @@ function ShapePreview({
         `${cx + headSize * Math.cos(angle)},${cy + headSize * Math.sin(angle)}`,
       );
     }
-    return (
-      <polygon
-        points={points.join(" ")}
-        fill={fill}
-        stroke={stroke}
-        strokeWidth={3}
-      />
-    );
+    return <polygon points={points.join(" ")} {...common} />;
   };
 
   const renderTooth = (dir: number, has: boolean) => {
@@ -237,7 +266,7 @@ function ShapePreview({
           y={cy - bodyR - toothLen}
           width={toothW}
           height={toothLen}
-          fill={stroke}
+          fill={teethStroke}
         />
       );
     }
@@ -248,7 +277,7 @@ function ShapePreview({
           y={cy - toothW / 2}
           width={toothLen}
           height={toothW}
-          fill={stroke}
+          fill={teethStroke}
         />
       );
     }
@@ -259,7 +288,7 @@ function ShapePreview({
           y={cy + bodyR}
           width={toothW}
           height={toothLen}
-          fill={stroke}
+          fill={teethStroke}
         />
       );
     }
@@ -269,22 +298,27 @@ function ShapePreview({
         y={cy - toothW / 2}
         width={toothLen}
         height={toothW}
-        fill={stroke}
+        fill={teethStroke}
       />
     );
   };
 
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      style={variant === "muted" ? { opacity: 0.35 } : undefined}
+    >
       <circle
         cx={cx}
         cy={cy}
         r={bodyR}
-        fill={variant === "key" ? "#3a2a08" : "#3a1c08"}
-        stroke={stroke}
-        strokeWidth={2}
+        fill={bodyFill}
+        stroke={bodyStroke}
+        strokeWidth={2.5}
       />
-      {shape.teeth.map((has, i) => (
+      {obj.teeth.map((has, i) => (
         <g key={i}>{renderTooth(i, has)}</g>
       ))}
       {renderHead()}
@@ -292,7 +326,15 @@ function ShapePreview({
   );
 }
 
-function describeShape(shape: Shape): string {
+function hexToRgba(hex: string, alpha: number): string {
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.substring(0, 2), 16);
+  const g = parseInt(clean.substring(2, 4), 16);
+  const b = parseInt(clean.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function describeObject(obj: GameObject): string {
   const headId: Record<HeadType, string> = {
     circle: "Bulat",
     square: "Kotak",
@@ -301,12 +343,20 @@ function describeShape(shape: Shape): string {
     star: "Bintang",
     hexagon: "Segi enam",
   };
+  const colorId: Record<PartColor, string> = {
+    "#fbbf24": "kuning",
+    "#f97316": "oranye",
+    "#ec4899": "merah muda",
+    "#22d3ee": "biru muda",
+    "#a3e635": "hijau muda",
+    "#a78bfa": "ungu",
+  };
   const teethDir = ["atas", "kanan", "bawah", "kiri"];
-  const teethText = shape.teeth
+  const teethText = obj.teeth
     .map((has, i) => (has ? teethDir[i] : null))
     .filter(Boolean)
     .join(", ");
-  return `Kepala ${headId[shape.head]}. Gerigi: ${teethText || "tidak ada"}.`;
+  return `Kepala ${headId[obj.head]} (${colorId[obj.headColor]}). Badan (${colorId[obj.bodyColor]}). Gerigi ${colorId[obj.teethColor]}: ${teethText || "tidak ada"}.`;
 }
 
 export default function TwoSides() {
@@ -327,12 +377,13 @@ export default function TwoSides() {
   const [copied, setCopied] = useState(false);
 
   const [roundIndex, setRoundIndex] = useState(0);
-  const [myRound, setMyRound] = useState<Round | null>(null);
-  const [myChoice, setMyChoice] = useState<number | null>(null);
-  const [peerChoice, setPeerChoice] = useState<number | null>(null);
-  const [roundEndsAt, setRoundEndsAt] = useState<number | null>(null);
-  const [remainingMs, setRemainingMs] = useState(ROUND_TIME_MS);
-  const [roundResult, setRoundResult] = useState<
+  const [roundData, setRoundData] = useState<Round | null>(null);
+  const [phaseStep, setPhaseStep] = useState<RoundPhase>("phase1");
+  const [myGuess, setMyGuess] = useState<number | null>(null);
+  const [peerGuess, setPeerGuess] = useState<number | null>(null);
+  const [phaseEndsAt, setPhaseEndsAt] = useState<number | null>(null);
+  const [remainingMs, setRemainingMs] = useState(PHASE_TIME_MS);
+  const [phaseResult, setPhaseResult] = useState<
     "correct" | "wrong" | "timeout" | null
   >(null);
   const [sharedLives, setSharedLives] = useState(START_LIVES);
@@ -340,17 +391,25 @@ export default function TwoSides() {
   const [finalStatus, setFinalStatus] = useState<"win" | "lose" | null>(null);
   const [abortReason, setAbortReason] = useState<string | null>(null);
 
-  const myChoiceRef = useRef<number | null>(null);
-  const myRoundRef = useRef<Round | null>(null);
+  const myGuessRef = useRef<number | null>(null);
+  const peerGuessRef = useRef<number | null>(null);
+  const roundDataRef = useRef<Round | null>(null);
+  const phaseStepRef = useRef<RoundPhase>("phase1");
   const roundIndexRef = useRef(0);
   const phaseRef = useRef<GamePhase>("lobby");
 
   useEffect(() => {
-    myChoiceRef.current = myChoice;
-  }, [myChoice]);
+    myGuessRef.current = myGuess;
+  }, [myGuess]);
   useEffect(() => {
-    myRoundRef.current = myRound;
-  }, [myRound]);
+    peerGuessRef.current = peerGuess;
+  }, [peerGuess]);
+  useEffect(() => {
+    roundDataRef.current = roundData;
+  }, [roundData]);
+  useEffect(() => {
+    phaseStepRef.current = phaseStep;
+  }, [phaseStep]);
   useEffect(() => {
     roundIndexRef.current = roundIndex;
   }, [roundIndex]);
@@ -381,7 +440,7 @@ export default function TwoSides() {
         setAbortReason("Lawan keluar dari game.");
         setPhase("results");
         setFinalStatus(null);
-        setRoundEndsAt(null);
+        setPhaseEndsAt(null);
         void channelRef.current?.send({
           type: "broadcast",
           event: "abort",
@@ -396,11 +455,12 @@ export default function TwoSides() {
 
     channel.on("broadcast", { event: "game-reset" }, () => {
       setRoundIndex(0);
-      setMyRound(null);
-      setMyChoice(null);
-      setPeerChoice(null);
-      setRoundEndsAt(null);
-      setRoundResult(null);
+      setRoundData(null);
+      setPhaseStep("phase1");
+      setMyGuess(null);
+      setPeerGuess(null);
+      setPhaseEndsAt(null);
+      setPhaseResult(null);
       setSharedLives(START_LIVES);
       setSharedScore(0);
       setFinalStatus(null);
@@ -418,35 +478,47 @@ export default function TwoSides() {
       if (typeof data.endsAt !== "number") return;
 
       setRoundIndex(data.roundIndex);
-      setMyRound(data.round);
-      setMyChoice(null);
-      setPeerChoice(null);
-      setRoundEndsAt(data.endsAt);
-      setRoundResult(null);
-      setRemainingMs(ROUND_TIME_MS);
+      setRoundData(data.round);
+      setPhaseStep("phase1");
+      setMyGuess(null);
+      setPeerGuess(null);
+      setPhaseEndsAt(data.endsAt);
+      setPhaseResult(null);
+      setRemainingMs(PHASE_TIME_MS);
       setPhase("playing");
       setError("");
     });
 
-    channel.on("broadcast", { event: "choice" }, ({ payload }) => {
+    channel.on("broadcast", { event: "guess" }, ({ payload }) => {
       const data = payload as { id?: string; choice?: number };
       if (typeof data.id !== "string" || typeof data.choice !== "number")
         return;
       if (data.id === playerId) return;
-      setPeerChoice(data.choice);
+      setPeerGuess(data.choice);
     });
 
-    channel.on("broadcast", { event: "round-end" }, ({ payload }) => {
+    channel.on("broadcast", { event: "phase-end" }, ({ payload }) => {
       const data = payload as {
         result?: "correct" | "wrong" | "timeout";
         newScore?: number;
         newLives?: number;
       };
       if (!data.result) return;
-      setRoundResult(data.result);
+      setPhaseResult(data.result);
       if (typeof data.newScore === "number") setSharedScore(data.newScore);
       if (typeof data.newLives === "number") setSharedLives(data.newLives);
-      setRoundEndsAt(null);
+      setPhaseEndsAt(null);
+    });
+
+    channel.on("broadcast", { event: "phase-advance" }, ({ payload }) => {
+      const data = payload as { phase?: RoundPhase; endsAt?: number };
+      if (!data.phase || typeof data.endsAt !== "number") return;
+      setPhaseStep(data.phase);
+      setMyGuess(null);
+      setPeerGuess(null);
+      setPhaseResult(null);
+      setPhaseEndsAt(data.endsAt);
+      setRemainingMs(PHASE_TIME_MS);
     });
 
     channel.on("broadcast", { event: "game-over" }, ({ payload }) => {
@@ -462,7 +534,7 @@ export default function TwoSides() {
       setAbortReason(data.reason ?? "Game dihentikan.");
       setPhase("results");
       setFinalStatus(null);
-      setRoundEndsAt(null);
+      setPhaseEndsAt(null);
       if (timerRef.current) window.clearInterval(timerRef.current);
     });
 
@@ -496,32 +568,62 @@ export default function TwoSides() {
 
   // ---- Countdown timer ----
   useEffect(() => {
-    if (phase !== "playing" || roundEndsAt === null) return;
+    if (phase !== "playing" || phaseEndsAt === null) return;
 
     const timer = setInterval(() => {
-      const next = Math.max(0, roundEndsAt - Date.now());
+      const next = Math.max(0, phaseEndsAt - Date.now());
       setRemainingMs(next);
       if (next === 0 && isHost) {
-        handleRoundEnd("timeout");
+        resolvePhase("timeout");
       }
     }, 80);
 
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, roundEndsAt, isHost]);
+  }, [phase, phaseEndsAt, isHost]);
 
-  // ---- Auto-next setelah round-end ----
+  // ---- Host: cek apakah dua guess sudah ada ----
   useEffect(() => {
     if (!isHost) return;
     if (phase !== "playing") return;
-    if (roundResult === null) return;
+    if (phaseResult !== null) return;
+    if (myGuess === null || peerGuess === null) return;
 
-    const nextIndex = roundIndexRef.current + 1;
-    const isGameOver = roundResult === "wrong" && sharedLives <= 0;
-    const isFinalRound = nextIndex >= TOTAL_ROUNDS;
+    const round = roundDataRef.current;
+    if (!round) return;
+
+    if (phaseStepRef.current === "phase1") {
+      // Fase 1: guest menebak objek host
+      const correctId = findCorrectId(
+        round.guessOptionsForGuest,
+        round.secretForHost,
+      );
+      const correct = peerGuess === correctId;
+      resolvePhase(correct ? "correct" : "wrong");
+    } else {
+      // Fase 2: host menebak objek guest
+      const correctId = findCorrectId(
+        round.guessOptionsForHost,
+        round.secretForGuest,
+      );
+      const correct = myGuess === correctId;
+      resolvePhase(correct ? "correct" : "wrong");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isHost, myGuess, peerGuess, phase, phaseResult, phaseStep]);
+
+  // ---- Host: auto-advance setelah phase-end ----
+  useEffect(() => {
+    if (!isHost) return;
+    if (phase !== "playing") return;
+    if (phaseResult === null) return;
 
     const timer = setTimeout(() => {
-      if (isGameOver) {
+      // Hitung ulang dari state saat ini
+      const currentLives =
+        phaseResult === "correct" ? sharedLives : sharedLives;
+
+      if (currentLives <= 0) {
         setFinalStatus("lose");
         setPhase("results");
         void channelRef.current?.send({
@@ -531,7 +633,27 @@ export default function TwoSides() {
         });
         return;
       }
-      if (isFinalRound) {
+
+      if (phaseStepRef.current === "phase1") {
+        // Lanjut ke fase 2
+        const endsAt = Date.now() + PHASE_TIME_MS;
+        setPhaseStep("phase2");
+        setMyGuess(null);
+        setPeerGuess(null);
+        setPhaseResult(null);
+        setPhaseEndsAt(endsAt);
+        setRemainingMs(PHASE_TIME_MS);
+        void channelRef.current?.send({
+          type: "broadcast",
+          event: "phase-advance",
+          payload: { phase: "phase2", endsAt },
+        });
+        return;
+      }
+
+      // Fase 2 selesai -> next round atau game-over
+      const nextIndex = roundIndexRef.current + 1;
+      if (nextIndex >= TOTAL_ROUNDS) {
         setFinalStatus("win");
         setPhase("results");
         void channelRef.current?.send({
@@ -546,43 +668,21 @@ export default function TwoSides() {
 
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roundResult, isHost, phase, sharedLives]);
-
-  // ---- Resolve ketika dua pilihan sudah ada ----
-  useEffect(() => {
-    if (!isHost) return;
-    if (phase !== "playing") return;
-    if (roundResult !== null) return;
-    if (myChoice === null || peerChoice === null) return;
-    const round = myRoundRef.current;
-    if (!round) return;
-
-    const correctKeyId = findCorrectId(round.keyOptions, round.keyShape);
-    const correctHoleId = findCorrectId(round.holeOptions, round.holeShape);
-
-    const bothCorrect =
-      myChoice === correctKeyId && peerChoice === correctHoleId;
-
-    if (bothCorrect) {
-      handleRoundEnd("correct");
-    } else {
-      handleRoundEnd("wrong");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isHost, myChoice, peerChoice, phase, roundResult]);
+  }, [phaseResult, isHost, phase, sharedLives]);
 
   // ---- Handlers ----
   const broadcastNewRound = (index: number) => {
     const round = buildRound(index);
-    const endsAt = Date.now() + ROUND_TIME_MS;
+    const endsAt = Date.now() + PHASE_TIME_MS;
 
-    setMyRound(round);
-    setMyChoice(null);
-    setPeerChoice(null);
     setRoundIndex(index);
-    setRoundEndsAt(endsAt);
-    setRoundResult(null);
-    setRemainingMs(ROUND_TIME_MS);
+    setRoundData(round);
+    setPhaseStep("phase1");
+    setMyGuess(null);
+    setPeerGuess(null);
+    setPhaseEndsAt(endsAt);
+    setPhaseResult(null);
+    setRemainingMs(PHASE_TIME_MS);
     setPhase("playing");
 
     void channelRef.current?.send({
@@ -592,9 +692,9 @@ export default function TwoSides() {
     });
   };
 
-  const handleRoundEnd = (result: "correct" | "wrong" | "timeout") => {
+  const resolvePhase = (result: "correct" | "wrong" | "timeout") => {
     if (!isHost) return;
-    if (roundResult !== null) return;
+    if (phaseResult !== null) return;
 
     let newScore = sharedScore;
     let newLives = sharedLives;
@@ -605,14 +705,14 @@ export default function TwoSides() {
       newLives = sharedLives - 1;
     }
 
-    setRoundResult(result);
+    setPhaseResult(result);
     setSharedScore(newScore);
     setSharedLives(newLives);
-    setRoundEndsAt(null);
+    setPhaseEndsAt(null);
 
     void channelRef.current?.send({
       type: "broadcast",
-      event: "round-end",
+      event: "phase-end",
       payload: { result, newScore, newLives },
     });
   };
@@ -635,10 +735,11 @@ export default function TwoSides() {
     setIsHost(host);
     setActiveRoom(roomCode);
     setRoundIndex(0);
-    setMyRound(null);
-    setMyChoice(null);
-    setPeerChoice(null);
-    setRoundResult(null);
+    setRoundData(null);
+    setPhaseStep("phase1");
+    setMyGuess(null);
+    setPeerGuess(null);
+    setPhaseResult(null);
     setSharedLives(START_LIVES);
     setSharedScore(0);
     setFinalStatus(null);
@@ -673,10 +774,11 @@ export default function TwoSides() {
     });
 
     setRoundIndex(0);
-    setMyRound(null);
-    setMyChoice(null);
-    setPeerChoice(null);
-    setRoundResult(null);
+    setRoundData(null);
+    setPhaseStep("phase1");
+    setMyGuess(null);
+    setPeerGuess(null);
+    setPhaseResult(null);
     setSharedLives(START_LIVES);
     setSharedScore(0);
     setFinalStatus(null);
@@ -684,15 +786,16 @@ export default function TwoSides() {
     broadcastNewRound(0);
   };
 
-  const pickShape = (id: number) => {
+  const pickGuess = (id: number) => {
     if (phase !== "playing") return;
-    if (myChoiceRef.current !== null) return;
-    if (!myRound) return;
+    if (myGuessRef.current !== null) return;
+    if (!roundData) return;
+    if (phaseResult !== null) return;
 
-    setMyChoice(id);
+    setMyGuess(id);
     void channelRef.current?.send({
       type: "broadcast",
-      event: "choice",
+      event: "guess",
       payload: { id: playerId, choice: id },
     });
   };
@@ -715,10 +818,11 @@ export default function TwoSides() {
     setPlayers([]);
     setPhase("lobby");
     setRoundIndex(0);
-    setMyRound(null);
-    setMyChoice(null);
-    setPeerChoice(null);
-    setRoundResult(null);
+    setRoundData(null);
+    setPhaseStep("phase1");
+    setMyGuess(null);
+    setPeerGuess(null);
+    setPhaseResult(null);
     setSharedLives(START_LIVES);
     setSharedScore(0);
     setFinalStatus(null);
@@ -730,13 +834,18 @@ export default function TwoSides() {
   const canStart = isHost && players.length === 2 && guestsReady && isConnected;
   const secondsLeft = Math.ceil(remainingMs / 1000);
 
-  const myOptions = myRound
-    ? isHost
-      ? myRound.keyOptions
-      : myRound.holeOptions
-    : [];
-  const myVariant: "key" | "hole" = isHost ? "key" : "hole";
-  const myRoleLabel = isHost ? "KUNCI" : "LUBANG";
+  // Data yang saya lihat & yang saya tebak
+  // - Host menebak objek GUEST -> pakai guessOptionsForHost
+  // - Guest menebak objek HOST -> pakai guessOptionsForGuest
+  const mySecretObject = isHost
+    ? roundData?.secretForHost
+    : roundData?.secretForGuest;
+  const myGuessOptions = isHost
+    ? roundData?.guessOptionsForHost
+    : roundData?.guessOptionsForGuest;
+
+  const iAmDescriber =
+    (phaseStep === "phase1" && isHost) || (phaseStep === "phase2" && !isHost);
 
   return (
     <main className="tap-rush-shell">
@@ -757,8 +866,7 @@ export default function TwoSides() {
             Two Sides<span>!</span>
           </h1>
           <p>
-            Cari kunci yang sama! Satu lihat kunci, satu lihat lubang —
-            deskripsikan & pilih objek yang cocok.
+            Deskripsikan objek rahasiamu — temanmu harus menebak. Lalu gantian!
           </p>
         </header>
 
@@ -771,9 +879,9 @@ export default function TwoSides() {
               <div>
                 <h2>Butuh 2 pemain, kerja sama wajib</h2>
                 <p>
-                  Deskripsikan bentuk yang kamu lihat ke teman, lalu{" "}
-                  <strong>cari & pilih objek yang sama</strong>. Kalau cocok,
-                  dapat poin!
+                  Setiap ronde, kamu punya objek rahasia. Deskripsikan ke teman,
+                  dan temanmu juga deskripsikan objeknya ke kamu. Berdua harus
+                  tebak benar!
                 </p>
               </div>
             </div>
@@ -824,9 +932,7 @@ export default function TwoSides() {
             </div>
 
             <p className="two-sides-role-note">
-              Yang <strong>buat room</strong> jadi pemegang{" "}
-              <strong>KUNCI</strong> · yang <strong>gabung</strong> jadi
-              pemegang <strong>LUBANG</strong>
+              Berdua punya objek rahasia. Saling deskripsikan & saling tebak!
             </p>
 
             {!supabase && (
@@ -888,13 +994,15 @@ export default function TwoSides() {
                           {p.name}
                           {p.id === playerId ? " (kamu)" : ""}
                         </span>
-                        <span
-                          className={
-                            p.isHost ? "tap-rush-host" : "tap-rush-ready"
-                          }
-                        >
-                          {p.isHost ? "KUNCI" : "LUBANG"}
-                        </span>
+                        {p.isHost ? (
+                          <span className="tap-rush-host">HOST</span>
+                        ) : p.ready ? (
+                          <span className="tap-rush-ready">
+                            <Check size={14} /> SIAP
+                          </span>
+                        ) : (
+                          <span className="tap-rush-waiting">MENUNGGU</span>
+                        )}
                       </div>
                     ))
                   )}
@@ -936,88 +1044,98 @@ export default function TwoSides() {
               </div>
             )}
 
-            {phase === "playing" && myRound && (
-              <div className="two-sides-wrap">
-                <div className="two-sides-topbar">
-                  <span className="two-sides-round">
-                    RONDE {roundIndex + 1} / {TOTAL_ROUNDS}
-                  </span>
-                  <span
-                    className={`two-sides-timer ${secondsLeft <= 5 ? "is-urgent" : ""}`}
-                  >
-                    {String(secondsLeft).padStart(2, "0")}s
-                  </span>
-                </div>
-
-                <div className="two-sides-stats">
-                  <span>
-                    ❤️ <strong>{sharedLives}</strong> nyawa
-                  </span>
-                  <span>
-                    ⭐ <strong>{sharedScore}</strong> poin
-                  </span>
-                </div>
-
-                <div className={`two-sides-badge is-${myVariant}`}>
-                  PERAN KAMU: <strong>{myRoleLabel}</strong>
-                </div>
-
-                <p className="two-sides-hint">
-                  {isHost
-                    ? "Deskripsikan KUNCI kamu ke teman — sebutkan bentuk kepala & gerigi. Lalu pilih kunci yang sama dengan lubang temanmu."
-                    : "Deskripsikan LUBANG kamu ke teman — sebutkan bentuk kepala & gerigi. Lalu pilih lubang yang sama dengan kunci temanmu."}
-                </p>
-
-                <div className="two-sides-preview">
-                  <span className="two-sides-preview-label">
-                    BENTUK {myRoleLabel} KAMU — CARI YANG SAMA!
-                  </span>
-                  <ShapePreview
-                    shape={isHost ? myRound.keyShape : myRound.holeShape}
-                    variant={myVariant}
-                    size={120}
-                  />
-                  <span className="two-sides-preview-desc">
-                    {describeShape(
-                      isHost ? myRound.keyShape : myRound.holeShape,
-                    )}
-                  </span>
-                </div>
-
-                <div className="two-sides-options-grid">
-                  {myOptions.map((opt) => {
-                    const isMyPick = myChoice === opt.id;
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        className={`two-sides-option ${isMyPick ? "is-picked" : ""}`}
-                        disabled={myChoice !== null || roundResult !== null}
-                        onClick={() => pickShape(opt.id)}
-                      >
-                        <ShapePreview
-                          shape={opt}
-                          variant={myVariant}
-                          size={72}
-                        />
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {roundResult && (
-                  <div
-                    className={`two-sides-result ${roundResult === "correct" ? "is-correct" : "is-wrong"}`}
-                  >
-                    {roundResult === "correct"
-                      ? "✅ Cocok! +1 poin"
-                      : roundResult === "wrong"
-                        ? "❌ Tidak cocok! -1 nyawa"
-                        : "⏱️ Waktu habis! -1 nyawa"}
+            {phase === "playing" &&
+              roundData &&
+              mySecretObject &&
+              myGuessOptions && (
+                <div className="two-sides-wrap">
+                  <div className="two-sides-topbar">
+                    <span className="two-sides-round">
+                      RONDE {roundIndex + 1} / {TOTAL_ROUNDS} ·{" "}
+                      {phaseStep === "phase1" ? "FASE 1" : "FASE 2"}
+                    </span>
+                    <span
+                      className={`two-sides-timer ${secondsLeft <= 5 ? "is-urgent" : ""}`}
+                    >
+                      {String(secondsLeft).padStart(2, "0")}s
+                    </span>
                   </div>
-                )}
-              </div>
-            )}
+
+                  <div className="two-sides-stats">
+                    <span>
+                      ❤️ <strong>{sharedLives}</strong> nyawa
+                    </span>
+                    <span>
+                      ⭐ <strong>{sharedScore}</strong> poin
+                    </span>
+                  </div>
+
+                  <div
+                    className={`two-sides-badge ${iAmDescriber ? "is-describer" : "is-guesser"}`}
+                  >
+                    {iAmDescriber ? "KAMU: DESKRIPSIKAN" : "KAMU: TEBAK"}
+                  </div>
+
+                  <p className="two-sides-hint">
+                    {iAmDescriber
+                      ? "Deskripsikan objek rahasia kamu ke teman — sebutkan bentuk kepala, warna, dan posisi gerigi."
+                      : "Dengarkan deskripsi temanmu, lalu pilih objek yang cocok."}
+                  </p>
+
+                  {/* Objek rahasia sendiri */}
+                  {iAmDescriber ? (
+                    <div className="two-sides-preview">
+                      <span className="two-sides-preview-label">
+                        OBJEK RAHASIA KAMU
+                      </span>
+                      <ObjectPreview obj={mySecretObject} size={140} />
+                      <span className="two-sides-preview-desc">
+                        {describeObject(mySecretObject)}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="two-sides-preview">
+                      <span className="two-sides-preview-label">
+                        OBJEK RAHASIA KAMU (yang dideskripsikan teman)
+                      </span>
+                      <ObjectPreview obj={mySecretObject} size={120} />
+                      <span className="two-sides-preview-desc">
+                        {describeObject(mySecretObject)}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Pilihan tebak */}
+                  <div className="two-sides-options-grid">
+                    {myGuessOptions.map((opt) => {
+                      const isMyPick = myGuess === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          className={`two-sides-option ${isMyPick ? "is-picked" : ""}`}
+                          disabled={myGuess !== null || phaseResult !== null}
+                          onClick={() => pickGuess(opt.id)}
+                        >
+                          <ObjectPreview obj={opt} size={72} />
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {phaseResult && (
+                    <div
+                      className={`two-sides-result ${phaseResult === "correct" ? "is-correct" : "is-wrong"}`}
+                    >
+                      {phaseResult === "correct"
+                        ? "✅ Benar! +1 poin"
+                        : phaseResult === "wrong"
+                          ? "❌ Salah! -1 nyawa"
+                          : "⏱️ Waktu habis! -1 nyawa"}
+                    </div>
+                  )}
+                </div>
+              )}
 
             {phase === "results" && (
               <div className="tap-rush-results">
@@ -1098,10 +1216,6 @@ export default function TwoSides() {
           line-height: 1.5;
           margin-top: 4px;
         }
-        .two-sides-role-note strong {
-          color: #fbbf24;
-          font-weight: 700;
-        }
         .two-sides-wrap {
           display: flex;
           flex-direction: column;
@@ -1154,15 +1268,15 @@ export default function TwoSides() {
           text-transform: uppercase;
           border: 1px solid;
         }
-        .two-sides-badge.is-key {
+        .two-sides-badge.is-describer {
           background: rgba(251, 191, 36, 0.12);
           border-color: rgba(251, 191, 36, 0.5);
           color: #fbbf24;
         }
-        .two-sides-badge.is-hole {
-          background: rgba(249, 115, 22, 0.12);
-          border-color: rgba(249, 115, 22, 0.5);
-          color: #f97316;
+        .two-sides-badge.is-guesser {
+          background: rgba(34, 197, 94, 0.12);
+          border-color: rgba(34, 197, 94, 0.5);
+          color: #86efac;
         }
         .two-sides-hint {
           font-size: 12px;
