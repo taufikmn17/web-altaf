@@ -57,6 +57,36 @@ function isSolved(board: Puzzle, solution: number[][]): boolean {
   return true;
 }
 
+// Hitung berapa petak yang benar (diisi user & sesuai solution)
+function countCorrectCells(
+  board: Puzzle | null,
+  solution: number[][] | null,
+  puzzle: Puzzle | null,
+): number {
+  if (!board || !solution || !puzzle) return 0;
+  let count = 0;
+  for (let r = 0; r < SIZE; r += 1) {
+    for (let c = 0; c < SIZE; c += 1) {
+      // Hanya hitung petak yang awalnya kosong & diisi user dengan benar
+      if (puzzle[r][c] !== null) continue;
+      if (board[r][c] === solution[r][c]) count += 1;
+    }
+  }
+  return count;
+}
+
+// Total petak kosong di puzzle awal (target maksimal)
+function countTotalEmpty(puzzle: Puzzle | null): number {
+  if (!puzzle) return 0;
+  let count = 0;
+  for (let r = 0; r < SIZE; r += 1) {
+    for (let c = 0; c < SIZE; c += 1) {
+      if (puzzle[r][c] === null) count += 1;
+    }
+  }
+  return count;
+}
+
 export default function SudokuDuel() {
   const supabase = getSupabaseBrowserClient();
   const [playerId, setPlayerId] = useState("");
@@ -82,9 +112,12 @@ export default function SudokuDuel() {
   );
   const [winnerId, setWinnerId] = useState<string | null>(null);
   const [winnerName, setWinnerName] = useState("");
+  const [progress, setProgress] = useState<Record<string, number>>({});
 
   const boardRef = useRef<Puzzle | null>(null);
   const solutionRef = useRef<number[][] | null>(null);
+  const puzzleRef = useRef<Puzzle | null>(null);
+  const lastBroadcastProgressRef = useRef<number>(-1);
 
   useEffect(() => {
     boardRef.current = board;
@@ -92,6 +125,9 @@ export default function SudokuDuel() {
   useEffect(() => {
     solutionRef.current = solution;
   }, [solution]);
+  useEffect(() => {
+    puzzleRef.current = puzzle;
+  }, [puzzle]);
 
   // ---- Realtime channel ----
   useEffect(() => {
@@ -106,15 +142,31 @@ export default function SudokuDuel() {
     channelRef.current = channel;
 
     channel.on("presence", { event: "sync" }, () => {
-      const connectedPlayers = Object.values(
-        channel.presenceState<RoomPlayer>(),
-      )
+      const state = channel.presenceState<RoomPlayer>();
+      const connectedPlayers = Object.values(state)
         .flat()
         .sort((left, right) => Number(right.isHost) - Number(left.isHost));
       setPlayers(connectedPlayers);
+      // Bersihkan progress player yang sudah tidak ada
+      setProgress((current) => {
+        const next: Record<string, number> = {};
+        for (const p of connectedPlayers) {
+          next[p.id] = current[p.id] ?? 0;
+        }
+        return next;
+      });
     });
 
-    // RESET: semua client reset saat host mulai ronde baru
+    channel.on("presence", { event: "leave" }, ({ key }) => {
+      // Hapus player yang keluar dari daftar progress
+      if (typeof key !== "string") return;
+      setProgress((current) => {
+        const next = { ...current };
+        delete next[key];
+        return next;
+      });
+    });
+
     channel.on("broadcast", { event: "game-reset" }, () => {
       setPuzzle(null);
       setSolution(null);
@@ -122,7 +174,9 @@ export default function SudokuDuel() {
       setSelected(null);
       setWinnerId(null);
       setWinnerName("");
+      setProgress({});
       setPhase("lobby");
+      lastBroadcastProgressRef.current = -1;
     });
 
     channel.on("broadcast", { event: "round-start" }, ({ payload }) => {
@@ -134,8 +188,18 @@ export default function SudokuDuel() {
       setSelected(null);
       setWinnerId(null);
       setWinnerName("");
+      setProgress({});
       setPhase("playing");
       setError("");
+      lastBroadcastProgressRef.current = -1;
+    });
+
+    channel.on("broadcast", { event: "progress" }, ({ payload }) => {
+      const data = payload as { id?: string; count?: number };
+      if (typeof data.id !== "string" || typeof data.count !== "number") return;
+      const id = data.id;
+      const count = data.count;
+      setProgress((current) => ({ ...current, [id]: count }));
     });
 
     channel.on("broadcast", { event: "solved" }, ({ payload }) => {
@@ -189,6 +253,23 @@ export default function SudokuDuel() {
     return () => window.removeEventListener("keydown", handler);
   }, [phase, selected]);
 
+  // ---- Broadcast progress setelah board berubah ----
+  useEffect(() => {
+    if (phase !== "playing") return;
+    if (!board || !solution || !puzzle) return;
+
+    const count = countCorrectCells(board, solution, puzzle);
+    if (count === lastBroadcastProgressRef.current) return;
+    lastBroadcastProgressRef.current = count;
+
+    setProgress((current) => ({ ...current, [playerId]: count }));
+    void channelRef.current?.send({
+      type: "broadcast",
+      event: "progress",
+      payload: { id: playerId, count },
+    });
+  }, [board, solution, puzzle, phase, playerId]);
+
   // ---- Handlers ----
   const enterRoom = (roomCode: string, host: boolean) => {
     if (!supabase) {
@@ -209,6 +290,7 @@ export default function SudokuDuel() {
     setBoard(null);
     setSelected(null);
     setWinnerId(null);
+    setProgress({});
     setIsReady(host);
     setIsHost(host);
     setActiveRoom(roomCode);
@@ -253,32 +335,31 @@ export default function SudokuDuel() {
     )
       return;
 
-    // 1. Beritahu semua client untuk reset state
     void channelRef.current?.send({
       type: "broadcast",
       event: "game-reset",
       payload: {},
     });
 
-    // 2. Reset lokal host
     setPuzzle(null);
     setSolution(null);
     setBoard(null);
     setSelected(null);
     setWinnerId(null);
     setWinnerName("");
+    setProgress({});
+    lastBroadcastProgressRef.current = -1;
 
-    // 3. Fetch puzzle baru
     const data = await fetchSudoku();
     if (!data) return;
 
-    // 4. Setup & broadcast
     setPuzzle(data.puzzle);
     setSolution(data.solution);
     setBoard(clonePuzzle(data.puzzle));
     setSelected(null);
     setWinnerId(null);
     setWinnerName("");
+    setProgress({});
     setPhase("playing");
     void channelRef.current?.send({
       type: "broadcast",
@@ -290,7 +371,7 @@ export default function SudokuDuel() {
   const setNumberAt = (r: number, c: number, value: number | null) => {
     if (phase !== "playing") return;
     if (!puzzle) return;
-    if (puzzle[r][c] !== null) return; // kotak awal tidak bisa diubah
+    if (puzzle[r][c] !== null) return;
     if (winnerId) return;
 
     setBoard((current) => {
@@ -301,7 +382,7 @@ export default function SudokuDuel() {
     });
   };
 
-  // ---- Cek menang setiap kali board berubah ----
+  // ---- Cek menang ----
   useEffect(() => {
     if (phase !== "playing") return;
     if (!board || !solution) return;
@@ -341,17 +422,18 @@ export default function SudokuDuel() {
     setBoard(null);
     setSelected(null);
     setWinnerId(null);
+    setProgress({});
     setError("");
   };
 
   // ---- Helpers ----
   const guestsReady = players.filter((p) => !p.isHost).every((p) => p.ready);
   const canStart = isHost && players.length >= 2 && guestsReady && isConnected;
+  const totalEmpty = countTotalEmpty(puzzle);
 
   const conflictCells = useMemo(() => {
     const set = new Set<string>();
     if (!board) return set;
-    // cek baris
     for (let r = 0; r < SIZE; r += 1) {
       const seen = new Map<number, number[]>();
       for (let c = 0; c < SIZE; c += 1) {
@@ -366,7 +448,6 @@ export default function SudokuDuel() {
         }
       }
     }
-    // cek kolom
     for (let c = 0; c < SIZE; c += 1) {
       const seen = new Map<number, number[]>();
       for (let r = 0; r < SIZE; r += 1) {
@@ -381,7 +462,6 @@ export default function SudokuDuel() {
         }
       }
     }
-    // cek 3x3
     for (let br = 0; br < 3; br += 1) {
       for (let bc = 0; bc < 3; bc += 1) {
         const seen = new Map<number, string[]>();
@@ -404,6 +484,11 @@ export default function SudokuDuel() {
     }
     return set;
   }, [board]);
+
+  // Urutkan player berdasarkan progress tertinggi saat playing
+  const orderedByProgress = [...players].sort(
+    (left, right) => (progress[right.id] ?? 0) - (progress[left.id] ?? 0),
+  );
 
   return (
     <main className="tap-rush-shell">
@@ -661,6 +746,41 @@ export default function SudokuDuel() {
                     <X size={18} />
                   </button>
                 </div>
+
+                {/* ---- DAFTAR PROGRESS PEMAIN ---- */}
+                <div className="sudoku-progress">
+                  <h3 className="sudoku-progress-title">
+                    <UsersRound size={16} /> Progress pemain
+                  </h3>
+                  <ol className="sudoku-progress-list">
+                    {orderedByProgress.map((player) => {
+                      const count = progress[player.id] ?? 0;
+                      const pct =
+                        totalEmpty > 0
+                          ? Math.round((count / totalEmpty) * 100)
+                          : 0;
+                      return (
+                        <li key={player.id} className="sudoku-progress-item">
+                          <div className="sudoku-progress-row">
+                            <span className="sudoku-progress-name">
+                              {player.name}
+                              {player.id === playerId ? " (kamu)" : ""}
+                            </span>
+                            <strong className="sudoku-progress-count">
+                              {count} / {totalEmpty} petak ({pct}%)
+                            </strong>
+                          </div>
+                          <div className="sudoku-progress-bar">
+                            <div
+                              className="sudoku-progress-fill"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </div>
               </div>
             )}
 
@@ -672,6 +792,28 @@ export default function SudokuDuel() {
                     ? "Kamu selesai duluan! 🏆"
                     : `${winnerName} selesai duluan!`}
                 </h2>
+                <ol className="tap-rush-scoreboard">
+                  {orderedByProgress.map((player, index) => {
+                    const count = progress[player.id] ?? 0;
+                    return (
+                      <li
+                        className={index === 0 ? "is-winner" : ""}
+                        key={player.id}
+                      >
+                        <span className="tap-rush-rank">
+                          {String(index + 1).padStart(2, "0")}
+                        </span>
+                        <span className="tap-rush-player-name">
+                          {player.name}
+                          {player.id === playerId ? " (kamu)" : ""}
+                        </span>
+                        <strong>
+                          {count} / {totalEmpty}
+                        </strong>
+                      </li>
+                    );
+                  })}
+                </ol>
                 <div className="tap-rush-lobby-footer">
                   {isHost && (
                     <button
@@ -798,6 +940,64 @@ export default function SudokuDuel() {
         }
         .sudoku-pad-btn.is-erase {
           color: #ef4444;
+        }
+
+        /* ---- Progress list ---- */
+        .sudoku-progress {
+          width: min(100%, 480px);
+          margin-top: 8px;
+          padding: 14px;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .sudoku-progress-title {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 12px;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          opacity: 0.75;
+          margin-bottom: 10px;
+        }
+        .sudoku-progress-list {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          list-style: none;
+          padding: 0;
+          margin: 0;
+        }
+        .sudoku-progress-item {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .sudoku-progress-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 13px;
+        }
+        .sudoku-progress-name {
+          font-weight: 600;
+        }
+        .sudoku-progress-count {
+          color: #fbbf24;
+          font-size: 12px;
+        }
+        .sudoku-progress-bar {
+          height: 6px;
+          border-radius: 999px;
+          background: rgba(255, 255, 255, 0.08);
+          overflow: hidden;
+        }
+        .sudoku-progress-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #fbbf24, #f97316);
+          border-radius: 999px;
+          transition: width 200ms ease;
         }
       `}</style>
     </main>
