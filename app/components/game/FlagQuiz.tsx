@@ -495,7 +495,7 @@ export default function FlagQuiz() {
         .map((c) => pickCountryName(c));
       const options = shuffle([answer, ...distractors]);
       return {
-        flag: country.flags.emoji,
+        flag: country.flags.png, // <-- pakai PNG
         answer,
         options,
       };
@@ -868,9 +868,17 @@ export default function FlagQuiz() {
                 </div>
 
                 <div className="flag-quiz-card">
-                  <div className="flag-quiz-flag" aria-hidden="true">
-                    {currentQuestion.flag}
-                  </div>
+                  <img
+                    src={currentQuestion.flag}
+                    alt="Bendera negara misterius"
+                    className="flag-quiz-flag-img"
+                    loading="eager"
+                    onError={(e) => {
+                      // Fallback kalau gambar gagal load
+                      (e.currentTarget as HTMLImageElement).style.display =
+                        "none";
+                    }}
+                  />
                   <p className="flag-quiz-prompt">Negara apa ini?</p>
                 </div>
 

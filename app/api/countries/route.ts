@@ -15,7 +15,6 @@ export async function GET() {
   }
 
   try {
-    // Limit maksimal 100 untuk plan gratis
     const res = await fetch(`${API_BASE}?limit=100`, {
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -33,8 +32,6 @@ export async function GET() {
     }
 
     const json = await res.json();
-
-    // v5 membungkus data: { data: { objects: [...] } }
     const list = json?.data?.objects ?? [];
 
     if (!Array.isArray(list) || list.length === 0) {
@@ -44,17 +41,30 @@ export async function GET() {
       );
     }
 
-    // Normalisasi ke bentuk yang dipakai FlagQuiz.tsx
     const normalized = list
       .map((c: any) => {
         const common = c?.names?.common ?? "";
         const indonesian = c?.names?.translations?.ind?.common ?? "";
+
+        // Kode ISO 2 huruf, coba beberapa kemungkinan field
+        const code = (
+          c?.codes?.alpha_2 ??
+          c?.codes?.alpha2 ??
+          c?.cca2 ??
+          c?.code ??
+          ""
+        )
+          .toString()
+          .toLowerCase();
+
+        // Pakai flagcdn kalau kode tersedia, fallback ke emoji
+        const png = code
+          ? `https://flagcdn.com/w320/${code}.png`
+          : (c?.flag?.url_png ?? "");
         const emoji = c?.flag?.emoji ?? "";
-        const png = c?.flag?.url_png ?? c?.flag?.url_svg ?? "";
 
         return {
           name: { common: String(common) },
-          // pakai terjemahan Indonesia kalau ada
           translations: indonesian
             ? { ind: { common: String(indonesian) } }
             : undefined,
@@ -62,7 +72,7 @@ export async function GET() {
         };
       })
       .filter(
-        (c: any) => c.name.common.trim() !== "" && c.flags.emoji.trim() !== "",
+        (c: any) => c.name.common.trim() !== "" && c.flags.png.trim() !== "",
       );
 
     return NextResponse.json(normalized);
