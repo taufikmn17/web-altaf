@@ -1,5 +1,6 @@
 import {
   ArrowUpRight,
+  Flag,
   Globe2,
   Grid3x3,
   HelpCircle,
@@ -166,11 +167,12 @@ export default function DaftarGamePage() {
             </div>
           </section>
 
+          {/* ---- KARTU TEBAK NEGARA (pakai icon Flag) ---- */}
           <section className="game-feature">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
               <div className="game-feature-target">
-                <Globe2 size={88} strokeWidth={1.5} />
+                <Flag size={88} strokeWidth={1.5} />
               </div>
               <span className="game-feature-number">5</span>
               <span className="game-feature-art-label">SOAL / 10 DETIK</span>
@@ -298,7 +300,7 @@ export default function DaftarGamePage() {
                   <UsersRound size={16} /> 2—4 pemain
                 </span>
                 <span>
-                  <HelpCircle size={16} /> 100 soal lokal
+                  <HelpCircle size={16} /> Kuis Nusantara
                 </span>
               </div>
               <Link href="/game/trivia-indonesia" className="game-feature-cta">
