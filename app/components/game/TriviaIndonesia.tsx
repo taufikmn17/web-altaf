@@ -5,7 +5,7 @@ import {
   Check,
   Copy,
   DoorOpen,
-  Flag,
+  HelpCircle,
   Radio,
   Rocket,
   UsersRound,
@@ -93,6 +93,7 @@ export default function TriviaIndonesia() {
   const scoresRef = useRef<Record<string, number>>({});
   const roundRef = useRef(0);
   const bankRef = useRef<TriviaQuestion[]>([]);
+  const usedIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     scoresRef.current = scores;
@@ -267,8 +268,28 @@ export default function TriviaIndonesia() {
 
   // ---- Handlers ----
   const buildQuestions = (): TriviaQuestion[] => {
-    const shuffled = shuffle(TRIVIA_INDONESIA);
-    return shuffled.slice(0, TOTAL_ROUNDS).map((q) => ({
+    // Filter soal yang belum pernah keluar di room ini
+    const available = TRIVIA_INDONESIA.filter(
+      (q) => !usedIdsRef.current.has(q.id),
+    );
+
+    let pool = available;
+    // Kalau soal yang belum keluar kurang dari TOTAL_ROUNDS,
+    // reset pool (mulai dari awal lagi)
+    if (pool.length < TOTAL_ROUNDS) {
+      usedIdsRef.current = new Set();
+      pool = TRIVIA_INDONESIA;
+    }
+
+    const shuffled = shuffle(pool);
+    const picked = shuffled.slice(0, TOTAL_ROUNDS);
+
+    // Tandai semua soal yang dipakai
+    for (const q of picked) {
+      usedIdsRef.current.add(q.id);
+    }
+
+    return picked.map((q) => ({
       id: q.id,
       category: q.category,
       difficulty: q.difficulty,
@@ -372,6 +393,7 @@ export default function TriviaIndonesia() {
       setAnsweredIds({});
       setRevealAt(null);
       setQuestionBank([]);
+      usedIdsRef.current = new Set();
       setIsReady(host);
       setIsHost(host);
       setActiveRoom(roomCode);
@@ -416,7 +438,6 @@ export default function TriviaIndonesia() {
     setRevealAt(null);
     setLoading(true);
 
-    // Small delay biar tombol keliatan loading
     await new Promise((r) => setTimeout(r, 300));
 
     const questions = buildQuestions();
@@ -489,6 +510,7 @@ export default function TriviaIndonesia() {
     setAnsweredIds({});
     setRevealAt(null);
     setQuestionBank([]);
+    usedIdsRef.current = new Set();
     setError("");
   };
 
@@ -532,7 +554,7 @@ export default function TriviaIndonesia() {
       <section className="tap-rush-layout">
         <header className="tap-rush-heading">
           <div className="tap-rush-kicker">
-            <Flag size={14} /> KUIS PENGETAHUAN INDONESIA
+            <HelpCircle size={14} /> KUIS PENGETAHUAN INDONESIA
           </div>
           <h1>
             Trivia Indonesia<span>!</span>
@@ -547,7 +569,7 @@ export default function TriviaIndonesia() {
           <section className="tap-rush-lobby">
             <div className="tap-rush-intro">
               <div className="tap-rush-orb" aria-hidden="true">
-                <Flag size={30} />
+                <HelpCircle size={30} />
               </div>
               <div>
                 <h2>Bikin room, tantang teman</h2>

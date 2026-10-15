@@ -4,7 +4,7 @@ import {
   ArrowLeft,
   Copy,
   DoorOpen,
-  Globe2,
+  Flag,
   Loader2,
   Radio,
   RefreshCw,
@@ -529,7 +529,6 @@ export default function FlagQuiz() {
     });
   };
 
-  // ---- Preflight: cek jumlah pemain di room ----
   const peekRoomPlayerCount = async (roomCode: string): Promise<number> => {
     if (!supabase) return 0;
     const peekKey = "peek-" + crypto.randomUUID();
@@ -584,7 +583,6 @@ export default function FlagQuiz() {
     setJoiningRoom(true);
 
     try {
-      // Kalau guest: cek dulu apakah room sudah penuh
       if (!host) {
         const count = await peekRoomPlayerCount(roomCode);
         if (count >= MAX_PLAYERS) {
@@ -741,7 +739,7 @@ export default function FlagQuiz() {
       <section className="tap-rush-layout">
         <header className="tap-rush-heading">
           <div className="tap-rush-kicker">
-            <Globe2 size={14} /> REALTIME FLAG QUIZ
+            <Flag size={14} /> REALTIME FLAG QUIZ
           </div>
           <h1>
             Tebak Negara<span>!</span>
@@ -753,7 +751,7 @@ export default function FlagQuiz() {
           <section className="tap-rush-lobby">
             <div className="tap-rush-intro">
               <div className="tap-rush-orb" aria-hidden="true">
-                <Globe2 size={30} />
+                <Flag size={30} />
               </div>
               <div>
                 <h2>Kumpulkan teman, adu pengetahuan</h2>
@@ -771,7 +769,7 @@ export default function FlagQuiz() {
               </div>
             ) : countrySource === "api" ? (
               <div className="tap-rush-setup" role="status">
-                <Globe2 size={17} />
+                <Flag size={17} />
                 <span>{countryPool.length} negara siap dimainkan.</span>
               </div>
             ) : countrySource === "fallback" ? (

@@ -1,6 +1,6 @@
-// 100 soal pengetahuan umum Indonesia
-// Format: { category, difficulty, question, options (4), correct }
-// Options sudah dalam urutan acak di runtime nanti
+// 150 soal pengetahuan umum Indonesia
+// Format: { id, category, difficulty, question, options (4), correct }
+// Options sudah dalam urutan acak di runtime
 
 export type LocalTriviaQuestion = {
   id: string;
@@ -12,7 +12,7 @@ export type LocalTriviaQuestion = {
 };
 
 export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
-  // ============ SEJARAH (20 soal) ============
+  // ============ SEJARAH (30 soal) ============
   {
     id: "id-001",
     category: "Sejarah",
@@ -118,7 +118,7 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
   {
     id: "id-010",
     category: "Sejarah",
-    difficulty: "medium",
+    difficulty: "easy",
     question: "Siapa presiden pertama Republik Indonesia?",
     options: ["Ir. Soekarno", "Mohammad Hatta", "Soeharto", "B.J. Habibie"],
     correct: "Ir. Soekarno",
@@ -185,7 +185,7 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
   {
     id: "id-017",
     category: "Sejarah",
-    difficulty: "medium",
+    difficulty: "easy",
     question: "Hari Pendidikan Nasional diperingati setiap tanggal?",
     options: ["2 Mei", "1 Juni", "17 Agustus", "10 November"],
     correct: "2 Mei",
@@ -214,8 +214,103 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
     options: ["1 Juni", "1 Oktober", "17 Agustus", "2 Mei"],
     correct: "1 Juni",
   },
+  {
+    id: "id-101",
+    category: "Sejarah",
+    difficulty: "hard",
+    question: "Perjanjian Renville ditandatangani pada tahun?",
+    options: ["1948", "1946", "1947", "1949"],
+    correct: "1948",
+  },
+  {
+    id: "id-102",
+    category: "Sejarah",
+    difficulty: "hard",
+    question: "Perjanjian Roem-Royen ditandatangani pada tahun?",
+    options: ["1949", "1946", "1947", "1948"],
+    correct: "1949",
+  },
+  {
+    id: "id-103",
+    category: "Sejarah",
+    difficulty: "hard",
+    question: "Siapa pemimpin pemberontakan DI/TII di Jawa Barat?",
+    options: ["Kartosuwiryo", "Daud Beureueh", "Kahar Muzakkar", "Andi Aziz"],
+    correct: "Kartosuwiryo",
+  },
+  {
+    id: "id-104",
+    category: "Sejarah",
+    difficulty: "hard",
+    question: "Pemberontakan PKI Madiun terjadi pada tahun?",
+    options: ["1948", "1945", "1950", "1965"],
+    correct: "1948",
+  },
+  {
+    id: "id-105",
+    category: "Sejarah",
+    difficulty: "hard",
+    question: "Siapa pemimpin pemberontakan PKI Madiun 1948?",
+    options: ["Musso", "Aidit", "Tan Malaka", "Sjahrir"],
+    correct: "Musso",
+  },
+  {
+    id: "id-106",
+    category: "Sejarah",
+    difficulty: "hard",
+    question: "Konferensi Asia Afrika diadakan di Bandung pada tahun?",
+    options: ["1955", "1945", "1960", "1965"],
+    correct: "1955",
+  },
+  {
+    id: "id-107",
+    category: "Sejarah",
+    difficulty: "hard",
+    question: "Siapa yang mencetuskan istilah Pancasila?",
+    options: [
+      "Ir. Soekarno",
+      "Mohammad Yamin",
+      "Soepomo",
+      "Ki Bagus Hadikusumo",
+    ],
+    correct: "Ir. Soekarno",
+  },
+  {
+    id: "id-108",
+    category: "Sejarah",
+    difficulty: "hard",
+    question: "Pancasila disahkan sebagai dasar negara pada tanggal?",
+    options: [
+      "18 Agustus 1945",
+      "17 Agustus 1945",
+      "1 Juni 1945",
+      "1 Oktober 1945",
+    ],
+    correct: "18 Agustus 1945",
+  },
+  {
+    id: "id-109",
+    category: "Sejarah",
+    difficulty: "hard",
+    question: "Siapa ketua BPUPKI?",
+    options: [
+      "Dr. Radjiman Wedyodiningrat",
+      "Ir. Soekarno",
+      "Mohammad Hatta",
+      "Soepomo",
+    ],
+    correct: "Dr. Radjiman Wedyodiningrat",
+  },
+  {
+    id: "id-110",
+    category: "Sejarah",
+    difficulty: "hard",
+    question: "Siapa ketua PPKI?",
+    options: ["Ir. Soekarno", "Mohammad Hatta", "Radjiman", "Soepomo"],
+    correct: "Ir. Soekarno",
+  },
 
-  // ============ GEOGRAFI (20 soal) ============
+  // ============ GEOGRAFI (30 soal) ============
   {
     id: "id-021",
     category: "Geografi",
@@ -227,7 +322,7 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
   {
     id: "id-022",
     category: "Geografi",
-    difficulty: "easy",
+    difficulty: "medium",
     question: "Berapa jumlah provinsi di Indonesia saat ini?",
     options: ["38", "34", "33", "36"],
     correct: "38",
@@ -243,7 +338,7 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
   {
     id: "id-024",
     category: "Geografi",
-    difficulty: "medium",
+    difficulty: "easy",
     question: "Danau terbesar di Indonesia adalah?",
     options: ["Danau Toba", "Danau Sentani", "Danau Batur", "Danau Singkarak"],
     correct: "Danau Toba",
@@ -272,7 +367,7 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
   {
     id: "id-027",
     category: "Geografi",
-    difficulty: "medium",
+    difficulty: "easy",
     question: "Selat yang memisahkan Pulau Jawa dan Bali adalah?",
     options: ["Selat Bali", "Selat Sunda", "Selat Malaka", "Selat Lombok"],
     correct: "Selat Bali",
@@ -280,7 +375,7 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
   {
     id: "id-028",
     category: "Geografi",
-    difficulty: "medium",
+    difficulty: "easy",
     question: "Ibu kota Provinsi Jawa Barat adalah?",
     options: ["Bandung", "Bekasi", "Bogor", "Cirebon"],
     correct: "Bandung",
@@ -288,7 +383,7 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
   {
     id: "id-029",
     category: "Geografi",
-    difficulty: "medium",
+    difficulty: "easy",
     question: "Ibu kota Provinsi Jawa Timur adalah?",
     options: ["Surabaya", "Malang", "Kediri", "Madiun"],
     correct: "Surabaya",
@@ -296,7 +391,7 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
   {
     id: "id-030",
     category: "Geografi",
-    difficulty: "medium",
+    difficulty: "easy",
     question: "Ibu kota Provinsi Jawa Tengah adalah?",
     options: ["Semarang", "Solo", "Yogyakarta", "Magelang"],
     correct: "Semarang",
@@ -304,7 +399,7 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
   {
     id: "id-031",
     category: "Geografi",
-    difficulty: "medium",
+    difficulty: "easy",
     question: "Ibu kota Provinsi Sumatera Utara adalah?",
     options: ["Medan", "Palembang", "Padang", "Pekanbaru"],
     correct: "Medan",
@@ -328,7 +423,7 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
   {
     id: "id-034",
     category: "Geografi",
-    difficulty: "medium",
+    difficulty: "easy",
     question: "Ibu kota Provinsi Bali adalah?",
     options: ["Denpasar", "Singaraja", "Ubud", "Kuta"],
     correct: "Denpasar",
@@ -381,8 +476,88 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
     options: ["17.000+", "5.000", "10.000", "25.000"],
     correct: "17.000+",
   },
+  {
+    id: "id-111",
+    category: "Geografi",
+    difficulty: "hard",
+    question: "Ibu kota Provinsi Nusa Tenggara Timur adalah?",
+    options: ["Kupang", "Mataram", "Ende", "Maumere"],
+    correct: "Kupang",
+  },
+  {
+    id: "id-112",
+    category: "Geografi",
+    difficulty: "hard",
+    question: "Ibu kota Provinsi Nusa Tenggara Barat adalah?",
+    options: ["Mataram", "Kupang", "Bima", "Sumbawa"],
+    correct: "Mataram",
+  },
+  {
+    id: "id-113",
+    category: "Geografi",
+    difficulty: "hard",
+    question: "Ibu kota Provinsi Kalimantan Timur adalah?",
+    options: ["Samarinda", "Balikpapan", "Pontianak", "Banjarmasin"],
+    correct: "Samarinda",
+  },
+  {
+    id: "id-114",
+    category: "Geografi",
+    difficulty: "hard",
+    question: "Ibu kota Provinsi Kalimantan Selatan adalah?",
+    options: ["Banjarmasin", "Samarinda", "Pontianak", "Palangkaraya"],
+    correct: "Banjarmasin",
+  },
+  {
+    id: "id-115",
+    category: "Geografi",
+    difficulty: "hard",
+    question: "Ibu kota Provinsi Kalimantan Barat adalah?",
+    options: ["Pontianak", "Banjarmasin", "Samarinda", "Palangkaraya"],
+    correct: "Pontianak",
+  },
+  {
+    id: "id-116",
+    category: "Geografi",
+    difficulty: "hard",
+    question: "Ibu kota Provinsi Kalimantan Tengah adalah?",
+    options: ["Palangkaraya", "Banjarmasin", "Pontianak", "Samarinda"],
+    correct: "Palangkaraya",
+  },
+  {
+    id: "id-117",
+    category: "Geografi",
+    difficulty: "hard",
+    question: "Ibu kota Provinsi Sulawesi Utara adalah?",
+    options: ["Manado", "Makassar", "Palu", "Kendari"],
+    correct: "Manado",
+  },
+  {
+    id: "id-118",
+    category: "Geografi",
+    difficulty: "hard",
+    question: "Ibu kota Provinsi Sulawesi Tengah adalah?",
+    options: ["Palu", "Manado", "Makassar", "Kendari"],
+    correct: "Palu",
+  },
+  {
+    id: "id-119",
+    category: "Geografi",
+    difficulty: "hard",
+    question: "Ibu kota Provinsi Sulawesi Tenggara adalah?",
+    options: ["Kendari", "Palu", "Manado", "Makassar"],
+    correct: "Kendari",
+  },
+  {
+    id: "id-120",
+    category: "Geografi",
+    difficulty: "hard",
+    question: "Ibu kota Provinsi Maluku adalah?",
+    options: ["Ambon", "Ternate", "Sofifi", "Jayapura"],
+    correct: "Ambon",
+  },
 
-  // ============ BUDAYA & SENI (20 soal) ============
+  // ============ BUDAYA & SENI (30 soal) ============
   {
     id: "id-041",
     category: "Budaya",
@@ -463,7 +638,7 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
   {
     id: "id-050",
     category: "Budaya",
-    difficulty: "medium",
+    difficulty: "easy",
     question: "Makanan khas Padang yang terkenal adalah?",
     options: ["Rendang", "Soto Betawi", "Gudeg", "Rawon"],
     correct: "Rendang",
@@ -487,7 +662,7 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
   {
     id: "id-053",
     category: "Budaya",
-    difficulty: "medium",
+    difficulty: "hard",
     question: "Batik telah diakui UNESCO sebagai warisan budaya pada tahun?",
     options: ["2009", "2005", "2010", "2012"],
     correct: "2009",
@@ -495,7 +670,7 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
   {
     id: "id-054",
     category: "Budaya",
-    difficulty: "medium",
+    difficulty: "easy",
     question: "Wayang kulit berasal dari pulau?",
     options: ["Jawa", "Sumatera", "Bali", "Kalimantan"],
     correct: "Jawa",
@@ -558,8 +733,98 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
     ],
     correct: "Kalimantan Selatan",
   },
+  {
+    id: "id-121",
+    category: "Budaya",
+    difficulty: "hard",
+    question: "Tari Reog berasal dari daerah?",
+    options: [
+      "Ponorogo, Jawa Timur",
+      "Surakarta, Jawa Tengah",
+      "Yogyakarta",
+      "Bandung, Jawa Barat",
+    ],
+    correct: "Ponorogo, Jawa Timur",
+  },
+  {
+    id: "id-122",
+    category: "Budaya",
+    difficulty: "hard",
+    question: "Tari Barong berasal dari?",
+    options: ["Bali", "Jawa Tengah", "Sumatera", "Kalimantan"],
+    correct: "Bali",
+  },
+  {
+    id: "id-123",
+    category: "Budaya",
+    difficulty: "hard",
+    question: "Rumah adat Joglo berasal dari?",
+    options: [
+      "Jawa Tengah",
+      "Jawa Barat",
+      "Sumatera Utara",
+      "Kalimantan Timur",
+    ],
+    correct: "Jawa Tengah",
+  },
+  {
+    id: "id-124",
+    category: "Budaya",
+    difficulty: "hard",
+    question: "Rumah adat Baileo berasal dari?",
+    options: ["Maluku", "Papua", "Sulawesi", "Kalimantan"],
+    correct: "Maluku",
+  },
+  {
+    id: "id-125",
+    category: "Budaya",
+    difficulty: "hard",
+    question: "Senjata tradisional Kujang berasal dari?",
+    options: ["Jawa Barat", "Jawa Tengah", "Jawa Timur", "Banten"],
+    correct: "Jawa Barat",
+  },
+  {
+    id: "id-126",
+    category: "Budaya",
+    difficulty: "hard",
+    question: "Senjata tradisional Keris diakui UNESCO pada tahun?",
+    options: ["2005", "2003", "2008", "2010"],
+    correct: "2005",
+  },
+  {
+    id: "id-127",
+    category: "Budaya",
+    difficulty: "hard",
+    question: "Tari Piring berasal dari?",
+    options: ["Sumatera Barat", "Aceh", "Riau", "Jambi"],
+    correct: "Sumatera Barat",
+  },
+  {
+    id: "id-128",
+    category: "Budaya",
+    difficulty: "hard",
+    question: "Sasando dimainkan dengan cara?",
+    options: ["Dipetik", "Ditiup", "Dipukul", "Digesek"],
+    correct: "Dipetik",
+  },
+  {
+    id: "id-129",
+    category: "Budaya",
+    difficulty: "hard",
+    question: "Tari Tor-Tor berasal dari suku?",
+    options: ["Batak", "Minang", "Bugis", "Dayak"],
+    correct: "Batak",
+  },
+  {
+    id: "id-130",
+    category: "Budaya",
+    difficulty: "hard",
+    question: "Wayang golek berasal dari?",
+    options: ["Jawa Barat", "Jawa Tengah", "Jawa Timur", "Bali"],
+    correct: "Jawa Barat",
+  },
 
-  // ============ BAHASA & SASTRA (10 soal) ============
+  // ============ BAHASA & SASTRA (20 soal) ============
   {
     id: "id-061",
     category: "Bahasa",
@@ -584,7 +849,7 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
   {
     id: "id-063",
     category: "Bahasa",
-    difficulty: "medium",
+    difficulty: "hard",
     question: "Siapa yang menciptakan istilah 'Indonesia'?",
     options: [
       "James Richardson Logan",
@@ -597,7 +862,7 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
   {
     id: "id-064",
     category: "Bahasa",
-    difficulty: "medium",
+    difficulty: "easy",
     question: "Semboyan negara Indonesia adalah?",
     options: ["Bhinneka Tunggal Ika", "Garuda Pancasila", "Merdeka", "NKRI"],
     correct: "Bhinneka Tunggal Ika",
@@ -605,7 +870,7 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
   {
     id: "id-065",
     category: "Bahasa",
-    difficulty: "medium",
+    difficulty: "easy",
     question: "Bhinneka Tunggal Ika artinya?",
     options: [
       "Berbeda-beda tetapi tetap satu",
@@ -634,7 +899,7 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
   {
     id: "id-068",
     category: "Bahasa",
-    difficulty: "medium",
+    difficulty: "easy",
     question: "Siapa penulis novel 'Laskar Pelangi'?",
     options: [
       "Andrea Hirata",
@@ -670,8 +935,103 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
     ],
     correct: "Chairil Anwar",
   },
+  {
+    id: "id-131",
+    category: "Bahasa",
+    difficulty: "hard",
+    question: "Karya sastra 'Negarakertagama' ditulis oleh?",
+    options: ["Mpu Prapanca", "Mpu Tantular", "Mpu Sedah", "Mpu Panuluh"],
+    correct: "Mpu Prapanca",
+  },
+  {
+    id: "id-132",
+    category: "Bahasa",
+    difficulty: "hard",
+    question: "Karya sastra 'Arjunawiwaha' ditulis oleh?",
+    options: ["Mpu Kanwa", "Mpu Prapanca", "Mpu Tantular", "Mpu Sedah"],
+    correct: "Mpu Kanwa",
+  },
+  {
+    id: "id-133",
+    category: "Bahasa",
+    difficulty: "hard",
+    question: "Karya sastra 'Bharatayuddha' ditulis oleh?",
+    options: [
+      "Mpu Sedah dan Mpu Panuluh",
+      "Mpu Tantular",
+      "Mpu Prapanca",
+      "Mpu Kanwa",
+    ],
+    correct: "Mpu Sedah dan Mpu Panuluh",
+  },
+  {
+    id: "id-134",
+    category: "Bahasa",
+    difficulty: "hard",
+    question: "Siapa penulis novel 'Pulang'?",
+    options: ["Leila S. Chudori", "Andrea Hirata", "Tere Liye", "Dee Lestari"],
+    correct: "Leila S. Chudori",
+  },
+  {
+    id: "id-135",
+    category: "Bahasa",
+    difficulty: "medium",
+    question: "Siapa penulis novel 'Perahu Kertas'?",
+    options: ["Dee Lestari", "Andrea Hirata", "Tere Liye", "Habiburrahman"],
+    correct: "Dee Lestari",
+  },
+  {
+    id: "id-136",
+    category: "Bahasa",
+    difficulty: "hard",
+    question: "Siapa penulis novel 'Ronggeng Dukuh Paruk'?",
+    options: [
+      "Ahmad Tohari",
+      "Pramoedya Ananta Toer",
+      "WS Rendra",
+      "Umar Kayam",
+    ],
+    correct: "Ahmad Tohari",
+  },
+  {
+    id: "id-137",
+    category: "Bahasa",
+    difficulty: "hard",
+    question: "Kitab 'Ramayana' versi Jawa Kuno ditulis oleh?",
+    options: ["Mpu Yogiswara", "Mpu Sedah", "Mpu Panuluh", "Mpu Kanwa"],
+    correct: "Mpu Yogiswara",
+  },
+  {
+    id: "id-138",
+    category: "Bahasa",
+    difficulty: "hard",
+    question: "Siapa sastrawan yang dijuluki 'Si Burung Merak'?",
+    options: [
+      "WS Rendra",
+      "Chairil Anwar",
+      "Sapardi Djoko Damono",
+      "Taufiq Ismail",
+    ],
+    correct: "WS Rendra",
+  },
+  {
+    id: "id-139",
+    category: "Bahasa",
+    difficulty: "hard",
+    question: "Bahasa daerah dengan penutur terbanyak di Indonesia adalah?",
+    options: ["Bahasa Jawa", "Bahasa Sunda", "Bahasa Madura", "Bahasa Melayu"],
+    correct: "Bahasa Jawa",
+  },
+  {
+    id: "id-140",
+    category: "Bahasa",
+    difficulty: "hard",
+    question: "Aksara tradisional Jawa Kuno disebut?",
+    options: ["Aksara Kawi", "Aksara Pallawa", "Aksara Sunda", "Aksara Bali"],
+    correct: "Aksara Kawi",
+  },
 
-  // ============ LAIN-LAIN (30 soal) ============
+  // ============ UMUM (20 soal) ============
   {
     id: "id-071",
     category: "Umum",
@@ -712,7 +1072,7 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
   {
     id: "id-075",
     category: "Umum",
-    difficulty: "medium",
+    difficulty: "easy",
     question: "Mata uang Indonesia adalah?",
     options: ["Rupiah", "Ringgit", "Peso", "Baht"],
     correct: "Rupiah",
@@ -760,6 +1120,100 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
     correct: "Papua",
   },
   {
+    id: "id-141",
+    category: "Umum",
+    difficulty: "hard",
+    question: "Hari Kemerdekaan Indonesia jatuh pada hari apa tahun 1945?",
+    options: ["Jumat", "Kamis", "Sabtu", "Minggu"],
+    correct: "Jumat",
+  },
+  {
+    id: "id-142",
+    category: "Umum",
+    difficulty: "hard",
+    question:
+      "Berapa jumlah bulu pada Garuda Pancasila di bagian pangkal ekor?",
+    options: ["19", "17", "8", "45"],
+    correct: "19",
+  },
+  {
+    id: "id-143",
+    category: "Umum",
+    difficulty: "hard",
+    question: "Bendera Indonesia pertama kali dikibarkan pada tanggal?",
+    options: [
+      "17 Agustus 1945",
+      "28 Oktober 1928",
+      "1 Juni 1945",
+      "10 November 1945",
+    ],
+    correct: "17 Agustus 1945",
+  },
+  {
+    id: "id-144",
+    category: "Umum",
+    difficulty: "medium",
+    question: "Hari Sumpah Pemuda diperingati setiap tanggal?",
+    options: ["28 Oktober", "17 Agustus", "1 Juni", "10 November"],
+    correct: "28 Oktober",
+  },
+  {
+    id: "id-145",
+    category: "Umum",
+    difficulty: "medium",
+    question: "Hari Kartini diperingati setiap tanggal?",
+    options: ["21 April", "2 Mei", "1 Juni", "10 November"],
+    correct: "21 April",
+  },
+  {
+    id: "id-146",
+    category: "Umum",
+    difficulty: "medium",
+    question: "Hari Kesaktian Pancasila diperingati setiap tanggal?",
+    options: ["1 Oktober", "30 September", "1 Juni", "17 Agustus"],
+    correct: "1 Oktober",
+  },
+  {
+    id: "id-147",
+    category: "Umum",
+    difficulty: "hard",
+    question: "Hari Trikora diperingati setiap tanggal?",
+    options: ["19 Desember", "17 Agustus", "1 Oktober", "10 November"],
+    correct: "19 Desember",
+  },
+  {
+    id: "id-148",
+    category: "Umum",
+    difficulty: "medium",
+    question:
+      "Semboyan Bhinneka Tunggal Ika mulai digunakan secara resmi pada tahun?",
+    options: ["1945", "1950", "1949", "1965"],
+    correct: "1945",
+  },
+  {
+    id: "id-149",
+    category: "Umum",
+    difficulty: "hard",
+    question: "Kepanjangan NKRI adalah?",
+    options: [
+      "Negara Kesatuan Republik Indonesia",
+      "Negara Kebangsaan Republik Indonesia",
+      "Negara Kesatuan Rakyat Indonesia",
+      "Negara Kebangsaan Rakyat Indonesia",
+    ],
+    correct: "Negara Kesatuan Republik Indonesia",
+  },
+  {
+    id: "id-150",
+    category: "Umum",
+    difficulty: "medium",
+    question: "Berapa lama Soekarno menjabat sebagai presiden?",
+    options: ["22 tahun", "20 tahun", "25 tahun", "30 tahun"],
+    correct: "22 tahun",
+  },
+
+  // ============ OLAHRAGA (15 soal) ============
+  {
     id: "id-081",
     category: "Olahraga",
     difficulty: "medium",
@@ -784,7 +1238,7 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
   {
     id: "id-083",
     category: "Olahraga",
-    difficulty: "medium",
+    difficulty: "easy",
     question:
       "Cabang olahraga yang mengharumkan nama Indonesia di kancah dunia adalah?",
     options: ["Bulu tangkis", "Sepak bola", "Basket", "Renang"],
@@ -801,15 +1255,129 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
   {
     id: "id-085",
     category: "Olahraga",
-    difficulty: "medium",
+    difficulty: "hard",
     question: "Piala Uber pertama kali dimenangkan Indonesia pada tahun?",
     options: ["1975", "1958", "1960", "1967"],
     correct: "1975",
   },
   {
+    id: "id-151",
+    category: "Olahraga",
+    difficulty: "hard",
+    question: "Siapa atlet bulu tangkis Indonesia yang dijuluki 'The Maestro'?",
+    options: [
+      "Rudi Hartono",
+      "Liem Swie King",
+      "Icuk Sugiarto",
+      "Alan Budikusuma",
+    ],
+    correct: "Rudi Hartono",
+  },
+  {
+    id: "id-152",
+    category: "Olahraga",
+    difficulty: "hard",
+    question: "Berapa kali Indonesia memenangkan Piala Thomas (sampai 2024)?",
+    options: ["14 kali", "10 kali", "12 kali", "8 kali"],
+    correct: "14 kali",
+  },
+  {
+    id: "id-153",
+    category: "Olahraga",
+    difficulty: "hard",
+    question: "Berapa kali Indonesia memenangkan Piala Uber (sampai 2024)?",
+    options: ["3 kali", "1 kali", "5 kali", "2 kali"],
+    correct: "3 kali",
+  },
+  {
+    id: "id-154",
+    category: "Olahraga",
+    difficulty: "hard",
+    question:
+      "Siapa atlet Indonesia pertama yang memenangkan medali emas Olimpiade?",
+    options: [
+      "Alan Budikusuma & Susi Susanti",
+      "Rudi Hartono",
+      "Liem Swie King",
+      "Taufik Hidayat",
+    ],
+    correct: "Alan Budikusuma & Susi Susanti",
+  },
+  {
+    id: "id-155",
+    category: "Olahraga",
+    difficulty: "hard",
+    question: "Pada Olimpiade mana Indonesia pertama kali meraih medali emas?",
+    options: ["Barcelona 1992", "Seoul 1988", "Atlanta 1996", "Sydney 2000"],
+    correct: "Barcelona 1992",
+  },
+  {
+    id: "id-156",
+    category: "Olahraga",
+    difficulty: "hard",
+    question: "Siapa atlet bulu tangkis Indonesia peraih emas Olimpiade 2004?",
+    options: [
+      "Taufik Hidayat",
+      "Rudi Hartono",
+      "Liem Swie King",
+      "Icuk Sugiarto",
+    ],
+    correct: "Taufik Hidayat",
+  },
+  {
+    id: "id-157",
+    category: "Olahraga",
+    difficulty: "hard",
+    question: "Siapa atlet bulu tangkis Indonesia peraih emas Olimpiade 2008?",
+    options: [
+      "Markis Kido & Hendra Setiawan",
+      "Taufik Hidayat",
+      "Rudi Hartono",
+      "Liem Swie King",
+    ],
+    correct: "Markis Kido & Hendra Setiawan",
+  },
+  {
+    id: "id-158",
+    category: "Olahraga",
+    difficulty: "hard",
+    question:
+      "Siapa atlet bulu tangkis Indonesia peraih emas Olimpiade 2020 (Tokyo)?",
+    options: [
+      "Greysia Polii & Apriyani Rahayu",
+      "Marcus Gideon & Kevin Sanjaya",
+      "Anthony Ginting",
+      "Mohammad Ahsan & Hendra Setiawan",
+    ],
+    correct: "Greysia Polii & Apriyani Rahayu",
+  },
+  {
+    id: "id-159",
+    category: "Olahraga",
+    difficulty: "hard",
+    question: "Timnas Indonesia pertama kali ikut Piala Dunia pada tahun?",
+    options: ["1938", "1950", "1954", "1958"],
+    correct: "1938",
+  },
+  {
+    id: "id-160",
+    category: "Olahraga",
+    difficulty: "hard",
+    question: "Pada Piala Dunia 1938, Indonesia masih bernama?",
+    options: [
+      "Hindia Belanda",
+      "Nusantara",
+      "Indonesia Raya",
+      "Dutch East Indies Merdeka",
+    ],
+    correct: "Hindia Belanda",
+  },
+
+  // ============ MUSIK (10 soal) ============
+  {
     id: "id-086",
     category: "Musik",
-    difficulty: "medium",
+    difficulty: "easy",
     question: "Lagu kebangsaan Indonesia adalah?",
     options: [
       "Indonesia Raya",
@@ -847,15 +1415,63 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
   {
     id: "id-090",
     category: "Musik",
-    difficulty: "medium",
+    difficulty: "easy",
     question: "Alat musik modern asli Indonesia adalah?",
     options: ["Angklung", "Gitar", "Piano", "Biola"],
     correct: "Angklung",
   },
   {
+    id: "id-161",
+    category: "Musik",
+    difficulty: "hard",
+    question: "Siapa pencipta lagu 'Halo-Halo Bandung'?",
+    options: ["Ismail Marzuki", "WR Supratman", "Kusbini", "C. Simanjuntak"],
+    correct: "Ismail Marzuki",
+  },
+  {
+    id: "id-162",
+    category: "Musik",
+    difficulty: "hard",
+    question: "Siapa pencipta lagu 'Bagimu Negeri'?",
+    options: ["Kusbini", "WR Supratman", "Ismail Marzuki", "C. Simanjuntak"],
+    correct: "Kusbini",
+  },
+  {
+    id: "id-163",
+    category: "Musik",
+    difficulty: "hard",
+    question: "Siapa pencipta lagu 'Rayuan Pulau Kelapa'?",
+    options: ["Ismail Marzuki", "WR Supratman", "Kusbini", "C. Simanjuntak"],
+    correct: "Ismail Marzuki",
+  },
+  {
+    id: "id-164",
+    category: "Musik",
+    difficulty: "hard",
+    question: "Siapa pencipta lagu 'Bangun Pemudi Pemuda'?",
+    options: [
+      "Alfred Simanjuntak",
+      "WR Supratman",
+      "Ismail Marzuki",
+      "Kusbini",
+    ],
+    correct: "Alfred Simanjuntak",
+  },
+  {
+    id: "id-165",
+    category: "Musik",
+    difficulty: "hard",
+    question:
+      "Alat musik tradisional Jawa Barat yang terbuat dari bambu adalah?",
+    options: ["Angklung", "Calung", "Suling", "Kecapi"],
+    correct: "Angklung",
+  },
+
+  // ============ TEKNOLOGI (8 soal) ============
+  {
     id: "id-091",
     category: "Teknologi",
-    difficulty: "medium",
+    difficulty: "easy",
     question: "Presiden Indonesia yang dikenal sebagai Bapak Teknologi adalah?",
     options: ["B.J. Habibie", "Soekarno", "Soeharto", "SBY"],
     correct: "B.J. Habibie",
@@ -869,6 +1485,61 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
     correct: "Pesawat dan struktur bahan",
   },
   {
+    id: "id-166",
+    category: "Teknologi",
+    difficulty: "hard",
+    question: "Teori Habibie dikenal dengan nama?",
+    options: [
+      "Crack Progression Theory",
+      "Aerodynamic Theory",
+      "Structural Theory",
+      "Material Theory",
+    ],
+    correct: "Crack Progression Theory",
+  },
+  {
+    id: "id-167",
+    category: "Teknologi",
+    difficulty: "hard",
+    question: "Pesawat pertama yang dirancang B.J. Habibie adalah?",
+    options: ["N-250", "N-2130", "CN-235", "N-270"],
+    correct: "N-250",
+  },
+  {
+    id: "id-168",
+    category: "Teknologi",
+    difficulty: "hard",
+    question: "B.J. Habibie menjabat sebagai presiden Indonesia ke berapa?",
+    options: ["3", "2", "4", "5"],
+    correct: "3",
+  },
+  {
+    id: "id-169",
+    category: "Teknologi",
+    difficulty: "hard",
+    question: "Berapa lama B.J. Habibie menjabat sebagai presiden?",
+    options: ["1 tahun 5 bulan", "2 tahun", "3 tahun", "6 bulan"],
+    correct: "1 tahun 5 bulan",
+  },
+  {
+    id: "id-170",
+    category: "Teknologi",
+    difficulty: "hard",
+    question: "Pesawat N-250 pertama kali terbang pada tahun?",
+    options: ["1995", "1990", "1998", "2000"],
+    correct: "1995",
+  },
+  {
+    id: "id-171",
+    category: "Teknologi",
+    difficulty: "hard",
+    question: "B.J. Habibie lahir di kota?",
+    options: ["Parepare", "Makassar", "Jakarta", "Bandung"],
+    correct: "Parepare",
+  },
+
+  // ============ WISATA (12 soal) ============
+  {
     id: "id-093",
     category: "Wisata",
     difficulty: "easy",
@@ -879,7 +1550,7 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
   {
     id: "id-094",
     category: "Wisata",
-    difficulty: "medium",
+    difficulty: "easy",
     question: "Danau Toba terletak di provinsi?",
     options: ["Sumatera Utara", "Sumatera Barat", "Aceh", "Riau"],
     correct: "Sumatera Utara",
@@ -903,7 +1574,7 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
   {
     id: "id-097",
     category: "Wisata",
-    difficulty: "medium",
+    difficulty: "easy",
     question: "Gunung Bromo terletak di provinsi?",
     options: ["Jawa Timur", "Jawa Tengah", "Jawa Barat", "Bali"],
     correct: "Jawa Timur",
@@ -911,7 +1582,7 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
   {
     id: "id-098",
     category: "Wisata",
-    difficulty: "medium",
+    difficulty: "easy",
     question: "Pantai Kuta terletak di provinsi?",
     options: ["Bali", "Jawa Timur", "NTB", "Lampung"],
     correct: "Bali",
@@ -931,5 +1602,42 @@ export const TRIVIA_INDONESIA: LocalTriviaQuestion[] = [
     question: "Candi Prambanan dipersembahkan untuk dewa?",
     options: ["Shiwa", "Wisnu", "Brahma", "Indra"],
     correct: "Shiwa",
+  },
+  {
+    id: "id-172",
+    category: "Wisata",
+    difficulty: "hard",
+    question: "Candi Borobudur memiliki berapa tingkat?",
+    options: ["10 tingkat", "8 tingkat", "9 tingkat", "12 tingkat"],
+    correct: "10 tingkat",
+  },
+  {
+    id: "id-173",
+    category: "Wisata",
+    difficulty: "hard",
+    question: "Candi Borobudur dibangun pada abad ke?",
+    options: ["8-9 M", "6-7 M", "10-11 M", "5-6 M"],
+    correct: "8-9 M",
+  },
+  {
+    id: "id-174",
+    category: "Wisata",
+    difficulty: "hard",
+    question: "Danau Toba terbentuk akibat letusan gunung berapi pada tahun?",
+    options: [
+      "74.000 tahun lalu",
+      "10.000 tahun lalu",
+      "100.000 tahun lalu",
+      "50.000 tahun lalu",
+    ],
+    correct: "74.000 tahun lalu",
+  },
+  {
+    id: "id-175",
+    category: "Wisata",
+    difficulty: "hard",
+    question: "Pulau Samosir terletak di tengah danau?",
+    options: ["Danau Toba", "Danau Singkarak", "Danau Batur", "Danau Sentani"],
+    correct: "Danau Toba",
   },
 ];
