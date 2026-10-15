@@ -1,4 +1,11 @@
-import { ArrowUpRight, Crosshair, Radio, Trophy, UsersRound, WifiOff, Zap } from "lucide-react";
+import {
+  ArrowUpRight,
+  Globe2,
+  Radio,
+  Swords,
+  UsersRound,
+  Zap,
+} from "lucide-react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import Navbar from "../components/Navbar";
@@ -7,13 +14,17 @@ import Footer from "../components/Footer";
 export const metadata: Metadata = {
   title: "Game Arcade - Altaf Story",
   description:
-    "Mainkan Tap Rush online bareng teman, atau Orb Blitz offline solo — arena game dari Altaf Story.",
+    "Mainkan Tap Rush, Snake Duel, dan Tebak Negara online bareng teman — arena game real-time dari Altaf Story.",
   keywords: [
     "game multiplayer online",
     "game party online",
-    "game offline",
+    "game ular online",
+    "snake multiplayer",
+    "kuis tebak negara",
+    "tebak bendera",
     "Tap Rush",
-    "Orb Blitz",
+    "Snake Duel",
+    "Flag Quiz",
     "Altaf Story games",
   ],
   alternates: {
@@ -22,7 +33,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Game Arcade - Altaf Story",
     description:
-      "Tap Rush untuk party online, Orb Blitz untuk blitz solo offline.",
+      "Tap Rush, Snake Duel & Tebak Negara — main bareng teman secara real-time.",
     url: "/game",
     siteName: "Altaf Story",
     locale: "id_ID",
@@ -40,7 +51,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Game Arcade - Altaf Story",
     description:
-      "Tap Rush untuk party online, Orb Blitz untuk blitz solo offline.",
+      "Tap Rush, Snake Duel & Tebak Negara — main bareng teman secara real-time.",
     images: ["/assets/img/hero.jpeg"],
   },
 };
@@ -51,10 +62,16 @@ export default function DaftarGamePage() {
       <Navbar />
 
       <main className="game-hub-main">
-        <div className="game-hub-overline"><span /> ALTAF ARCADE <span>02 / MIXED</span></div>
+        <div className="game-hub-overline">
+          <span /> ALTAF ARCADE <span>03 / ONLINE</span>
+        </div>
         <header className="game-hub-heading">
-          <p>PLAY YOUR WAY</p>
-          <h1>Room up.<br /><span>Or go solo.</span></h1>
+          <p>PLAY TOGETHER</p>
+          <h1>
+            Room up.
+            <br />
+            <span>Bring friends.</span>
+          </h1>
           <div className="game-hub-underline" />
         </header>
 
@@ -62,18 +79,31 @@ export default function DaftarGamePage() {
           <section className="game-feature">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
-              <div className="game-feature-target"><Zap size={88} strokeWidth={1.5} /></div>
+              <div className="game-feature-target">
+                <Zap size={88} strokeWidth={1.5} />
+              </div>
               <span className="game-feature-number">15</span>
               <span className="game-feature-art-label">SECONDS / ROUND</span>
-              <span className="game-feature-live"><i /> LIVE ROOM</span>
+              <span className="game-feature-live">
+                <i /> LIVE ROOM
+              </span>
             </div>
             <div className="game-feature-copy">
-              <div className="game-feature-kicker"><Radio size={14} /> PARTY GAME / 001</div>
+              <div className="game-feature-kicker">
+                <Radio size={14} /> PARTY GAME / 001
+              </div>
               <h2>Tap Rush</h2>
-              <p className="game-feature-description">Jempol siap? Masuk ke room, tunggu teman, lalu tap secepat mungkin sebelum waktu habis.</p>
+              <p className="game-feature-description">
+                Jempol siap? Masuk ke room, tunggu teman, lalu tap secepat
+                mungkin sebelum waktu habis.
+              </p>
               <div className="game-feature-facts">
-                <span><UsersRound size={16} /> 2—8 pemain</span>
-                <span><Zap size={16} /> Real-time</span>
+                <span>
+                  <UsersRound size={16} /> 2—8 pemain
+                </span>
+                <span>
+                  <Zap size={16} /> Real-time
+                </span>
               </div>
               <Link href="/game/tap-rush" className="game-feature-cta">
                 Buka room <ArrowUpRight size={18} />
@@ -82,31 +112,79 @@ export default function DaftarGamePage() {
           </section>
 
           <section className="game-feature">
-            <div className="game-feature-art game-feature-art-offline" aria-hidden="true">
+            <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
-              <div className="game-feature-target game-feature-target-orb"><Crosshair size={72} strokeWidth={1.5} /></div>
-              <span className="game-feature-number">∞</span>
-              <span className="game-feature-art-label">COMBO / ENDLESS</span>
-              <span className="game-feature-live game-feature-offline"><i /> OFFLINE</span>
+              <div className="game-feature-target">
+                <Swords size={88} strokeWidth={1.5} />
+              </div>
+              <span className="game-feature-number">1V1</span>
+              <span className="game-feature-art-label">SNAKE / DUEL</span>
+              <span className="game-feature-live">
+                <i /> LIVE ROOM
+              </span>
             </div>
             <div className="game-feature-copy">
-              <div className="game-feature-kicker"><WifiOff size={14} /> SOLO ARCADE / 002</div>
-              <h2>Orb Blitz</h2>
-              <p className="game-feature-description">Tap orb sebelum menghilang, jaga combo, dan kejar high score. Tanpa room, tanpa koneksi.</p>
-              <div className="game-feature-facts">
-                <span><Trophy size={16} /> Local high score</span>
-                <span><Crosshair size={16} /> Reaction</span>
+              <div className="game-feature-kicker">
+                <Radio size={14} /> PARTY GAME / 002
               </div>
-              <Link href="/game/orb-blitz" className="game-feature-cta game-feature-cta-orange">
-                Main sekarang <ArrowUpRight size={18} />
+              <h2>Snake Duel</h2>
+              <p className="game-feature-description">
+                Dua ular, satu arena. Rebut buah, hindari tabrakan, dan buat
+                lawan menyerah duluan.
+              </p>
+              <div className="game-feature-facts">
+                <span>
+                  <UsersRound size={16} /> 2 pemain
+                </span>
+                <span>
+                  <Swords size={16} /> Duel 1v1
+                </span>
+              </div>
+              <Link href="/game/snake-duel" className="game-feature-cta">
+                Tantang teman <ArrowUpRight size={18} />
+              </Link>
+            </div>
+          </section>
+
+          <section className="game-feature">
+            <div className="game-feature-art" aria-hidden="true">
+              <div className="game-feature-scanlines" />
+              <div className="game-feature-target">
+                <Globe2 size={88} strokeWidth={1.5} />
+              </div>
+              <span className="game-feature-number">5</span>
+              <span className="game-feature-art-label">SOAL / 10 DETIK</span>
+              <span className="game-feature-live">
+                <i /> LIVE ROOM
+              </span>
+            </div>
+            <div className="game-feature-copy">
+              <div className="game-feature-kicker">
+                <Radio size={14} /> PARTY GAME / 003
+              </div>
+              <h2>Tebak Negara</h2>
+              <p className="game-feature-description">
+                Bendera muncul, tebak negaranya. Jawab salah? Teman tahu. Jawab
+                duluan? Semua tahu. Adu cepat & tepat.
+              </p>
+              <div className="game-feature-facts">
+                <span>
+                  <UsersRound size={16} /> 2—8 pemain
+                </span>
+                <span>
+                  <Globe2 size={16} /> Kuis real-time
+                </span>
+              </div>
+              <Link href="/game/flag-quiz" className="game-feature-cta">
+                Mulai kuis <ArrowUpRight size={18} />
               </Link>
             </div>
           </section>
         </div>
 
         <div className="game-hub-footerline">
-          <span>02 GAME DI ARENA</span>
-          <span>ONLINE + OFFLINE</span>
+          <span>03 GAME DI ARENA</span>
+          <span>SEMUA ONLINE</span>
         </div>
       </main>
 
