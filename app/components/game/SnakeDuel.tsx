@@ -36,7 +36,11 @@ type SnakeState = {
 const ROOM_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const COLS = 24;
 const ROWS = 24;
-const TICK_MS = 130;
+
+// Kecepatan bertahap: lambat di awal, makin cepat tiap makan buah
+const BASE_TICK_MS = 220;
+const MIN_TICK_MS = 110;
+const SPEED_STEP = 6;
 
 // Warna selaras tema arcade oranye/amber
 const P1_COLOR = "#fbbf24"; // amber — host
@@ -138,6 +142,8 @@ export default function SnakeDuel() {
   const peerSnakeRef = useRef<SnakeState | null>(null);
   const foodRef = useRef<Vec>({ x: 12, y: 12 });
   const dirQueueRef = useRef<Vec[]>([]);
+  const tickMsRef = useRef(BASE_TICK_MS);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     mySnakeRef.current = mySnake;
@@ -148,6 +154,15 @@ export default function SnakeDuel() {
   useEffect(() => {
     foodRef.current = food;
   }, [food]);
+
+  // Helper untuk memasukkan arah (dipakai keyboard & tombol HP)
+  const pushDir = (dir: Vec) => {
+    const queue = dirQueueRef.current;
+    const last = queue[queue.length - 1] ?? mySnakeRef.current?.dir;
+    if (last && dir.x === -last.x && dir.y === -last.y) return;
+    queue.push(dir);
+    if (queue.length > 2) queue.shift();
+  };
 
   // ---- Realtime channel ----
   useEffect(() => {
@@ -189,6 +204,7 @@ export default function SnakeDuel() {
       );
 
       dirQueueRef.current = [];
+      tickMsRef.current = BASE_TICK_MS;
       setMySnake(myStart);
       setPeerSnake(peerStart);
       setFood(data.food);
@@ -249,23 +265,27 @@ export default function SnakeDuel() {
       const dir = directionFromKey(event.key);
       if (!dir) return;
       event.preventDefault();
-      dirQueueRef.current.push(dir);
-      if (dirQueueRef.current.length > 2) dirQueueRef.current.shift();
+      pushDir(dir);
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [phase]);
 
-  // ---- Game loop ----
+  // ---- Game loop (setTimeout rekursif agar kecepatan dinamis) ----
   useEffect(() => {
     if (phase !== "playing") return;
-    if (gameLoopRef.current) window.clearInterval(gameLoopRef.current);
 
-    gameLoopRef.current = window.setInterval(() => {
+    let cancelled = false;
+
+    const step = () => {
+      if (cancelled) return;
+
       const me = mySnakeRef.current;
       const peer = peerSnakeRef.current;
-      if (!me || !peer) return;
-      if (!me.alive || !peer.alive) return;
+      if (!me || !peer || !me.alive || !peer.alive) {
+        gameLoopRef.current = window.setTimeout(step, tickMsRef.current);
+        return;
+      }
 
       let nextDir = me.dir;
       while (dirQueueRef.current.length > 0) {
@@ -371,13 +391,45 @@ export default function SnakeDuel() {
           event: "food",
           payload: { food: nextFood },
         });
+
+        // Percepat permainan tiap makan buah
+        const faster = Math.max(MIN_TICK_MS, tickMsRef.current - SPEED_STEP);
+        tickMsRef.current = faster;
       }
-    }, TICK_MS);
+
+      gameLoopRef.current = window.setTimeout(step, tickMsRef.current);
+    };
+
+    gameLoopRef.current = window.setTimeout(step, tickMsRef.current);
 
     return () => {
-      if (gameLoopRef.current) window.clearInterval(gameLoopRef.current);
+      cancelled = true;
+      if (gameLoopRef.current) window.clearTimeout(gameLoopRef.current);
     };
   }, [phase, playerId]);
+
+  // ---- Touch / Swipe handlers ----
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    touchStartRef.current = { x: t.clientX, y: t.clientY };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const start = touchStartRef.current;
+    if (!start) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+    touchStartRef.current = null;
+    if (Math.max(absX, absY) < 24) return;
+    if (absX > absY) {
+      pushDir({ x: dx > 0 ? 1 : -1, y: 0 });
+    } else {
+      pushDir({ x: 0, y: dy > 0 ? 1 : -1 });
+    }
+  };
 
   // ---- Handlers ----
   const enterRoom = (roomCode: string, host: boolean) => {
@@ -400,6 +452,7 @@ export default function SnakeDuel() {
     setMySnake(null);
     setPeerSnake(null);
     setWinner(null);
+    tickMsRef.current = BASE_TICK_MS;
   };
 
   const handleJoinRoom = (event: React.FormEvent<HTMLFormElement>) => {
@@ -430,6 +483,7 @@ export default function SnakeDuel() {
       initialSnake(guest.id, P2_COLOR, false),
     ]);
     dirQueueRef.current = [];
+    tickMsRef.current = BASE_TICK_MS;
     setMySnake(initialSnake(hostId, P1_COLOR, true));
     setPeerSnake(initialSnake(guest.id, P2_COLOR, false));
     setFood(startFood);
@@ -464,6 +518,7 @@ export default function SnakeDuel() {
     setWinner(null);
     setError("");
     dirQueueRef.current = [];
+    tickMsRef.current = BASE_TICK_MS;
   };
 
   const guestsReady = players.filter((p) => !p.isHost).every((p) => p.ready);
@@ -678,13 +733,72 @@ export default function SnakeDuel() {
                     <span>{peerName}</span>
                   </div>
                 </div>
-                <SnakeBoard
-                  mySnake={mySnake}
-                  peerSnake={peerSnake}
-                  food={food}
-                />
+
+                <div
+                  onTouchStart={handleTouchStart}
+                  onTouchEnd={handleTouchEnd}
+                  style={{ touchAction: "none" }}
+                >
+                  <SnakeBoard
+                    mySnake={mySnake}
+                    peerSnake={peerSnake}
+                    food={food}
+                  />
+                </div>
+
+                <div
+                  className="snake-dpad"
+                  role="group"
+                  aria-label="Kontrol ular"
+                >
+                  <button
+                    type="button"
+                    className="snake-dpad-btn snake-dpad-up"
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      pushDir({ x: 0, y: -1 });
+                    }}
+                    aria-label="Atas"
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    className="snake-dpad-btn snake-dpad-left"
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      pushDir({ x: -1, y: 0 });
+                    }}
+                    aria-label="Kiri"
+                  >
+                    ◀
+                  </button>
+                  <button
+                    type="button"
+                    className="snake-dpad-btn snake-dpad-right"
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      pushDir({ x: 1, y: 0 });
+                    }}
+                    aria-label="Kanan"
+                  >
+                    ▶
+                  </button>
+                  <button
+                    type="button"
+                    className="snake-dpad-btn snake-dpad-down"
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      pushDir({ x: 0, y: 1 });
+                    }}
+                    aria-label="Bawah"
+                  >
+                    ▼
+                  </button>
+                </div>
+
                 <p className="snake-controls-hint">
-                  Pakai tombol panah atau WASD untuk gerak.
+                  Tombol panah / WASD, geser di arena, atau tombol di layar.
                 </p>
               </div>
             )}
@@ -734,7 +848,7 @@ export default function SnakeDuel() {
         )}
 
         <footer className="tap-rush-footnote">
-          <span>ARROW KEYS / WASD</span>
+          <span>ARROW KEYS / WASD / TOUCH</span>
           <span>2 PEMAIN</span>
           <span>DUEL 1V1</span>
         </footer>
@@ -745,6 +859,7 @@ export default function SnakeDuel() {
           display: flex;
           flex-direction: column;
           gap: 12px;
+          touch-action: none;
         }
         .snake-hud {
           display: flex;
@@ -779,6 +894,52 @@ export default function SnakeDuel() {
           opacity: 0.55;
           letter-spacing: 0.08em;
           text-transform: uppercase;
+        }
+        .snake-dpad {
+          display: grid;
+          grid-template-columns: repeat(3, 56px);
+          grid-template-rows: repeat(3, 56px);
+          gap: 8px;
+          justify-content: center;
+          margin-top: 4px;
+          touch-action: none;
+          user-select: none;
+          -webkit-user-select: none;
+        }
+        .snake-dpad-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: rgba(255, 255, 255, 0.05);
+          color: #fbbf24;
+          font-size: 18px;
+          font-weight: 700;
+          cursor: pointer;
+          -webkit-tap-highlight-color: transparent;
+          touch-action: manipulation;
+        }
+        .snake-dpad-btn:active {
+          background: rgba(251, 191, 36, 0.2);
+          transform: scale(0.96);
+        }
+        .snake-dpad-up {
+          grid-area: 1 / 2;
+        }
+        .snake-dpad-left {
+          grid-area: 2 / 1;
+        }
+        .snake-dpad-right {
+          grid-area: 2 / 3;
+        }
+        .snake-dpad-down {
+          grid-area: 3 / 2;
+        }
+        @media (min-width: 720px) and (hover: hover) {
+          .snake-dpad {
+            display: none;
+          }
         }
       `}</style>
     </main>
