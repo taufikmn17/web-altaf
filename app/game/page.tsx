@@ -3,10 +3,10 @@ import {
   Globe2,
   Grid3x3,
   HelpCircle,
+  Key,
   Radio,
   Swords,
   UsersRound,
-  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import type { Metadata } from "next";
@@ -16,10 +16,15 @@ import Footer from "../components/Footer";
 export const metadata: Metadata = {
   title: "Game Arcade - Altaf Story",
   description:
-    "Mainkan Tap Battle, Snake Duel, Tebak Negara, Sudoku Duel, dan Trivia Blitz online bareng teman — arena game real-time dari Altaf Story.",
+    "Mainkan Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, dan Trivia Blitz online bareng teman — arena game real-time dari Altaf Story.",
   keywords: [
     "game multiplayer online",
     "game party online",
+    "game co-op online",
+    "game 2 pemain",
+    "game kerjasama",
+    "two sides game",
+    "game kunci lubang",
     "game ular online",
     "snake multiplayer",
     "kuis tebak negara",
@@ -30,10 +35,7 @@ export const metadata: Metadata = {
     "kuis trivia online",
     "trivia multiplayer",
     "game kuis realtime",
-    "tap battle",
-    "game tap 1v1",
-    "duel tap online",
-    "Tap Battle",
+    "Two Sides",
     "Snake Duel",
     "Flag Quiz",
     "Sudoku Duel",
@@ -46,7 +48,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Game Arcade - Altaf Story",
     description:
-      "Tap Battle, Snake Duel, Tebak Negara, Sudoku Duel & Trivia Blitz — main bareng teman secara real-time.",
+      "Two Sides, Snake Duel, Tebak Negara, Sudoku Duel & Trivia Blitz — main bareng teman secara real-time.",
     url: "/game",
     siteName: "Altaf Story",
     locale: "id_ID",
@@ -64,7 +66,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Game Arcade - Altaf Story",
     description:
-      "Tap Battle, Snake Duel, Tebak Negara, Sudoku Duel & Trivia Blitz — main bareng teman secara real-time.",
+      "Two Sides, Snake Duel, Tebak Negara, Sudoku Duel & Trivia Blitz — main bareng teman secara real-time.",
     images: ["/assets/img/hero.jpeg"],
   },
 };
@@ -93,10 +95,10 @@ export default function DaftarGamePage() {
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
               <div className="game-feature-target">
-                <Zap size={88} strokeWidth={1.5} />
+                <Key size={88} strokeWidth={1.5} />
               </div>
-              <span className="game-feature-number">20</span>
-              <span className="game-feature-art-label">POIN / 1V1</span>
+              <span className="game-feature-number">2P</span>
+              <span className="game-feature-art-label">CO-OP / PUZZLE</span>
               <span className="game-feature-live">
                 <i /> LIVE ROOM
               </span>
@@ -105,21 +107,22 @@ export default function DaftarGamePage() {
               <div className="game-feature-kicker">
                 <Radio size={14} /> PARTY GAME / 001
               </div>
-              <h2>Tap Battle</h2>
+              <h2>Two Sides</h2>
               <p className="game-feature-description">
-                Tombol besar di tengah. Gantian giliran tap — siapa duluan
-                sampai 20 poin menang. Tap saat bukan giliran? Kena stun!
+                Satu pemain lihat kunci, satu lihat lubang. Deskripsikan ke
+                teman dan pilih yang cocok. Kerja sama wajib — komunikasi adalah
+                kuncinya!
               </p>
               <div className="game-feature-facts">
                 <span>
                   <UsersRound size={16} /> 2 pemain
                 </span>
                 <span>
-                  <Zap size={16} /> Duel tap 1v1
+                  <Key size={16} /> Co-op puzzle
                 </span>
               </div>
-              <Link href="/game/tap-rush" className="game-feature-cta">
-                Buka room <ArrowUpRight size={18} />
+              <Link href="/game/two-sides" className="game-feature-cta">
+                Main bareng <ArrowUpRight size={18} />
               </Link>
             </div>
           </section>
@@ -229,7 +232,6 @@ export default function DaftarGamePage() {
             </div>
           </section>
 
-          {/* ---- KARTU TRIVIA BLITZ ---- */}
           <section className="game-feature">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
