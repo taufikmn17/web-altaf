@@ -152,7 +152,7 @@ export default function DaftarGamePage() {
             </div>
             <div className="game-feature-copy">
               <div className="game-feature-kicker">
-                <Radio size={14} /> PARTY GAME / 007
+                <Radio size={14} /> PARTY GAME / 002
               </div>
               <h2>Cat & Mouse</h2>
               <p className="game-feature-description">
@@ -187,7 +187,7 @@ export default function DaftarGamePage() {
             </div>
             <div className="game-feature-copy">
               <div className="game-feature-kicker">
-                <Radio size={14} /> PARTY GAME / 002
+                <Radio size={14} /> PARTY GAME / 003
               </div>
               <h2>Snake Duel</h2>
               <p className="game-feature-description">
@@ -222,7 +222,7 @@ export default function DaftarGamePage() {
             </div>
             <div className="game-feature-copy">
               <div className="game-feature-kicker">
-                <Radio size={14} /> PARTY GAME / 003
+                <Radio size={14} /> PARTY GAME / 004
               </div>
               <h2>Tebak Negara</h2>
               <p className="game-feature-description">
@@ -257,7 +257,7 @@ export default function DaftarGamePage() {
             </div>
             <div className="game-feature-copy">
               <div className="game-feature-kicker">
-                <Radio size={14} /> PARTY GAME / 004
+                <Radio size={14} /> PARTY GAME / 005
               </div>
               <h2>Sudoku Duel</h2>
               <p className="game-feature-description">
@@ -292,7 +292,7 @@ export default function DaftarGamePage() {
             </div>
             <div className="game-feature-copy">
               <div className="game-feature-kicker">
-                <Radio size={14} /> PARTY GAME / 005
+                <Radio size={14} /> PARTY GAME / 006
               </div>
               <h2>Trivia Blitz</h2>
               <p className="game-feature-description">
@@ -327,7 +327,7 @@ export default function DaftarGamePage() {
             </div>
             <div className="game-feature-copy">
               <div className="game-feature-kicker">
-                <Radio size={14} /> PARTY GAME / 006
+                <Radio size={14} /> PARTY GAME / 007
               </div>
               <h2>Trivia Indonesia</h2>
               <p className="game-feature-description">
