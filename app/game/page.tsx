@@ -2,8 +2,8 @@ import {
   ArrowUpRight,
   Globe2,
   Grid3x3,
+  HelpCircle,
   Radio,
-  Shield,
   Swords,
   UsersRound,
   Zap,
@@ -16,7 +16,7 @@ import Footer from "../components/Footer";
 export const metadata: Metadata = {
   title: "Game Arcade - Altaf Story",
   description:
-    "Mainkan Tap Rush, Snake Duel, Tebak Negara, Sudoku Duel, dan Tebak Lambang Daerah online bareng teman — arena game real-time dari Altaf Story.",
+    "Mainkan Tap Rush, Snake Duel, Tebak Negara, Sudoku Duel, dan Trivia Blitz online bareng teman — arena game real-time dari Altaf Story.",
   keywords: [
     "game multiplayer online",
     "game party online",
@@ -27,14 +27,14 @@ export const metadata: Metadata = {
     "sudoku online",
     "sudoku multiplayer",
     "game sudoku realtime",
-    "tebak lambang provinsi",
-    "kuis lambang daerah",
-    "game provinsi indonesia",
+    "kuis trivia online",
+    "trivia multiplayer",
+    "game kuis realtime",
     "Tap Rush",
     "Snake Duel",
     "Flag Quiz",
     "Sudoku Duel",
-    "Tebak Lambang Daerah",
+    "Trivia Blitz",
     "Altaf Story games",
   ],
   alternates: {
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Game Arcade - Altaf Story",
     description:
-      "Tap Rush, Snake Duel, Tebak Negara, Sudoku Duel & Tebak Lambang Daerah — main bareng teman secara real-time.",
+      "Tap Rush, Snake Duel, Tebak Negara, Sudoku Duel & Trivia Blitz — main bareng teman secara real-time.",
     url: "/game",
     siteName: "Altaf Story",
     locale: "id_ID",
@@ -61,7 +61,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Game Arcade - Altaf Story",
     description:
-      "Tap Rush, Snake Duel, Tebak Negara, Sudoku Duel & Tebak Lambang Daerah — main bareng teman secara real-time.",
+      "Tap Rush, Snake Duel, Tebak Negara, Sudoku Duel & Trivia Blitz — main bareng teman secara real-time.",
     images: ["/assets/img/hero.jpeg"],
   },
 };
@@ -226,17 +226,15 @@ export default function DaftarGamePage() {
             </div>
           </section>
 
-          {/* ---- KARTU BARU: TEBAK LAMBANG DAERAH ---- */}
+          {/* ---- KARTU BARU: TRIVIA BLITZ ---- */}
           <section className="game-feature">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
               <div className="game-feature-target">
-                <Shield size={88} strokeWidth={1.5} />
+                <HelpCircle size={88} strokeWidth={1.5} />
               </div>
-              <span className="game-feature-number">38</span>
-              <span className="game-feature-art-label">
-                PROVINSI / 20 DETIK
-              </span>
+              <span className="game-feature-number">7</span>
+              <span className="game-feature-art-label">SOAL / 15 DETIK</span>
               <span className="game-feature-live">
                 <i /> LIVE ROOM
               </span>
@@ -245,21 +243,21 @@ export default function DaftarGamePage() {
               <div className="game-feature-kicker">
                 <Radio size={14} /> PARTY GAME / 005
               </div>
-              <h2>Tebak Lambang Daerah</h2>
+              <h2>Trivia Blitz</h2>
               <p className="game-feature-description">
-                Lambang provinsi Indonesia muncul — tebak namanya paling cepat.
-                Adu pengetahuan daerah!
+                Kuis pilihan ganda umum. Jawab paling cepat & tepat — kalahkan
+                teman. Soal dari sains, sejarah, geografi, sampai hiburan.
               </p>
               <div className="game-feature-facts">
                 <span>
                   <UsersRound size={16} /> 2—8 pemain
                 </span>
                 <span>
-                  <Shield size={16} /> Kuis real-time
+                  <HelpCircle size={16} /> Kuis real-time
                 </span>
               </div>
-              <Link href="/game/province-quiz" className="game-feature-cta">
-                Mulai kuis <ArrowUpRight size={18} />
+              <Link href="/game/trivia-blitz" className="game-feature-cta">
+                Main trivia <ArrowUpRight size={18} />
               </Link>
             </div>
           </section>

@@ -5,17 +5,15 @@ import {
   Check,
   Copy,
   DoorOpen,
+  HelpCircle,
   Radio,
   Rocket,
-  Send,
-  Shield,
   UsersRound,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getSupabaseBrowserClient } from "@/app/lib/supabase-browser";
-import { PROVINCES_ID, isAnswerCorrect } from "@/app/lib/provinces-id";
 
 type RoomPlayer = {
   id: string;
@@ -26,16 +24,23 @@ type RoomPlayer = {
 
 type GamePhase = "lobby" | "playing" | "results";
 
-type RoundData = {
-  round: number;
-  index: number;
-  imageUrl: string;
-  answer: string;
+type TriviaQuestion = {
+  id: string;
+  category: string;
+  difficulty: string;
+  question: string;
+  options: string[];
+  correct: string;
 };
 
-const TOTAL_ROUNDS = 5;
-const ANSWER_WINDOW_MS = 20_000;
-const REVEAL_DURATION_MS = 3_500;
+type RoundData = {
+  round: number;
+  question: TriviaQuestion;
+};
+
+const TOTAL_ROUNDS = 7;
+const ANSWER_WINDOW_MS = 15_000;
+const REVEAL_DURATION_MS = 3_000;
 const ROOM_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 function makeRoomCode() {
@@ -47,15 +52,7 @@ function makeRoomCode() {
   ).join("");
 }
 
-function pickRandomProvince(exclude: Set<number>): number {
-  const pool = Array.from({ length: PROVINCES_ID.length }, (_, i) => i).filter(
-    (i) => !exclude.has(i),
-  );
-  if (pool.length === 0) return Math.floor(Math.random() * PROVINCES_ID.length);
-  return pool[Math.floor(Math.random() * pool.length)];
-}
-
-export default function ProvinceQuiz() {
+export default function TriviaBlitz() {
   const supabase = getSupabaseBrowserClient();
   const [playerId, setPlayerId] = useState("");
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -74,17 +71,16 @@ export default function ProvinceQuiz() {
 
   const [round, setRound] = useState(0);
   const [roundData, setRoundData] = useState<RoundData | null>(null);
-  const [answeredBy, setAnsweredBy] = useState<string | null>(null);
-  const [answeredByName, setAnsweredByName] = useState("");
-  const [myWrongAnswer, setMyWrongAnswer] = useState<string | null>(null);
-  const [answerInput, setAnswerInput] = useState("");
+  const [myAnswer, setMyAnswer] = useState<string | null>(null);
+  const [answeredIds, setAnsweredIds] = useState<Record<string, string>>({});
   const [revealAt, setRevealAt] = useState<number | null>(null);
   const [remainingMs, setRemainingMs] = useState(ANSWER_WINDOW_MS);
+  const [questionBank, setQuestionBank] = useState<TriviaQuestion[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const usedIndicesRef = useRef<Set<number>>(new Set());
   const scoresRef = useRef<Record<string, number>>({});
   const roundRef = useRef(0);
-  const answeredByRef = useRef<string | null>(null);
+  const bankRef = useRef<TriviaQuestion[]>([]);
 
   useEffect(() => {
     scoresRef.current = scores;
@@ -93,14 +89,14 @@ export default function ProvinceQuiz() {
     roundRef.current = round;
   }, [round]);
   useEffect(() => {
-    answeredByRef.current = answeredBy;
-  }, [answeredBy]);
+    bankRef.current = questionBank;
+  }, [questionBank]);
 
   // ---- Realtime channel ----
   useEffect(() => {
     if (!activeRoom || !supabase || !playerId) return;
 
-    const channel = supabase.channel(`province-quiz:${activeRoom}`, {
+    const channel = supabase.channel(`trivia-blitz:${activeRoom}`, {
       config: {
         broadcast: { self: false },
         presence: { key: playerId },
@@ -124,20 +120,12 @@ export default function ProvinceQuiz() {
 
     channel.on("broadcast", { event: "new-round" }, ({ payload }) => {
       const data = payload as RoundData;
-      if (
-        typeof data.round !== "number" ||
-        typeof data.index !== "number" ||
-        !data.imageUrl ||
-        !data.answer
-      )
-        return;
+      if (!data || typeof data.round !== "number" || !data.question) return;
 
       setRound(data.round);
       setRoundData(data);
-      setAnsweredBy(null);
-      setAnsweredByName("");
-      setMyWrongAnswer(null);
-      setAnswerInput("");
+      setMyAnswer(null);
+      setAnsweredIds({});
       setRevealAt(null);
       setRemainingMs(ANSWER_WINDOW_MS);
       setPhase("playing");
@@ -145,17 +133,22 @@ export default function ProvinceQuiz() {
     });
 
     channel.on("broadcast", { event: "answered" }, ({ payload }) => {
-      const data = payload as { id?: string; name?: string };
+      const data = payload as {
+        id?: string;
+        name?: string;
+        answer?: string;
+        correct?: boolean;
+      };
       if (typeof data.id !== "string") return;
       const id = data.id;
-      const name = data.name ?? "Pemain";
-      setAnsweredBy(id);
-      setAnsweredByName(name);
-      setRevealAt(Date.now());
-      setScores((current) => ({ ...current, [id]: (current[id] ?? 0) + 1 }));
+      const answer = data.answer ?? "";
+      setAnsweredIds((current) => ({ ...current, [id]: answer }));
+      if (data.correct) {
+        setScores((current) => ({ ...current, [id]: (current[id] ?? 0) + 1 }));
+      }
     });
 
-    channel.on("broadcast", { event: "round-end" }, () => {
+    channel.on("broadcast", { event: "reveal" }, () => {
       setRevealAt(Date.now());
     });
 
@@ -189,10 +182,9 @@ export default function ProvinceQuiz() {
     });
   }, [activeRoom, isConnected, isHost, isReady, playerId, playerName]);
 
-  // ---- Timer jawab ----
+  // ---- Timer ----
   useEffect(() => {
     if (phase !== "playing" || revealAt !== null) return;
-    if (answeredBy !== null) return;
     if (!roundData) return;
 
     const start = Date.now();
@@ -203,16 +195,16 @@ export default function ProvinceQuiz() {
       if (left === 0 && isHost) {
         void channelRef.current?.send({
           type: "broadcast",
-          event: "round-end",
+          event: "reveal",
           payload: {},
         });
         setRevealAt(Date.now());
       }
     }, 100);
     return () => clearInterval(timer);
-  }, [phase, round, revealAt, answeredBy, isHost, roundData]);
+  }, [phase, round, revealAt, isHost, roundData]);
 
-  // ---- Auto-next ----
+  // ---- Auto-next setelah reveal ----
   useEffect(() => {
     if (phase !== "playing" || revealAt === null) return;
     if (!isHost) return;
@@ -228,32 +220,47 @@ export default function ProvinceQuiz() {
         setPhase("results");
         return;
       }
-      void broadcastNewRound(nextRound);
+      broadcastNewRound(nextRound);
     }, REVEAL_DURATION_MS);
 
     return () => clearTimeout(timer);
   }, [phase, revealAt, isHost]);
 
   // ---- Handlers ----
-  const broadcastNewRound = async (roundNumber: number) => {
-    const idx = pickRandomProvince(usedIndicesRef.current);
-    usedIndicesRef.current.add(idx);
-    const province = PROVINCES_ID[idx];
-    if (!province) return;
+  const fetchQuestions = async (): Promise<TriviaQuestion[]> => {
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `/api/trivia?amount=${TOTAL_ROUNDS}&difficulty=medium`,
+        { cache: "no-store" },
+      );
+      const data = (await res.json()) as {
+        questions?: TriviaQuestion[];
+        error?: string;
+      };
+      if (data.error || !data.questions) {
+        setError(data.error ?? "Gagal ambil soal.");
+        return [];
+      }
+      return data.questions;
+    } catch {
+      setError("Kesalahan jaringan saat ambil soal.");
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const data: RoundData = {
-      round: roundNumber,
-      index: idx,
-      imageUrl: province.emblem,
-      answer: province.name,
-    };
+  const broadcastNewRound = (roundNumber: number) => {
+    const bank = bankRef.current;
+    const question = bank[roundNumber - 1];
+    if (!question) return;
 
+    const data: RoundData = { round: roundNumber, question };
     setRound(roundNumber);
     setRoundData(data);
-    setAnsweredBy(null);
-    setAnsweredByName("");
-    setMyWrongAnswer(null);
-    setAnswerInput("");
+    setMyAnswer(null);
+    setAnsweredIds({});
     setRevealAt(null);
     setRemainingMs(ANSWER_WINDOW_MS);
     setPhase("playing");
@@ -282,9 +289,9 @@ export default function ProvinceQuiz() {
     setPhase("lobby");
     setRound(0);
     setRoundData(null);
-    setAnsweredBy(null);
+    setAnsweredIds({});
     setRevealAt(null);
-    usedIndicesRef.current = new Set();
+    setQuestionBank([]);
     setIsReady(host);
     setIsHost(host);
     setActiveRoom(roomCode);
@@ -303,7 +310,7 @@ export default function ProvinceQuiz() {
     enterRoom(roomCode, false);
   };
 
-  const startGame = () => {
+  const startGame = async () => {
     if (
       !isHost ||
       players.length < 2 ||
@@ -311,40 +318,43 @@ export default function ProvinceQuiz() {
     )
       return;
 
+    const questions = await fetchQuestions();
+    if (questions.length === 0) return;
+
     setScores({});
-    usedIndicesRef.current = new Set();
-    void broadcastNewRound(1);
+    setQuestionBank(questions);
+    bankRef.current = questions;
+    broadcastNewRound(1);
   };
 
-  const submitAnswer = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const pickAnswer = (option: string) => {
     if (phase !== "playing") return;
-    if (answeredBy !== null) return;
+    if (myAnswer !== null) return;
+    if (revealAt !== null) return;
     if (!roundData) return;
-    const trimmed = answerInput.trim();
-    if (!trimmed) return;
 
-    const isCorrect = isAnswerCorrect(trimmed, roundData.answer);
+    setMyAnswer(option);
+    const isCorrect = option === roundData.question.correct;
+    const myName = players.find((p) => p.id === playerId)?.name ?? "Pemain";
 
+    void channelRef.current?.send({
+      type: "broadcast",
+      event: "answered",
+      payload: {
+        id: playerId,
+        name: myName,
+        answer: option,
+        correct: isCorrect,
+      },
+    });
+
+    // Update skor lokal langsung
+    setAnsweredIds((current) => ({ ...current, [playerId]: option }));
     if (isCorrect) {
-      const myName = players.find((p) => p.id === playerId)?.name ?? "Pemain";
-      setAnsweredBy(playerId);
-      setAnsweredByName(myName);
-      setRevealAt(Date.now());
       setScores((current) => ({
         ...current,
         [playerId]: (current[playerId] ?? 0) + 1,
       }));
-      void channelRef.current?.send({
-        type: "broadcast",
-        event: "answered",
-        payload: { id: playerId, name: myName },
-      });
-      setAnswerInput("");
-    } else {
-      setMyWrongAnswer(trimmed);
-      setAnswerInput("");
-      setTimeout(() => setMyWrongAnswer(null), 1500);
     }
   };
 
@@ -368,8 +378,9 @@ export default function ProvinceQuiz() {
     setPhase("lobby");
     setRound(0);
     setRoundData(null);
-    setAnsweredBy(null);
+    setAnsweredIds({});
     setRevealAt(null);
+    setQuestionBank([]);
     setError("");
   };
 
@@ -380,6 +391,19 @@ export default function ProvinceQuiz() {
   const canStart = isHost && players.length >= 2 && guestsReady && isConnected;
   const secondsLeft = Math.ceil(remainingMs / 1000);
   const showReveal = revealAt !== null;
+
+  const optionClass = (option: string) => {
+    if (!roundData) return "";
+    const isCorrect = option === roundData.question.correct;
+    const isMine = myAnswer === option;
+    if (showReveal) {
+      if (isCorrect) return "is-correct";
+      if (isMine) return "is-wrong";
+      return "is-dim";
+    }
+    if (isMine) return "is-picked";
+    return "";
+  };
 
   return (
     <main className="tap-rush-shell">
@@ -394,14 +418,14 @@ export default function ProvinceQuiz() {
       <section className="tap-rush-layout">
         <header className="tap-rush-heading">
           <div className="tap-rush-kicker">
-            <Shield size={14} /> REALTIME PROVINCE QUIZ
+            <HelpCircle size={14} /> REALTIME TRIVIA QUIZ
           </div>
           <h1>
-            Tebak Lambang Daerah<span>!</span>
+            Trivia Blitz<span>!</span>
           </h1>
           <p>
-            Lambang provinsi muncul — tebak namanya paling cepat. Adu
-            pengetahuan daerah!
+            Kuis pilihan ganda umum. Jawab paling cepat & tepat — kalahkan
+            teman!
           </p>
         </header>
 
@@ -409,22 +433,22 @@ export default function ProvinceQuiz() {
           <section className="tap-rush-lobby">
             <div className="tap-rush-intro">
               <div className="tap-rush-orb" aria-hidden="true">
-                <Shield size={30} />
+                <HelpCircle size={30} />
               </div>
               <div>
                 <h2>Bikin room, tantang teman</h2>
                 <p>
-                  Lambang provinsi Indonesia muncul acak. Ketik nama provinsinya
-                  sebelum waktu habis. Yang benar duluan dapat poin!
+                  Soal kuis muncul acak (sains, sejarah, geografi, hiburan). Tap
+                  jawaban yang benar sebelum waktu habis!
                 </p>
               </div>
             </div>
 
-            <label className="tap-rush-label" htmlFor="province-player-name">
+            <label className="tap-rush-label" htmlFor="trivia-player-name">
               NAMA PEMAIN
             </label>
             <input
-              id="province-player-name"
+              id="trivia-player-name"
               className="tap-rush-input"
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value.slice(0, 18))}
@@ -542,15 +566,17 @@ export default function ProvinceQuiz() {
                     <button
                       className="tap-rush-primary"
                       type="button"
-                      disabled={!canStart}
+                      disabled={!canStart || loading}
                       onClick={startGame}
                     >
                       <Rocket size={17} />{" "}
-                      {players.length < 2
-                        ? "Menunggu teman"
-                        : guestsReady
-                          ? "Mulai kuis"
-                          : "Menunggu siap"}
+                      {loading
+                        ? "Memuat soal…"
+                        : players.length < 2
+                          ? "Menunggu teman"
+                          : guestsReady
+                            ? "Mulai kuis"
+                            : "Menunggu siap"}
                     </button>
                   ) : (
                     <button
@@ -575,68 +601,46 @@ export default function ProvinceQuiz() {
             )}
 
             {phase === "playing" && roundData && (
-              <div className="province-arena">
-                <div className="province-topbar">
-                  <span className="province-round">
+              <div className="trivia-arena">
+                <div className="trivia-topbar">
+                  <span className="trivia-round">
                     RONDE {round} / {TOTAL_ROUNDS}
                   </span>
                   <span
-                    className={`province-timer ${secondsLeft <= 5 ? "is-urgent" : ""}`}
+                    className={`trivia-timer ${secondsLeft <= 5 ? "is-urgent" : ""}`}
                   >
                     {showReveal ? "JAWABAN" : `${secondsLeft}s`}
                   </span>
                 </div>
 
-                <div className="province-card">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={roundData.imageUrl}
-                    alt="Lambang provinsi misterius"
-                    className="province-image"
-                  />
+                <div className="trivia-card">
+                  <span className="trivia-category">
+                    {roundData.question.category}
+                  </span>
+                  <p className="trivia-question">
+                    {roundData.question.question}
+                  </p>
                 </div>
 
-                {showReveal ? (
-                  <div className="province-reveal">
-                    <span className="province-reveal-label">JAWABAN</span>
-                    <strong>{roundData.answer}</strong>
-                    {answeredBy ? (
-                      <span className="province-reveal-by">
-                        🎯 {answeredByName || "Pemain"} menebak duluan!
-                      </span>
-                    ) : (
-                      <span className="province-reveal-by">
-                        Tidak ada yang benar. Lanjut…
-                      </span>
-                    )}
-                  </div>
-                ) : answeredBy ? (
-                  <div className="province-reveal">
-                    <strong>
-                      {answeredByName || "Pemain"} sudah jawab benar!
-                    </strong>
-                  </div>
-                ) : (
-                  <form className="province-form" onSubmit={submitAnswer}>
-                    <input
-                      className="tap-rush-input"
-                      value={answerInput}
-                      onChange={(e) =>
-                        setAnswerInput(e.target.value.slice(0, 40))
-                      }
-                      placeholder="Contoh: Jawa Barat"
-                      maxLength={40}
-                      autoComplete="off"
-                    />
-                    <button className="tap-rush-primary" type="submit">
-                      <Send size={16} /> Kirim
+                <div className="trivia-options">
+                  {roundData.question.options.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      className={`trivia-option ${optionClass(option)}`}
+                      onClick={() => pickAnswer(option)}
+                      disabled={myAnswer !== null || showReveal}
+                    >
+                      {option}
                     </button>
-                    {myWrongAnswer && (
-                      <p className="province-wrong">
-                        &quot;{myWrongAnswer}&quot; belum tepat, coba lagi!
-                      </p>
-                    )}
-                  </form>
+                  ))}
+                </div>
+
+                {showReveal && (
+                  <div className="trivia-reveal">
+                    <span className="trivia-reveal-label">JAWABAN BENAR</span>
+                    <strong>{roundData.question.correct}</strong>
+                  </div>
                 )}
 
                 <ol className="tap-rush-scoreboard">
@@ -648,6 +652,7 @@ export default function ProvinceQuiz() {
                       <span className="tap-rush-player-name">
                         {player.name}
                         {player.id === playerId ? " (kamu)" : ""}
+                        {answeredIds[player.id] ? " ✓" : ""}
                       </span>
                       <strong>{scores[player.id] ?? 0}</strong>
                     </li>
@@ -661,8 +666,8 @@ export default function ProvinceQuiz() {
                 <div className="tap-rush-finish-mark">FINISH</div>
                 <h2>
                   {orderedPlayers[0]?.id === playerId
-                    ? "Kamu paling jago lambang daerah! 🏆"
-                    : `${orderedPlayers[0]?.name ?? "—"} paling jago!`}
+                    ? "Kamu jagoan trivia! 🏆"
+                    : `${orderedPlayers[0]?.name ?? "—"} jagoan trivia!`}
                 </h2>
                 <ol className="tap-rush-scoreboard">
                   {orderedPlayers.map((player, index) => (
@@ -686,7 +691,7 @@ export default function ProvinceQuiz() {
                     <button
                       className="tap-rush-primary"
                       type="button"
-                      disabled={!canStart}
+                      disabled={!canStart || loading}
                       onClick={startGame}
                     >
                       <Rocket size={17} /> Main lagi
@@ -716,19 +721,19 @@ export default function ProvinceQuiz() {
         )}
 
         <footer className="tap-rush-footnote">
-          <span>38 PROVINSI</span>
+          <span>TRIVIA API</span>
           <span>ROOM CODE</span>
-          <span>5 ROUNDS</span>
+          <span>{TOTAL_ROUNDS} ROUNDS</span>
         </footer>
       </section>
 
       <style jsx>{`
-        .province-arena {
+        .trivia-arena {
           display: flex;
           flex-direction: column;
           gap: 14px;
         }
-        .province-topbar {
+        .trivia-topbar {
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -737,14 +742,14 @@ export default function ProvinceQuiz() {
           text-transform: uppercase;
           opacity: 0.75;
         }
-        .province-timer {
+        .trivia-timer {
           font-weight: 700;
           padding: 4px 10px;
           border-radius: 999px;
           background: rgba(255, 255, 255, 0.05);
           border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        .province-timer.is-urgent {
+        .trivia-timer.is-urgent {
           color: #ef4444;
           border-color: rgba(239, 68, 68, 0.5);
           animation: pulse 0.8s infinite;
@@ -754,10 +759,7 @@ export default function ProvinceQuiz() {
             opacity: 0.5;
           }
         }
-        .province-card {
-          display: flex;
-          justify-content: center;
-          align-items: center;
+        .trivia-card {
           padding: 20px;
           border-radius: 16px;
           background:
@@ -768,47 +770,79 @@ export default function ProvinceQuiz() {
             ),
             #050912;
           border: 1px solid rgba(255, 255, 255, 0.08);
-          min-height: 240px;
         }
-        .province-image {
-          max-width: 240px;
-          max-height: 240px;
-          width: 100%;
-          height: auto;
-          object-fit: contain;
-          filter: drop-shadow(0 8px 24px rgba(251, 191, 36, 0.25));
+        .trivia-category {
+          display: inline-block;
+          font-size: 11px;
+          letter-spacing: 0.15em;
+          text-transform: uppercase;
+          padding: 3px 10px;
+          border-radius: 999px;
+          background: rgba(251, 191, 36, 0.15);
+          color: #fbbf24;
+          margin-bottom: 12px;
         }
-        .province-form {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
+        .trivia-question {
+          font-size: 18px;
+          line-height: 1.5;
         }
-        .province-reveal {
+        .trivia-options {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 8px;
+        }
+        .trivia-option {
+          padding: 14px 16px;
+          border-radius: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: rgba(255, 255, 255, 0.04);
+          color: inherit;
+          font-size: 15px;
+          text-align: left;
+          cursor: pointer;
+          transition: all 120ms ease;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .trivia-option:active {
+          transform: scale(0.98);
+        }
+        .trivia-option.is-picked {
+          border-color: #fbbf24;
+          background: rgba(251, 191, 36, 0.15);
+        }
+        .trivia-option.is-correct {
+          border-color: #22c55e;
+          background: rgba(34, 197, 94, 0.2);
+          color: #86efac;
+        }
+        .trivia-option.is-wrong {
+          border-color: #ef4444;
+          background: rgba(239, 68, 68, 0.2);
+          color: #fca5a5;
+        }
+        .trivia-option.is-dim {
+          opacity: 0.4;
+        }
+        .trivia-option:disabled {
+          cursor: default;
+        }
+        .trivia-reveal {
           display: flex;
           flex-direction: column;
           gap: 6px;
           padding: 16px;
           border-radius: 12px;
-          background: rgba(251, 191, 36, 0.08);
-          border: 1px solid rgba(251, 191, 36, 0.35);
+          background: rgba(34, 197, 94, 0.08);
+          border: 1px solid rgba(34, 197, 94, 0.35);
         }
-        .province-reveal-label {
+        .trivia-reveal-label {
           font-size: 11px;
           letter-spacing: 0.15em;
-          opacity: 0.65;
-        }
-        .province-reveal strong {
-          font-size: 22px;
-          color: #fbbf24;
-        }
-        .province-reveal-by {
-          font-size: 13px;
           opacity: 0.75;
         }
-        .province-wrong {
-          font-size: 13px;
-          color: #ef4444;
-          margin-top: 4px;
+        .trivia-reveal strong {
+          font-size: 20px;
+          color: #86efac;
         }
       `}</style>
     </main>
