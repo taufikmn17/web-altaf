@@ -30,49 +30,59 @@ type HeadType =
   | "triangle"
   | "diamond"
   | "star"
-  | "hexagon";
+  | "hexagon"
+  | "pentagon"
+  | "octagon";
 
 type PartColor =
   | "#fbbf24"
-  | "#f97316"
-  | "#ec4899"
+  | "#f59e0b"
   | "#22d3ee"
+  | "#06b6d4"
   | "#a3e635"
-  | "#a78bfa";
+  | "#84cc16"
+  | "#f472b6"
+  | "#ec4899";
+
+type ToothSize = "short" | "long";
 
 type GameObject = {
   id: number;
   head: HeadType;
+  // 6 posisi: 0=atas, 1=kanan-atas, 2=kanan, 3=bawah, 4=kiri-bawah, 5=kiri
   teeth: boolean[];
+  toothSize: ToothSize;
   headColor: PartColor;
   bodyColor: PartColor;
   teethColor: PartColor;
+  innerColor: PartColor; // warna cincin dalam
+  rotation: number; // 0-7 (× 45°)
 };
 
 type RoundPhase = "phase1" | "phase2";
 
 type Round = {
   index: number;
-  // Objek yang ditampilkan (hanya describer)
   objectForHost: GameObject;
   objectForGuest: GameObject;
-  // Opsi jawaban (hanya guesser)
-  guessOptionsForHost: GameObject[]; // saat host jadi guesser (fase 2)
-  guessOptionsForGuest: GameObject[]; // saat guest jadi guesser (fase 1)
+  guessOptionsForHost: GameObject[];
+  guessOptionsForGuest: GameObject[];
 };
 
 const TOTAL_ROUNDS = 5;
-const PHASE_TIME_MS = 20_000;
+const PHASE_TIME_MS = 25_000;
 const START_LIVES = 3;
 const ROOM_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 const ALL_COLORS: PartColor[] = [
-  "#fbbf24",
-  "#f97316",
-  "#ec4899",
-  "#22d3ee",
-  "#a3e635",
-  "#a78bfa",
+  "#fbbf24", // kuning muda
+  "#f59e0b", // kuning tua
+  "#22d3ee", // cyan muda
+  "#06b6d4", // cyan tua
+  "#a3e635", // hijau muda
+  "#84cc16", // hijau tua
+  "#f472b6", // pink muda
+  "#ec4899", // pink tua
 ];
 
 const HEAD_TYPES: HeadType[] = [
@@ -82,6 +92,8 @@ const HEAD_TYPES: HeadType[] = [
   "diamond",
   "star",
   "hexagon",
+  "pentagon",
+  "octagon",
 ];
 
 function makeRoomCode() {
@@ -97,10 +109,10 @@ function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function randomTeeth(): boolean[] {
-  const count = 1 + Math.floor(Math.random() * 3);
-  const arr = [false, false, false, false];
-  const positions = [0, 1, 2, 3]
+function randomTeeth6(): boolean[] {
+  const count = 1 + Math.floor(Math.random() * 4); // 1-4 gerigi dari 6 posisi
+  const arr = [false, false, false, false, false, false];
+  const positions = [0, 1, 2, 3, 4, 5]
     .sort(() => Math.random() - 0.5)
     .slice(0, count);
   for (const p of positions) arr[p] = true;
@@ -112,27 +124,32 @@ function makeGameObject(id: number): GameObject {
   return {
     id,
     head: pick(HEAD_TYPES),
-    teeth: randomTeeth(),
+    teeth: randomTeeth6(),
+    toothSize: Math.random() < 0.5 ? "short" : "long",
     headColor: colors[0],
     bodyColor: colors[1],
     teethColor: colors[2],
+    innerColor: colors[3],
+    rotation: Math.floor(Math.random() * 8), // 0-7
   };
 }
 
 function objectsEqual(a: GameObject, b: GameObject): boolean {
   if (a.head !== b.head) return false;
-  for (let i = 0; i < 4; i += 1) {
+  if (a.toothSize !== b.toothSize) return false;
+  if (a.rotation !== b.rotation) return false;
+  if (a.headColor !== b.headColor) return false;
+  if (a.bodyColor !== b.bodyColor) return false;
+  if (a.teethColor !== b.teethColor) return false;
+  if (a.innerColor !== b.innerColor) return false;
+  for (let i = 0; i < 6; i += 1) {
     if (a.teeth[i] !== b.teeth[i]) return false;
   }
-  return (
-    a.headColor === b.headColor &&
-    a.bodyColor === b.bodyColor &&
-    a.teethColor === b.teethColor
-  );
+  return true;
 }
 
 function makeDistinctObject(exclude: GameObject[]): GameObject {
-  for (let attempt = 0; attempt < 50; attempt += 1) {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
     const candidate = makeGameObject(0);
     if (exclude.some((e) => objectsEqual(e, candidate))) continue;
     return candidate;
@@ -144,18 +161,17 @@ function buildRound(roundIndex: number): Round {
   const objectForHost = makeGameObject(0);
   const objectForGuest = makeDistinctObject([objectForHost]);
 
-  // Opsi tebak untuk GUEST (guest nebak objek host) = correct + 3 distractor
   const guessOptionsForGuest: GameObject[] = [objectForHost];
   while (guessOptionsForGuest.length < 4) {
     const candidate = makeGameObject(guessOptionsForGuest.length);
     if (objectsEqual(candidate, objectForHost)) continue;
     if (guessOptionsForGuest.some((o) => objectsEqual(o, candidate))) continue;
+    // Pastikan distractor cukup berbeda biar ada peluang
     guessOptionsForGuest.push(candidate);
   }
   guessOptionsForGuest.sort(() => Math.random() - 0.5);
   guessOptionsForGuest.forEach((o, i) => (o.id = i));
 
-  // Opsi tebak untuk HOST (host nebak objek guest) = correct + 3 distractor
   const guessOptionsForHost: GameObject[] = [objectForGuest];
   while (guessOptionsForHost.length < 4) {
     const candidate = makeGameObject(guessOptionsForHost.length);
@@ -187,19 +203,29 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+// Rotasi: 0-7 -> 45° * rot
+function rotationDeg(rotation: number): number {
+  return rotation * 45;
+}
+
 function ObjectPreview({ obj, size = 96 }: { obj: GameObject; size?: number }) {
   const cx = size / 2;
   const cy = size / 2;
-  const bodyR = size * 0.14;
-  const toothLen = size * 0.16;
-  const toothW = size * 0.09;
-  const headSize = size * 0.2;
+  const bodyR = size * 0.13;
+  const innerR = size * 0.09;
+  const toothBaseLen = size * 0.14;
+  const toothLen = obj.toothSize === "long" ? toothBaseLen * 1.5 : toothBaseLen;
+  const toothW = size * 0.085;
+  const headSize = size * 0.18;
 
   const headStroke = obj.headColor;
   const bodyStroke = obj.bodyColor;
   const teethStroke = obj.teethColor;
+  const innerStroke = obj.innerColor;
+
   const headFill = hexToRgba(obj.headColor, 0.18);
-  const bodyFill = hexToRgba(obj.bodyColor, 0.25);
+  const bodyFill = hexToRgba(obj.bodyColor, 0.2);
+  const innerFill = hexToRgba(obj.innerColor, 0.15);
 
   const renderHead = () => {
     const common = {
@@ -241,9 +267,30 @@ function ObjectPreview({ obj, size = 96 }: { obj: GameObject; size?: number }) {
       }
       return <polygon points={points.join(" ")} {...common} />;
     }
+    if (obj.head === "hexagon") {
+      const points: string[] = [];
+      for (let i = 0; i < 6; i += 1) {
+        const angle = (Math.PI / 3) * i - Math.PI / 2;
+        points.push(
+          `${cx + headSize * Math.cos(angle)},${cy + headSize * Math.sin(angle)}`,
+        );
+      }
+      return <polygon points={points.join(" ")} {...common} />;
+    }
+    if (obj.head === "pentagon") {
+      const points: string[] = [];
+      for (let i = 0; i < 5; i += 1) {
+        const angle = ((2 * Math.PI) / 5) * i - Math.PI / 2;
+        points.push(
+          `${cx + headSize * Math.cos(angle)},${cy + headSize * Math.sin(angle)}`,
+        );
+      }
+      return <polygon points={points.join(" ")} {...common} />;
+    }
+    // octagon
     const points: string[] = [];
-    for (let i = 0; i < 6; i += 1) {
-      const angle = (Math.PI / 3) * i - Math.PI / 2;
+    for (let i = 0; i < 8; i += 1) {
+      const angle = (Math.PI / 4) * i - Math.PI / 2 + Math.PI / 8;
       points.push(
         `${cx + headSize * Math.cos(angle)},${cy + headSize * Math.sin(angle)}`,
       );
@@ -251,66 +298,60 @@ function ObjectPreview({ obj, size = 96 }: { obj: GameObject; size?: number }) {
     return <polygon points={points.join(" ")} {...common} />;
   };
 
+  // 6 posisi gerigi: 0=atas, 1=kanan-atas, 2=kanan, 3=bawah, 4=kiri-bawah, 5=kiri
+  const toothAngle = (dir: number): number => {
+    // 0 = -90° (atas), tiap berikutnya +60°
+    return -Math.PI / 2 + (dir * Math.PI) / 3;
+  };
+
   const renderTooth = (dir: number, has: boolean) => {
     if (!has) return null;
-    if (dir === 0) {
-      return (
-        <rect
-          x={cx - toothW / 2}
-          y={cy - bodyR - toothLen}
-          width={toothW}
-          height={toothLen}
-          fill={teethStroke}
-        />
-      );
-    }
-    if (dir === 1) {
-      return (
-        <rect
-          x={cx + bodyR}
-          y={cy - toothW / 2}
-          width={toothLen}
-          height={toothW}
-          fill={teethStroke}
-        />
-      );
-    }
-    if (dir === 2) {
-      return (
-        <rect
-          x={cx - toothW / 2}
-          y={cy + bodyR}
-          width={toothW}
-          height={toothLen}
-          fill={teethStroke}
-        />
-      );
-    }
+    const angle = toothAngle(dir);
+    const x1 = cx + Math.cos(angle) * bodyR;
+    const y1 = cy + Math.sin(angle) * bodyR;
+    const x2 = cx + Math.cos(angle) * (bodyR + toothLen);
+    const y2 = cy + Math.sin(angle) * (bodyR + toothLen);
     return (
-      <rect
-        x={cx - bodyR - toothLen}
-        y={cy - toothW / 2}
-        width={toothLen}
-        height={toothW}
-        fill={teethStroke}
+      <line
+        x1={x1}
+        y1={y1}
+        x2={x2}
+        y2={y2}
+        stroke={teethStroke}
+        strokeWidth={toothW}
+        strokeLinecap="round"
       />
     );
   };
 
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <circle
-        cx={cx}
-        cy={cy}
-        r={bodyR}
-        fill={bodyFill}
-        stroke={bodyStroke}
-        strokeWidth={2.5}
-      />
-      {obj.teeth.map((has, i) => (
-        <g key={i}>{renderTooth(i, has)}</g>
-      ))}
-      {renderHead()}
+      <g transform={`rotate(${rotationDeg(obj.rotation)} ${cx} ${cy})`}>
+        {/* Body */}
+        <circle
+          cx={cx}
+          cy={cy}
+          r={bodyR}
+          fill={bodyFill}
+          stroke={bodyStroke}
+          strokeWidth={2.5}
+        />
+        {/* Inner ring */}
+        <circle
+          cx={cx}
+          cy={cy}
+          r={innerR}
+          fill={innerFill}
+          stroke={innerStroke}
+          strokeWidth={2}
+        />
+        {/* Teeth */}
+        {obj.teeth.map((has, i) => (
+          <g key={i}>{renderTooth(i, has)}</g>
+        ))}
+        {/* Head */}
+        {renderHead()}
+      </g>
     </svg>
   );
 }
@@ -323,21 +364,40 @@ function describeObject(obj: GameObject): string {
     diamond: "Belah ketupat",
     star: "Bintang",
     hexagon: "Segi enam",
+    pentagon: "Segi lima",
+    octagon: "Segi delapan",
   };
   const colorId: Record<PartColor, string> = {
-    "#fbbf24": "kuning",
-    "#f97316": "oranye",
-    "#ec4899": "merah muda",
-    "#22d3ee": "biru muda",
+    "#fbbf24": "kuning muda",
+    "#f59e0b": "kuning tua",
+    "#22d3ee": "cyan muda",
+    "#06b6d4": "cyan tua",
     "#a3e635": "hijau muda",
-    "#a78bfa": "ungu",
+    "#84cc16": "hijau tua",
+    "#f472b6": "pink muda",
+    "#ec4899": "pink tua",
   };
-  const teethDir = ["atas", "kanan", "bawah", "kiri"];
+  // Posisi gerigi (6)
+  const teethDir = [
+    "atas",
+    "kanan atas",
+    "kanan",
+    "bawah",
+    "kiri bawah",
+    "kiri",
+  ];
   const teethText = obj.teeth
     .map((has, i) => (has ? teethDir[i] : null))
     .filter(Boolean)
     .join(", ");
-  return `Kepala ${headId[obj.head]} (${colorId[obj.headColor]}). Badan (${colorId[obj.bodyColor]}). Gerigi ${colorId[obj.teethColor]}: ${teethText || "tidak ada"}.`;
+  const rotationDegValue = rotationDeg(obj.rotation);
+  return [
+    `Kepala ${headId[obj.head]} (${colorId[obj.headColor]}).`,
+    `Badan (${colorId[obj.bodyColor]}).`,
+    `Cincin dalam (${colorId[obj.innerColor]}).`,
+    `Gerigi ${obj.toothSize === "long" ? "panjang" : "pendek"} (${colorId[obj.teethColor]}): ${teethText || "tidak ada"}.`,
+    `Rotasi ${rotationDegValue}°.`,
+  ].join(" ");
 }
 
 export default function TwoSides() {
@@ -543,7 +603,6 @@ export default function TwoSides() {
     });
   }, [activeRoom, isConnected, isHost, isReady, playerId, playerName]);
 
-  // ---- Countdown timer ----
   useEffect(() => {
     if (phase !== "playing" || phaseEndsAt === null) return;
 
@@ -559,7 +618,6 @@ export default function TwoSides() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, phaseEndsAt, isHost]);
 
-  // ---- Host: cek apakah guess sudah ada ----
   useEffect(() => {
     if (!isHost) return;
     if (phase !== "playing") return;
@@ -568,7 +626,6 @@ export default function TwoSides() {
     if (!round) return;
 
     if (phaseStepRef.current === "phase1") {
-      // Fase 1: HOST describer, GUEST guesser
       if (peerGuess === null) return;
       const correctId = findCorrectId(
         round.guessOptionsForGuest,
@@ -577,7 +634,6 @@ export default function TwoSides() {
       const correct = peerGuess === correctId;
       resolvePhase(correct ? "correct" : "wrong");
     } else {
-      // Fase 2: GUEST describer, HOST guesser
       if (myGuess === null) return;
       const correctId = findCorrectId(
         round.guessOptionsForHost,
@@ -589,7 +645,6 @@ export default function TwoSides() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isHost, myGuess, peerGuess, phase, phaseResult, phaseStep]);
 
-  // ---- Host: auto-advance setelah phase-end ----
   useEffect(() => {
     if (!isHost) return;
     if (phase !== "playing") return;
@@ -608,7 +663,6 @@ export default function TwoSides() {
       }
 
       if (phaseStepRef.current === "phase1") {
-        // Lanjut ke fase 2
         const endsAt = Date.now() + PHASE_TIME_MS;
         setPhaseStep("phase2");
         setMyGuess(null);
@@ -624,7 +678,6 @@ export default function TwoSides() {
         return;
       }
 
-      // Fase 2 selesai -> next round atau game-over
       const nextIndex = roundIndexRef.current + 1;
       if (nextIndex >= TOTAL_ROUNDS) {
         setFinalStatus("win");
@@ -643,7 +696,6 @@ export default function TwoSides() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phaseResult, isHost, phase, sharedLives]);
 
-  // ---- Handlers ----
   const broadcastNewRound = (index: number) => {
     const round = buildRound(index);
     const endsAt = Date.now() + PHASE_TIME_MS;
@@ -807,18 +859,13 @@ export default function TwoSides() {
   const canStart = isHost && players.length === 2 && guestsReady && isConnected;
   const secondsLeft = Math.ceil(remainingMs / 1000);
 
-  // ---- Tentukan peran berdasarkan fase ----
-  // Fase 1: HOST = describer (lihat objek), GUEST = guesser (lihat opsi)
-  // Fase 2: GUEST = describer, HOST = guesser
   const iAmDescriber =
     (phaseStep === "phase1" && isHost) || (phaseStep === "phase2" && !isHost);
 
-  // Objek yang kulihat (kalau describer)
   const mySecretObject = isHost
     ? roundData?.objectForHost
     : roundData?.objectForGuest;
 
-  // Opsi jawaban yang kulihat (kalau guesser)
   const myGuessOptions = isHost
     ? roundData?.guessOptionsForHost
     : roundData?.guessOptionsForGuest;
@@ -908,8 +955,7 @@ export default function TwoSides() {
             </div>
 
             <p className="two-sides-role-note">
-              Ronde 1: Host deskripsikan, Guest tebak · Ronde berikutnya:
-              gantian
+              Fase 1: Host deskripsikan, Guest tebak · Fase 2: gantian
             </p>
 
             {!supabase && (
@@ -1056,8 +1102,8 @@ export default function TwoSides() {
 
                   <p className="two-sides-hint">
                     {iAmDescriber
-                      ? "Lihat objek rahasia kamu, deskripsikan ke teman. Sebutkan bentuk kepala, warna, dan posisi gerigi."
-                      : "Dengarkan deskripsi temanmu, lalu pilih salah satu dari 4 objek di bawah."}
+                      ? "Lihat objek rahasia kamu, deskripsikan ke teman — sebutkan bentuk kepala, warna tiap bagian, posisi & ukuran gerigi, dan rotasi."
+                      : "Dengarkan deskripsi temanmu dengan teliti, lalu pilih salah satu dari 4 objek di bawah."}
                   </p>
 
                   {iAmDescriber && mySecretObject && (
@@ -1065,7 +1111,7 @@ export default function TwoSides() {
                       <span className="two-sides-preview-label">
                         OBJEK RAHASIA KAMU
                       </span>
-                      <ObjectPreview obj={mySecretObject} size={160} />
+                      <ObjectPreview obj={mySecretObject} size={180} />
                       <span className="two-sides-preview-desc">
                         {describeObject(mySecretObject)}
                       </span>
@@ -1088,7 +1134,7 @@ export default function TwoSides() {
                               }
                               onClick={() => pickGuess(opt.id)}
                             >
-                              <ObjectPreview obj={opt} size={80} />
+                              <ObjectPreview obj={opt} size={86} />
                             </button>
                           );
                         })}
@@ -1276,7 +1322,7 @@ export default function TwoSides() {
           background: rgba(255, 255, 255, 0.03);
           border: 1px solid rgba(255, 255, 255, 0.08);
           width: 100%;
-          max-width: 340px;
+          max-width: 360px;
         }
         .two-sides-preview-label {
           font-size: 11px;
@@ -1288,16 +1334,16 @@ export default function TwoSides() {
         .two-sides-preview-desc {
           font-size: 12px;
           opacity: 0.8;
-          max-width: 280px;
+          max-width: 320px;
           text-align: center;
-          line-height: 1.4;
+          line-height: 1.5;
         }
         .two-sides-options-grid {
           display: grid;
           grid-template-columns: repeat(2, 1fr);
           gap: 10px;
           width: 100%;
-          max-width: 340px;
+          max-width: 360px;
         }
         .two-sides-option {
           padding: 12px;
