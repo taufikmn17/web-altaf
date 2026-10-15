@@ -49,14 +49,13 @@ type ToothSize = "short" | "long";
 type GameObject = {
   id: number;
   head: HeadType;
-  // 6 posisi: 0=atas, 1=kanan-atas, 2=kanan, 3=bawah, 4=kiri-bawah, 5=kiri
   teeth: boolean[];
   toothSize: ToothSize;
   headColor: PartColor;
   bodyColor: PartColor;
   teethColor: PartColor;
-  innerColor: PartColor; // warna cincin dalam
-  rotation: number; // 0-7 (× 45°)
+  innerColor: PartColor;
+  rotation: number;
 };
 
 type RoundPhase = "phase1" | "phase2";
@@ -70,19 +69,19 @@ type Round = {
 };
 
 const TOTAL_ROUNDS = 5;
-const PHASE_TIME_MS = 25_000;
+const PHASE_TIME_MS = 15_000;
 const START_LIVES = 3;
 const ROOM_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 const ALL_COLORS: PartColor[] = [
-  "#fbbf24", // kuning muda
-  "#f59e0b", // kuning tua
-  "#22d3ee", // cyan muda
-  "#06b6d4", // cyan tua
-  "#a3e635", // hijau muda
-  "#84cc16", // hijau tua
-  "#f472b6", // pink muda
-  "#ec4899", // pink tua
+  "#fbbf24",
+  "#f59e0b",
+  "#22d3ee",
+  "#06b6d4",
+  "#a3e635",
+  "#84cc16",
+  "#f472b6",
+  "#ec4899",
 ];
 
 const HEAD_TYPES: HeadType[] = [
@@ -110,7 +109,7 @@ function pick<T>(arr: T[]): T {
 }
 
 function randomTeeth6(): boolean[] {
-  const count = 1 + Math.floor(Math.random() * 4); // 1-4 gerigi dari 6 posisi
+  const count = 1 + Math.floor(Math.random() * 4);
   const arr = [false, false, false, false, false, false];
   const positions = [0, 1, 2, 3, 4, 5]
     .sort(() => Math.random() - 0.5)
@@ -130,7 +129,7 @@ function makeGameObject(id: number): GameObject {
     bodyColor: colors[1],
     teethColor: colors[2],
     innerColor: colors[3],
-    rotation: Math.floor(Math.random() * 8), // 0-7
+    rotation: Math.floor(Math.random() * 8),
   };
 }
 
@@ -166,7 +165,6 @@ function buildRound(roundIndex: number): Round {
     const candidate = makeGameObject(guessOptionsForGuest.length);
     if (objectsEqual(candidate, objectForHost)) continue;
     if (guessOptionsForGuest.some((o) => objectsEqual(o, candidate))) continue;
-    // Pastikan distractor cukup berbeda biar ada peluang
     guessOptionsForGuest.push(candidate);
   }
   guessOptionsForGuest.sort(() => Math.random() - 0.5);
@@ -203,7 +201,6 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-// Rotasi: 0-7 -> 45° * rot
 function rotationDeg(rotation: number): number {
   return rotation * 45;
 }
@@ -287,7 +284,6 @@ function ObjectPreview({ obj, size = 96 }: { obj: GameObject; size?: number }) {
       }
       return <polygon points={points.join(" ")} {...common} />;
     }
-    // octagon
     const points: string[] = [];
     for (let i = 0; i < 8; i += 1) {
       const angle = (Math.PI / 4) * i - Math.PI / 2 + Math.PI / 8;
@@ -298,9 +294,7 @@ function ObjectPreview({ obj, size = 96 }: { obj: GameObject; size?: number }) {
     return <polygon points={points.join(" ")} {...common} />;
   };
 
-  // 6 posisi gerigi: 0=atas, 1=kanan-atas, 2=kanan, 3=bawah, 4=kiri-bawah, 5=kiri
   const toothAngle = (dir: number): number => {
-    // 0 = -90° (atas), tiap berikutnya +60°
     return -Math.PI / 2 + (dir * Math.PI) / 3;
   };
 
@@ -327,7 +321,6 @@ function ObjectPreview({ obj, size = 96 }: { obj: GameObject; size?: number }) {
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       <g transform={`rotate(${rotationDeg(obj.rotation)} ${cx} ${cy})`}>
-        {/* Body */}
         <circle
           cx={cx}
           cy={cy}
@@ -336,7 +329,6 @@ function ObjectPreview({ obj, size = 96 }: { obj: GameObject; size?: number }) {
           stroke={bodyStroke}
           strokeWidth={2.5}
         />
-        {/* Inner ring */}
         <circle
           cx={cx}
           cy={cy}
@@ -345,11 +337,9 @@ function ObjectPreview({ obj, size = 96 }: { obj: GameObject; size?: number }) {
           stroke={innerStroke}
           strokeWidth={2}
         />
-        {/* Teeth */}
         {obj.teeth.map((has, i) => (
           <g key={i}>{renderTooth(i, has)}</g>
         ))}
-        {/* Head */}
         {renderHead()}
       </g>
     </svg>
@@ -377,7 +367,6 @@ function describeObject(obj: GameObject): string {
     "#f472b6": "pink muda",
     "#ec4899": "pink tua",
   };
-  // Posisi gerigi (6)
   const teethDir = [
     "atas",
     "kanan atas",
@@ -416,6 +405,7 @@ export default function TwoSides() {
   const [phase, setPhase] = useState<GamePhase>("lobby");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [joiningRoom, setJoiningRoom] = useState(false);
 
   const [roundIndex, setRoundIndex] = useState(0);
   const [roundData, setRoundData] = useState<Round | null>(null);
@@ -470,6 +460,7 @@ export default function TwoSides() {
       const state = channel.presenceState<RoomPlayer>();
       const connected = Object.values(state)
         .flat()
+        .filter((p) => p.id && !p.id.startsWith("peek-"))
         .sort((left, right) => Number(right.isHost) - Number(left.isHost));
       setPlayers(connected);
 
@@ -603,6 +594,7 @@ export default function TwoSides() {
     });
   }, [activeRoom, isConnected, isHost, isReady, playerId, playerName]);
 
+  // ---- Countdown timer ----
   useEffect(() => {
     if (phase !== "playing" || phaseEndsAt === null) return;
 
@@ -618,6 +610,7 @@ export default function TwoSides() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, phaseEndsAt, isHost]);
 
+  // ---- Host resolve when guess is in ----
   useEffect(() => {
     if (!isHost) return;
     if (phase !== "playing") return;
@@ -645,6 +638,7 @@ export default function TwoSides() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isHost, myGuess, peerGuess, phase, phaseResult, phaseStep]);
 
+  // ---- Auto advance ----
   useEffect(() => {
     if (!isHost) return;
     if (phase !== "playing") return;
@@ -742,7 +736,49 @@ export default function TwoSides() {
     });
   };
 
-  const enterRoom = (roomCode: string, host: boolean) => {
+  // ---- Preflight: cek jumlah pemain di room ----
+  const peekRoomPlayerCount = async (roomCode: string): Promise<number> => {
+    if (!supabase) return 0;
+    const peekKey = "peek-" + crypto.randomUUID();
+    const peekChannel = supabase.channel(`two-sides:${roomCode}`, {
+      config: { presence: { key: peekKey } },
+    });
+
+    let playerCount = 0;
+    await new Promise<void>((resolve) => {
+      let resolved = false;
+      const done = () => {
+        if (resolved) return;
+        resolved = true;
+        resolve();
+      };
+      peekChannel.subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          setTimeout(() => {
+            const state = peekChannel.presenceState<RoomPlayer>();
+            const all = Object.values(state).flat();
+            playerCount = all.filter(
+              (p) => p.id && !p.id.startsWith("peek-"),
+            ).length;
+            done();
+          }, 450);
+        } else if (
+          status === "CHANNEL_ERROR" ||
+          status === "TIMED_OUT" ||
+          status === "CLOSED"
+        ) {
+          done();
+        }
+      });
+      // Safety timeout
+      setTimeout(done, 2500);
+    });
+
+    await supabase.removeChannel(peekChannel);
+    return playerCount;
+  };
+
+  const enterRoom = async (roomCode: string, host: boolean) => {
     if (!supabase) {
       setError("Supabase belum dikonfigurasi.");
       return;
@@ -753,22 +789,40 @@ export default function TwoSides() {
       return;
     }
     setError("");
-    setPlayerId(crypto.randomUUID());
-    setPlayers([]);
-    setPhase("lobby");
-    setIsReady(host);
-    setIsHost(host);
-    setActiveRoom(roomCode);
-    setRoundIndex(0);
-    setRoundData(null);
-    setPhaseStep("phase1");
-    setMyGuess(null);
-    setPeerGuess(null);
-    setPhaseResult(null);
-    setSharedLives(START_LIVES);
-    setSharedScore(0);
-    setFinalStatus(null);
-    setAbortReason(null);
+    setJoiningRoom(true);
+
+    try {
+      // Kalau guest: cek dulu apakah room sudah penuh
+      if (!host) {
+        const count = await peekRoomPlayerCount(roomCode);
+        if (count >= 2) {
+          setError("Room sudah penuh (maks 2 pemain).");
+          setJoiningRoom(false);
+          return;
+        }
+      }
+
+      setPlayerId(crypto.randomUUID());
+      setPlayers([]);
+      setPhase("lobby");
+      setIsReady(host);
+      setIsHost(host);
+      setActiveRoom(roomCode);
+      setRoundIndex(0);
+      setRoundData(null);
+      setPhaseStep("phase1");
+      setMyGuess(null);
+      setPeerGuess(null);
+      setPhaseResult(null);
+      setSharedLives(START_LIVES);
+      setSharedScore(0);
+      setFinalStatus(null);
+      setAbortReason(null);
+    } catch {
+      setError("Gagal masuk room. Coba lagi.");
+    } finally {
+      setJoiningRoom(false);
+    }
   };
 
   const handleJoinRoom = (event: React.FormEvent<HTMLFormElement>) => {
@@ -781,7 +835,7 @@ export default function TwoSides() {
       setError("Kode room terdiri dari 6 karakter.");
       return;
     }
-    enterRoom(roomCode, false);
+    void enterRoom(roomCode, false);
   };
 
   const startGame = () => {
@@ -856,7 +910,12 @@ export default function TwoSides() {
   };
 
   const guestsReady = players.filter((p) => !p.isHost).every((p) => p.ready);
-  const canStart = isHost && players.length === 2 && guestsReady && isConnected;
+  const canStart =
+    isHost &&
+    players.length === 2 &&
+    guestsReady &&
+    isConnected &&
+    !joiningRoom;
   const secondsLeft = Math.ceil(remainingMs / 1000);
 
   const iAmDescriber =
@@ -926,8 +985,8 @@ export default function TwoSides() {
               <button
                 className="tap-rush-primary"
                 type="button"
-                disabled={!supabase}
-                onClick={() => enterRoom(makeRoomCode(), true)}
+                disabled={!supabase || joiningRoom}
+                onClick={() => void enterRoom(makeRoomCode(), true)}
               >
                 <Rocket size={17} /> Buat room
               </button>
@@ -947,9 +1006,9 @@ export default function TwoSides() {
                 <button
                   className="tap-rush-secondary"
                   type="submit"
-                  disabled={!supabase}
+                  disabled={!supabase || joiningRoom}
                 >
-                  Gabung
+                  {joiningRoom ? "Cek room…" : "Gabung"}
                 </button>
               </form>
             </div>
@@ -1041,9 +1100,11 @@ export default function TwoSides() {
                       <Rocket size={17} />{" "}
                       {players.length < 2
                         ? "Butuh 1 teman lagi"
-                        : guestsReady
-                          ? "Mulai co-op"
-                          : "Menunggu siap"}
+                        : players.length > 2
+                          ? "Room penuh (maks 2)"
+                          : guestsReady
+                            ? "Mulai co-op"
+                            : "Menunggu siap"}
                     </button>
                   ) : (
                     <button

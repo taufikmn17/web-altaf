@@ -34,6 +34,7 @@ type SudokuData = {
 
 const ROOM_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const SIZE = 9;
+const MAX_PLAYERS = 4;
 
 function makeRoomCode() {
   const values = new Uint32Array(6);
@@ -100,6 +101,7 @@ export default function SudokuDuel() {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [joiningRoom, setJoiningRoom] = useState(false);
 
   const [puzzle, setPuzzle] = useState<Puzzle | null>(null);
   const [solution, setSolution] = useState<number[][] | null>(null);
@@ -142,9 +144,9 @@ export default function SudokuDuel() {
       const state = channel.presenceState<RoomPlayer>();
       const connectedPlayers = Object.values(state)
         .flat()
+        .filter((p) => p.id && !p.id.startsWith("peek-"))
         .sort((left, right) => Number(right.isHost) - Number(left.isHost));
       setPlayers(connectedPlayers);
-      // Bersihkan progress player yang sudah tidak ada
       setProgress((current) => {
         const next: Record<string, number> = {};
         for (const p of connectedPlayers) {
@@ -156,7 +158,6 @@ export default function SudokuDuel() {
 
     channel.on("presence", { event: "sync" }, syncFromPresence);
     channel.on("presence", { event: "join" }, syncFromPresence);
-    // Player keluar: game tetap jalan, cukup refresh daftar & progress
     channel.on("presence", { event: "leave" }, syncFromPresence);
 
     channel.on("broadcast", { event: "game-reset" }, () => {
@@ -262,8 +263,49 @@ export default function SudokuDuel() {
     });
   }, [board, solution, puzzle, phase, playerId]);
 
+  // ---- Preflight: cek jumlah pemain di room ----
+  const peekRoomPlayerCount = async (roomCode: string): Promise<number> => {
+    if (!supabase) return 0;
+    const peekKey = "peek-" + crypto.randomUUID();
+    const peekChannel = supabase.channel(`sudoku-duel:${roomCode}`, {
+      config: { presence: { key: peekKey } },
+    });
+
+    let playerCount = 0;
+    await new Promise<void>((resolve) => {
+      let resolved = false;
+      const done = () => {
+        if (resolved) return;
+        resolved = true;
+        resolve();
+      };
+      peekChannel.subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          setTimeout(() => {
+            const state = peekChannel.presenceState<RoomPlayer>();
+            const all = Object.values(state).flat();
+            playerCount = all.filter(
+              (p) => p.id && !p.id.startsWith("peek-"),
+            ).length;
+            done();
+          }, 450);
+        } else if (
+          status === "CHANNEL_ERROR" ||
+          status === "TIMED_OUT" ||
+          status === "CLOSED"
+        ) {
+          done();
+        }
+      });
+      setTimeout(done, 2500);
+    });
+
+    await supabase.removeChannel(peekChannel);
+    return playerCount;
+  };
+
   // ---- Handlers ----
-  const enterRoom = (roomCode: string, host: boolean) => {
+  const enterRoom = async (roomCode: string, host: boolean) => {
     if (!supabase) {
       setError("Supabase belum dikonfigurasi.");
       return;
@@ -274,18 +316,35 @@ export default function SudokuDuel() {
       return;
     }
     setError("");
-    setPlayerId(crypto.randomUUID());
-    setPlayers([]);
-    setPhase("lobby");
-    setPuzzle(null);
-    setSolution(null);
-    setBoard(null);
-    setSelected(null);
-    setWinnerId(null);
-    setProgress({});
-    setIsReady(host);
-    setIsHost(host);
-    setActiveRoom(roomCode);
+    setJoiningRoom(true);
+
+    try {
+      if (!host) {
+        const count = await peekRoomPlayerCount(roomCode);
+        if (count >= MAX_PLAYERS) {
+          setError(`Room sudah penuh (maks ${MAX_PLAYERS} pemain).`);
+          setJoiningRoom(false);
+          return;
+        }
+      }
+
+      setPlayerId(crypto.randomUUID());
+      setPlayers([]);
+      setPhase("lobby");
+      setPuzzle(null);
+      setSolution(null);
+      setBoard(null);
+      setSelected(null);
+      setWinnerId(null);
+      setProgress({});
+      setIsReady(host);
+      setIsHost(host);
+      setActiveRoom(roomCode);
+    } catch {
+      setError("Gagal masuk room. Coba lagi.");
+    } finally {
+      setJoiningRoom(false);
+    }
   };
 
   const handleJoinRoom = (event: React.FormEvent<HTMLFormElement>) => {
@@ -298,7 +357,7 @@ export default function SudokuDuel() {
       setError("Kode room terdiri dari 6 karakter.");
       return;
     }
-    enterRoom(roomCode, false);
+    void enterRoom(roomCode, false);
   };
 
   const fetchSudoku = async (): Promise<SudokuData | null> => {
@@ -323,6 +382,7 @@ export default function SudokuDuel() {
     if (
       !isHost ||
       players.length < 2 ||
+      players.length > MAX_PLAYERS ||
       !players.every((p) => p.isHost || p.ready)
     )
       return;
@@ -420,7 +480,13 @@ export default function SudokuDuel() {
 
   // ---- Helpers ----
   const guestsReady = players.filter((p) => !p.isHost).every((p) => p.ready);
-  const canStart = isHost && players.length >= 2 && guestsReady && isConnected;
+  const canStart =
+    isHost &&
+    players.length >= 2 &&
+    players.length <= MAX_PLAYERS &&
+    guestsReady &&
+    isConnected &&
+    !joiningRoom;
   const totalEmpty = countTotalEmpty(puzzle);
 
   const conflictCells = useMemo(() => {
@@ -477,9 +543,12 @@ export default function SudokuDuel() {
     return set;
   }, [board]);
 
-  const orderedByProgress = [...players].sort(
-    (left, right) => (progress[right.id] ?? 0) - (progress[left.id] ?? 0),
-  );
+  // Progress: HANYA player lain (bukan diri sendiri) — biar anti-curang
+  const otherPlayersByProgress = [...players]
+    .filter((p) => p.id !== playerId)
+    .sort(
+      (left, right) => (progress[right.id] ?? 0) - (progress[left.id] ?? 0),
+    );
 
   return (
     <main className="tap-rush-shell">
@@ -534,8 +603,8 @@ export default function SudokuDuel() {
               <button
                 className="tap-rush-primary"
                 type="button"
-                disabled={!supabase}
-                onClick={() => enterRoom(makeRoomCode(), true)}
+                disabled={!supabase || joiningRoom}
+                onClick={() => void enterRoom(makeRoomCode(), true)}
               >
                 <Rocket size={17} /> Buat room
               </button>
@@ -555,9 +624,9 @@ export default function SudokuDuel() {
                 <button
                   className="tap-rush-secondary"
                   type="submit"
-                  disabled={!supabase}
+                  disabled={!supabase || joiningRoom}
                 >
-                  Gabung
+                  {joiningRoom ? "Cek room…" : "Gabung"}
                 </button>
               </form>
             </div>
@@ -608,7 +677,9 @@ export default function SudokuDuel() {
                   <h2>
                     <UsersRound size={20} /> Pemain di room
                   </h2>
-                  <span>{players.length} / 8</span>
+                  <span>
+                    {players.length} / {MAX_PLAYERS}
+                  </span>
                 </div>
                 <div className="tap-rush-player-list">
                   {players.length === 0 ? (
@@ -647,9 +718,11 @@ export default function SudokuDuel() {
                         ? "Menyiapkan puzzle…"
                         : players.length < 2
                           ? "Menunggu teman"
-                          : guestsReady
-                            ? "Mulai duel"
-                            : "Menunggu siap"}
+                          : players.length > MAX_PLAYERS
+                            ? `Room penuh (maks ${MAX_PLAYERS})`
+                            : guestsReady
+                              ? "Mulai duel"
+                              : "Menunggu siap"}
                     </button>
                   ) : (
                     <button
@@ -738,39 +811,44 @@ export default function SudokuDuel() {
                   </button>
                 </div>
 
-                {/* ---- DAFTAR PROGRESS PEMAIN ---- */}
+                {/* ---- DAFTAR PROGRESS PEMAIN LAIN ---- */}
                 <div className="sudoku-progress">
                   <h3 className="sudoku-progress-title">
-                    <UsersRound size={16} /> Progress pemain
+                    <UsersRound size={16} /> Progress pemain lain
                   </h3>
-                  <ol className="sudoku-progress-list">
-                    {orderedByProgress.map((player) => {
-                      const count = progress[player.id] ?? 0;
-                      const pct =
-                        totalEmpty > 0
-                          ? Math.round((count / totalEmpty) * 100)
-                          : 0;
-                      return (
-                        <li key={player.id} className="sudoku-progress-item">
-                          <div className="sudoku-progress-row">
-                            <span className="sudoku-progress-name">
-                              {player.name}
-                              {player.id === playerId ? " (kamu)" : ""}
-                            </span>
-                            <strong className="sudoku-progress-count">
-                              {count} / {totalEmpty} petak ({pct}%)
-                            </strong>
-                          </div>
-                          <div className="sudoku-progress-bar">
-                            <div
-                              className="sudoku-progress-fill"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ol>
+                  {otherPlayersByProgress.length === 0 ? (
+                    <p className="sudoku-progress-empty">
+                      Belum ada pemain lain di room ini.
+                    </p>
+                  ) : (
+                    <ol className="sudoku-progress-list">
+                      {otherPlayersByProgress.map((player) => {
+                        const count = progress[player.id] ?? 0;
+                        const pct =
+                          totalEmpty > 0
+                            ? Math.round((count / totalEmpty) * 100)
+                            : 0;
+                        return (
+                          <li key={player.id} className="sudoku-progress-item">
+                            <div className="sudoku-progress-row">
+                              <span className="sudoku-progress-name">
+                                {player.name}
+                              </span>
+                              <strong className="sudoku-progress-count">
+                                {count} / {totalEmpty} petak ({pct}%)
+                              </strong>
+                            </div>
+                            <div className="sudoku-progress-bar">
+                              <div
+                                className="sudoku-progress-fill"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  )}
                 </div>
               </div>
             )}
@@ -784,26 +862,31 @@ export default function SudokuDuel() {
                     : `${winnerName} selesai duluan!`}
                 </h2>
                 <ol className="tap-rush-scoreboard">
-                  {orderedByProgress.map((player, index) => {
-                    const count = progress[player.id] ?? 0;
-                    return (
-                      <li
-                        className={index === 0 ? "is-winner" : ""}
-                        key={player.id}
-                      >
-                        <span className="tap-rush-rank">
-                          {String(index + 1).padStart(2, "0")}
-                        </span>
-                        <span className="tap-rush-player-name">
-                          {player.name}
-                          {player.id === playerId ? " (kamu)" : ""}
-                        </span>
-                        <strong>
-                          {count} / {totalEmpty}
-                        </strong>
-                      </li>
-                    );
-                  })}
+                  {[...players]
+                    .sort(
+                      (left, right) =>
+                        (progress[right.id] ?? 0) - (progress[left.id] ?? 0),
+                    )
+                    .map((player, index) => {
+                      const count = progress[player.id] ?? 0;
+                      return (
+                        <li
+                          className={index === 0 ? "is-winner" : ""}
+                          key={player.id}
+                        >
+                          <span className="tap-rush-rank">
+                            {String(index + 1).padStart(2, "0")}
+                          </span>
+                          <span className="tap-rush-player-name">
+                            {player.name}
+                            {player.id === playerId ? " (kamu)" : ""}
+                          </span>
+                          <strong>
+                            {count} / {totalEmpty}
+                          </strong>
+                        </li>
+                      );
+                    })}
                 </ol>
                 <div className="tap-rush-lobby-footer">
                   {isHost && (
@@ -841,7 +924,7 @@ export default function SudokuDuel() {
 
         <footer className="tap-rush-footnote">
           <span>SUDOKU API</span>
-          <span>ROOM CODE</span>
+          <span>MAKS {MAX_PLAYERS} PEMAIN</span>
           <span>9 × 9 PUZZLE</span>
         </footer>
       </section>
@@ -950,6 +1033,12 @@ export default function SudokuDuel() {
           text-transform: uppercase;
           opacity: 0.75;
           margin-bottom: 10px;
+        }
+        .sudoku-progress-empty {
+          font-size: 12px;
+          opacity: 0.55;
+          text-align: center;
+          padding: 8px 0;
         }
         .sudoku-progress-list {
           display: flex;

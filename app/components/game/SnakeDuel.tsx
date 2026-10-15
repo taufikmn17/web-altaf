@@ -36,6 +36,7 @@ type SnakeState = {
 const ROOM_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const COLS = 24;
 const ROWS = 24;
+const MAX_PLAYERS = 2;
 
 // Kecepatan bertahap: lambat di awal, makin cepat tiap makan buah
 const BASE_TICK_MS = 220;
@@ -132,6 +133,7 @@ export default function SnakeDuel() {
   const [phase, setPhase] = useState<GamePhase>("lobby");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [joiningRoom, setJoiningRoom] = useState(false);
 
   const [mySnake, setMySnake] = useState<SnakeState | null>(null);
   const [peerSnake, setPeerSnake] = useState<SnakeState | null>(null);
@@ -176,14 +178,18 @@ export default function SnakeDuel() {
     });
     channelRef.current = channel;
 
-    channel.on("presence", { event: "sync" }, () => {
-      const connectedPlayers = Object.values(
-        channel.presenceState<RoomPlayer>(),
-      )
+    const syncFromPresence = () => {
+      const state = channel.presenceState<RoomPlayer>();
+      const connectedPlayers = Object.values(state)
         .flat()
+        .filter((p) => p.id && !p.id.startsWith("peek-"))
         .sort((left, right) => Number(right.isHost) - Number(left.isHost));
       setPlayers(connectedPlayers);
-    });
+    };
+
+    channel.on("presence", { event: "sync" }, syncFromPresence);
+    channel.on("presence", { event: "join" }, syncFromPresence);
+    channel.on("presence", { event: "leave" }, syncFromPresence);
 
     // RESET: semua client reset saat host mulai ronde baru
     channel.on("broadcast", { event: "game-reset" }, () => {
@@ -442,8 +448,49 @@ export default function SnakeDuel() {
     }
   };
 
+  // ---- Preflight: cek jumlah pemain di room ----
+  const peekRoomPlayerCount = async (roomCode: string): Promise<number> => {
+    if (!supabase) return 0;
+    const peekKey = "peek-" + crypto.randomUUID();
+    const peekChannel = supabase.channel(`snake-duel:${roomCode}`, {
+      config: { presence: { key: peekKey } },
+    });
+
+    let playerCount = 0;
+    await new Promise<void>((resolve) => {
+      let resolved = false;
+      const done = () => {
+        if (resolved) return;
+        resolved = true;
+        resolve();
+      };
+      peekChannel.subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          setTimeout(() => {
+            const state = peekChannel.presenceState<RoomPlayer>();
+            const all = Object.values(state).flat();
+            playerCount = all.filter(
+              (p) => p.id && !p.id.startsWith("peek-"),
+            ).length;
+            done();
+          }, 450);
+        } else if (
+          status === "CHANNEL_ERROR" ||
+          status === "TIMED_OUT" ||
+          status === "CLOSED"
+        ) {
+          done();
+        }
+      });
+      setTimeout(done, 2500);
+    });
+
+    await supabase.removeChannel(peekChannel);
+    return playerCount;
+  };
+
   // ---- Handlers ----
-  const enterRoom = (roomCode: string, host: boolean) => {
+  const enterRoom = async (roomCode: string, host: boolean) => {
     if (!supabase) {
       setError("Supabase belum dikonfigurasi.");
       return;
@@ -454,17 +501,35 @@ export default function SnakeDuel() {
       return;
     }
     setError("");
-    setPlayerId(crypto.randomUUID());
-    setPlayers([]);
-    setPhase("lobby");
-    setIsReady(host);
-    setIsHost(host);
-    setActiveRoom(roomCode);
-    setMySnake(null);
-    setPeerSnake(null);
-    setWinner(null);
-    dirQueueRef.current = [];
-    tickMsRef.current = BASE_TICK_MS;
+    setJoiningRoom(true);
+
+    try {
+      // Kalau guest: cek dulu apakah room sudah penuh
+      if (!host) {
+        const count = await peekRoomPlayerCount(roomCode);
+        if (count >= MAX_PLAYERS) {
+          setError(`Room sudah penuh (maks ${MAX_PLAYERS} pemain).`);
+          setJoiningRoom(false);
+          return;
+        }
+      }
+
+      setPlayerId(crypto.randomUUID());
+      setPlayers([]);
+      setPhase("lobby");
+      setIsReady(host);
+      setIsHost(host);
+      setActiveRoom(roomCode);
+      setMySnake(null);
+      setPeerSnake(null);
+      setWinner(null);
+      dirQueueRef.current = [];
+      tickMsRef.current = BASE_TICK_MS;
+    } catch {
+      setError("Gagal masuk room. Coba lagi.");
+    } finally {
+      setJoiningRoom(false);
+    }
   };
 
   const handleJoinRoom = (event: React.FormEvent<HTMLFormElement>) => {
@@ -477,13 +542,14 @@ export default function SnakeDuel() {
       setError("Kode room terdiri dari 6 karakter.");
       return;
     }
-    enterRoom(roomCode, false);
+    void enterRoom(roomCode, false);
   };
 
   const startRound = () => {
     if (
       !isHost ||
       players.length < 2 ||
+      players.length > MAX_PLAYERS ||
       !players.every((p) => p.isHost || p.ready)
     )
       return;
@@ -547,7 +613,13 @@ export default function SnakeDuel() {
   };
 
   const guestsReady = players.filter((p) => !p.isHost).every((p) => p.ready);
-  const canStart = isHost && players.length >= 2 && guestsReady && isConnected;
+  const canStart =
+    isHost &&
+    players.length >= 2 &&
+    players.length <= MAX_PLAYERS &&
+    guestsReady &&
+    isConnected &&
+    !joiningRoom;
 
   const myName = players.find((p) => p.id === playerId)?.name ?? "Kamu";
   const peerName = players.find((p) => p.id !== playerId)?.name ?? "Lawan";
@@ -605,8 +677,8 @@ export default function SnakeDuel() {
               <button
                 className="tap-rush-primary"
                 type="button"
-                disabled={!supabase}
-                onClick={() => enterRoom(makeRoomCode(), true)}
+                disabled={!supabase || joiningRoom}
+                onClick={() => void enterRoom(makeRoomCode(), true)}
               >
                 <Rocket size={17} /> Buat room
               </button>
@@ -626,9 +698,9 @@ export default function SnakeDuel() {
                 <button
                   className="tap-rush-secondary"
                   type="submit"
-                  disabled={!supabase}
+                  disabled={!supabase || joiningRoom}
                 >
-                  Gabung
+                  {joiningRoom ? "Cek room…" : "Gabung"}
                 </button>
               </form>
             </div>
@@ -679,7 +751,9 @@ export default function SnakeDuel() {
                   <h2>
                     <UsersRound size={20} /> Pemain di room
                   </h2>
-                  <span>{players.length} / 2</span>
+                  <span>
+                    {players.length} / {MAX_PLAYERS}
+                  </span>
                 </div>
                 <div className="tap-rush-player-list">
                   {players.length === 0 ? (
@@ -714,9 +788,11 @@ export default function SnakeDuel() {
                       <Rocket size={17} />{" "}
                       {players.length < 2
                         ? "Menunggu teman"
-                        : guestsReady
-                          ? "Mulai duel"
-                          : "Menunggu siap"}
+                        : players.length > MAX_PLAYERS
+                          ? `Room penuh (maks ${MAX_PLAYERS})`
+                          : guestsReady
+                            ? "Mulai duel"
+                            : "Menunggu siap"}
                     </button>
                   ) : (
                     <button
@@ -874,7 +950,7 @@ export default function SnakeDuel() {
 
         <footer className="tap-rush-footnote">
           <span>ARROW KEYS / WASD / TOUCH</span>
-          <span>2 PEMAIN</span>
+          <span>MAKS {MAX_PLAYERS} PEMAIN</span>
           <span>DUEL 1V1</span>
         </footer>
       </section>

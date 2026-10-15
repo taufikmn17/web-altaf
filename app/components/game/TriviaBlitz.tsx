@@ -41,6 +41,7 @@ type RoundData = {
 const TOTAL_ROUNDS = 7;
 const ANSWER_WINDOW_MS = 15_000;
 const REVEAL_DURATION_MS = 3_000;
+const MAX_PLAYERS = 4;
 const ROOM_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 function makeRoomCode() {
@@ -68,6 +69,7 @@ export default function TriviaBlitz() {
   const [phase, setPhase] = useState<GamePhase>("lobby");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [joiningRoom, setJoiningRoom] = useState(false);
 
   const [round, setRound] = useState(0);
   const [roundData, setRoundData] = useState<RoundData | null>(null);
@@ -116,6 +118,7 @@ export default function TriviaBlitz() {
       const state = channel.presenceState<RoomPlayer>();
       const connectedPlayers = Object.values(state)
         .flat()
+        .filter((p) => p.id && !p.id.startsWith("peek-"))
         .sort((left, right) => Number(right.isHost) - Number(left.isHost));
       setPlayers(connectedPlayers);
       setScores((current) => {
@@ -134,10 +137,8 @@ export default function TriviaBlitz() {
 
     channel.on("presence", { event: "sync" }, syncFromPresence);
     channel.on("presence", { event: "join" }, syncFromPresence);
-    // Player keluar: game tetap jalan, cukup update daftar
     channel.on("presence", { event: "leave" }, syncFromPresence);
 
-    // RESET: semua client reset saat host mulai game baru
     channel.on("broadcast", { event: "game-reset" }, () => {
       setScores({});
       setAnsweredIds({});
@@ -185,7 +186,6 @@ export default function TriviaBlitz() {
       setAnsweredIds((current) => ({ ...current, [id]: answer }));
       if (data.correct) {
         setScores((current) => ({ ...current, [id]: (current[id] ?? 0) + 1 }));
-        // Hanya tampilkan notif untuk pemain lain
         if (id !== playerId) {
           pushNotice(`${name} menjawab dengan benar!`);
         }
@@ -321,7 +321,48 @@ export default function TriviaBlitz() {
     });
   };
 
-  const enterRoom = (roomCode: string, host: boolean) => {
+  // ---- Preflight: cek jumlah pemain di room ----
+  const peekRoomPlayerCount = async (roomCode: string): Promise<number> => {
+    if (!supabase) return 0;
+    const peekKey = "peek-" + crypto.randomUUID();
+    const peekChannel = supabase.channel(`trivia-blitz:${roomCode}`, {
+      config: { presence: { key: peekKey } },
+    });
+
+    let playerCount = 0;
+    await new Promise<void>((resolve) => {
+      let resolved = false;
+      const done = () => {
+        if (resolved) return;
+        resolved = true;
+        resolve();
+      };
+      peekChannel.subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          setTimeout(() => {
+            const state = peekChannel.presenceState<RoomPlayer>();
+            const all = Object.values(state).flat();
+            playerCount = all.filter(
+              (p) => p.id && !p.id.startsWith("peek-"),
+            ).length;
+            done();
+          }, 450);
+        } else if (
+          status === "CHANNEL_ERROR" ||
+          status === "TIMED_OUT" ||
+          status === "CLOSED"
+        ) {
+          done();
+        }
+      });
+      setTimeout(done, 2500);
+    });
+
+    await supabase.removeChannel(peekChannel);
+    return playerCount;
+  };
+
+  const enterRoom = async (roomCode: string, host: boolean) => {
     if (!supabase) {
       setError("Supabase belum dikonfigurasi.");
       return;
@@ -332,19 +373,36 @@ export default function TriviaBlitz() {
       return;
     }
     setError("");
-    setPlayerId(crypto.randomUUID());
-    setPlayers([]);
-    setScores({});
-    setPhase("lobby");
-    setRound(0);
-    setRoundData(null);
-    setAnsweredIds({});
-    setRevealAt(null);
-    setQuestionBank([]);
-    setNotices([]);
-    setIsReady(host);
-    setIsHost(host);
-    setActiveRoom(roomCode);
+    setJoiningRoom(true);
+
+    try {
+      if (!host) {
+        const count = await peekRoomPlayerCount(roomCode);
+        if (count >= MAX_PLAYERS) {
+          setError(`Room sudah penuh (maks ${MAX_PLAYERS} pemain).`);
+          setJoiningRoom(false);
+          return;
+        }
+      }
+
+      setPlayerId(crypto.randomUUID());
+      setPlayers([]);
+      setScores({});
+      setPhase("lobby");
+      setRound(0);
+      setRoundData(null);
+      setAnsweredIds({});
+      setRevealAt(null);
+      setQuestionBank([]);
+      setNotices([]);
+      setIsReady(host);
+      setIsHost(host);
+      setActiveRoom(roomCode);
+    } catch {
+      setError("Gagal masuk room. Coba lagi.");
+    } finally {
+      setJoiningRoom(false);
+    }
   };
 
   const handleJoinRoom = (event: React.FormEvent<HTMLFormElement>) => {
@@ -357,13 +415,14 @@ export default function TriviaBlitz() {
       setError("Kode room terdiri dari 6 karakter.");
       return;
     }
-    enterRoom(roomCode, false);
+    void enterRoom(roomCode, false);
   };
 
   const startGame = async () => {
     if (
       !isHost ||
       players.length < 2 ||
+      players.length > MAX_PLAYERS ||
       !players.every((p) => p.isHost || p.ready)
     )
       return;
@@ -455,7 +514,13 @@ export default function TriviaBlitz() {
     (left, right) => (scores[right.id] ?? 0) - (scores[left.id] ?? 0),
   );
   const guestsReady = players.filter((p) => !p.isHost).every((p) => p.ready);
-  const canStart = isHost && players.length >= 2 && guestsReady && isConnected;
+  const canStart =
+    isHost &&
+    players.length >= 2 &&
+    players.length <= MAX_PLAYERS &&
+    guestsReady &&
+    isConnected &&
+    !joiningRoom;
   const secondsLeft = Math.ceil(remainingMs / 1000);
   const showReveal = revealAt !== null;
 
@@ -528,8 +593,8 @@ export default function TriviaBlitz() {
               <button
                 className="tap-rush-primary"
                 type="button"
-                disabled={!supabase}
-                onClick={() => enterRoom(makeRoomCode(), true)}
+                disabled={!supabase || joiningRoom}
+                onClick={() => void enterRoom(makeRoomCode(), true)}
               >
                 <Rocket size={17} /> Buat room
               </button>
@@ -549,9 +614,9 @@ export default function TriviaBlitz() {
                 <button
                   className="tap-rush-secondary"
                   type="submit"
-                  disabled={!supabase}
+                  disabled={!supabase || joiningRoom}
                 >
-                  Gabung
+                  {joiningRoom ? "Cek room…" : "Gabung"}
                 </button>
               </form>
             </div>
@@ -602,7 +667,9 @@ export default function TriviaBlitz() {
                   <h2>
                     <UsersRound size={20} /> Pemain di room
                   </h2>
-                  <span>{players.length} / 8</span>
+                  <span>
+                    {players.length} / {MAX_PLAYERS}
+                  </span>
                 </div>
                 <div className="tap-rush-player-list">
                   {players.length === 0 ? (
@@ -641,9 +708,11 @@ export default function TriviaBlitz() {
                         ? "Memuat soal…"
                         : players.length < 2
                           ? "Menunggu teman"
-                          : guestsReady
-                            ? "Mulai kuis"
-                            : "Menunggu siap"}
+                          : players.length > MAX_PLAYERS
+                            ? `Room penuh (maks ${MAX_PLAYERS})`
+                            : guestsReady
+                              ? "Mulai kuis"
+                              : "Menunggu siap"}
                     </button>
                   ) : (
                     <button
@@ -799,7 +868,7 @@ export default function TriviaBlitz() {
 
         <footer className="tap-rush-footnote">
           <span>TRIVIA API</span>
-          <span>ROOM CODE</span>
+          <span>MAKS {MAX_PLAYERS} PEMAIN</span>
           <span>{TOTAL_ROUNDS} ROUNDS</span>
         </footer>
       </section>
@@ -922,7 +991,6 @@ export default function TriviaBlitz() {
           color: #86efac;
         }
 
-        /* Notices */
         .trivia-notices {
           display: flex;
           flex-direction: column;

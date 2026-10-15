@@ -41,6 +41,7 @@ type CountryData = {
 const ROOM_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const TOTAL_QUESTIONS = 5;
 const ROUND_SECONDS = 10;
+const MAX_PLAYERS = 4;
 
 const FALLBACK_COUNTRIES: CountryData[] = [
   {
@@ -283,6 +284,7 @@ export default function FlagQuiz() {
   const [phase, setPhase] = useState<GamePhase>("lobby");
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [joiningRoom, setJoiningRoom] = useState(false);
 
   const [countryPool, setCountryPool] = useState<CountryData[]>([]);
   const [isLoadingCountries, setIsLoadingCountries] = useState(true);
@@ -356,9 +358,9 @@ export default function FlagQuiz() {
       const state = channel.presenceState<RoomPlayer>();
       const connectedPlayers = Object.values(state)
         .flat()
+        .filter((p) => p.id && !p.id.startsWith("peek-"))
         .sort((left, right) => Number(right.isHost) - Number(left.isHost));
       setPlayers(connectedPlayers);
-      // Bersihkan skor & correctCount player yang sudah keluar
       setScores((current) => {
         const next: Record<string, number> = {};
         for (const p of connectedPlayers) next[p.id] = current[p.id] ?? 0;
@@ -373,10 +375,8 @@ export default function FlagQuiz() {
 
     channel.on("presence", { event: "sync" }, syncFromPresence);
     channel.on("presence", { event: "join" }, syncFromPresence);
-    // Player keluar: game tetap jalan, hanya update daftar
     channel.on("presence", { event: "leave" }, syncFromPresence);
 
-    // RESET: semua client reset saat host mulai kuis baru
     channel.on("broadcast", { event: "game-reset" }, () => {
       setQuestions([]);
       setCurrentIndex(0);
@@ -529,7 +529,48 @@ export default function FlagQuiz() {
     });
   };
 
-  const enterRoom = (roomCode: string, host: boolean) => {
+  // ---- Preflight: cek jumlah pemain di room ----
+  const peekRoomPlayerCount = async (roomCode: string): Promise<number> => {
+    if (!supabase) return 0;
+    const peekKey = "peek-" + crypto.randomUUID();
+    const peekChannel = supabase.channel(`flag-quiz:${roomCode}`, {
+      config: { presence: { key: peekKey } },
+    });
+
+    let playerCount = 0;
+    await new Promise<void>((resolve) => {
+      let resolved = false;
+      const done = () => {
+        if (resolved) return;
+        resolved = true;
+        resolve();
+      };
+      peekChannel.subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          setTimeout(() => {
+            const state = peekChannel.presenceState<RoomPlayer>();
+            const all = Object.values(state).flat();
+            playerCount = all.filter(
+              (p) => p.id && !p.id.startsWith("peek-"),
+            ).length;
+            done();
+          }, 450);
+        } else if (
+          status === "CHANNEL_ERROR" ||
+          status === "TIMED_OUT" ||
+          status === "CLOSED"
+        ) {
+          done();
+        }
+      });
+      setTimeout(done, 2500);
+    });
+
+    await supabase.removeChannel(peekChannel);
+    return playerCount;
+  };
+
+  const enterRoom = async (roomCode: string, host: boolean) => {
     if (!supabase) {
       setError("Supabase belum dikonfigurasi.");
       return;
@@ -540,16 +581,34 @@ export default function FlagQuiz() {
       return;
     }
     setError("");
-    setPlayerId(crypto.randomUUID());
-    setPlayers([]);
-    setPhase("lobby");
-    setIsReady(host);
-    setIsHost(host);
-    setActiveRoom(roomCode);
-    setScores({});
-    setCorrectCount({});
-    setMyAnswer(null);
-    setNotices([]);
+    setJoiningRoom(true);
+
+    try {
+      // Kalau guest: cek dulu apakah room sudah penuh
+      if (!host) {
+        const count = await peekRoomPlayerCount(roomCode);
+        if (count >= MAX_PLAYERS) {
+          setError(`Room sudah penuh (maks ${MAX_PLAYERS} pemain).`);
+          setJoiningRoom(false);
+          return;
+        }
+      }
+
+      setPlayerId(crypto.randomUUID());
+      setPlayers([]);
+      setPhase("lobby");
+      setIsReady(host);
+      setIsHost(host);
+      setActiveRoom(roomCode);
+      setScores({});
+      setCorrectCount({});
+      setMyAnswer(null);
+      setNotices([]);
+    } catch {
+      setError("Gagal masuk room. Coba lagi.");
+    } finally {
+      setJoiningRoom(false);
+    }
   };
 
   const handleJoinRoom = (event: React.FormEvent<HTMLFormElement>) => {
@@ -562,13 +621,14 @@ export default function FlagQuiz() {
       setError("Kode room terdiri dari 6 karakter.");
       return;
     }
-    enterRoom(roomCode, false);
+    void enterRoom(roomCode, false);
   };
 
   const startQuiz = () => {
     if (
       !isHost ||
       players.length < 2 ||
+      players.length > MAX_PLAYERS ||
       isLoadingCountries ||
       countryPool.length < 4
     )
@@ -656,10 +716,12 @@ export default function FlagQuiz() {
   const canStart =
     isHost &&
     players.length >= 2 &&
+    players.length <= MAX_PLAYERS &&
     guestsReady &&
     isConnected &&
     !isLoadingCountries &&
-    countryPool.length >= 4;
+    countryPool.length >= 4 &&
+    !joiningRoom;
 
   const currentQuestion = questions[currentIndex];
   const orderedPlayers = [...players].sort(
@@ -739,9 +801,12 @@ export default function FlagQuiz() {
                 className="tap-rush-primary"
                 type="button"
                 disabled={
-                  !supabase || isLoadingCountries || countryPool.length < 4
+                  !supabase ||
+                  isLoadingCountries ||
+                  countryPool.length < 4 ||
+                  joiningRoom
                 }
-                onClick={() => enterRoom(makeRoomCode(), true)}
+                onClick={() => void enterRoom(makeRoomCode(), true)}
               >
                 <Rocket size={17} /> Buat room
               </button>
@@ -761,9 +826,9 @@ export default function FlagQuiz() {
                 <button
                   className="tap-rush-secondary"
                   type="submit"
-                  disabled={!supabase}
+                  disabled={!supabase || joiningRoom}
                 >
-                  Gabung
+                  {joiningRoom ? "Cek room…" : "Gabung"}
                 </button>
               </form>
             </div>
@@ -823,7 +888,9 @@ export default function FlagQuiz() {
                   <h2>
                     <UsersRound size={20} /> Pemain di room
                   </h2>
-                  <span>{players.length}</span>
+                  <span>
+                    {players.length} / {MAX_PLAYERS}
+                  </span>
                 </div>
                 <div className="tap-rush-player-list">
                   {players.length === 0 ? (
@@ -860,11 +927,13 @@ export default function FlagQuiz() {
                       <Rocket size={17} />{" "}
                       {players.length < 2
                         ? "Butuh minimal 2 pemain"
-                        : isLoadingCountries
-                          ? "Memuat negara…"
-                          : guestsReady
-                            ? "Mulai kuis"
-                            : "Menunggu siap"}
+                        : players.length > MAX_PLAYERS
+                          ? `Room penuh (maks ${MAX_PLAYERS})`
+                          : isLoadingCountries
+                            ? "Memuat negara…"
+                            : guestsReady
+                              ? "Mulai kuis"
+                              : "Menunggu siap"}
                     </button>
                   ) : (
                     <button
@@ -1021,7 +1090,7 @@ export default function FlagQuiz() {
         <footer className="tap-rush-footnote">
           <span>5 SOAL</span>
           <span>10 DETIK / SOAL</span>
-          <span>MULTIPLAYER</span>
+          <span>MAKS {MAX_PLAYERS} PEMAIN</span>
         </footer>
       </section>
 
