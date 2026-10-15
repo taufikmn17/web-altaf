@@ -10,8 +10,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Tap Rush Online - Game Multiplayer Altaf Story",
-    description:
-      "Ajak teman ke room online dan adu kecepatan tap selama 15 detik.",
+    description: "Ajak teman ke room online dan adu kecepatan tap.",
     url: "/game/tap-rush",
     siteName: "Altaf Story",
     locale: "id_ID",
