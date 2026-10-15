@@ -8,7 +8,6 @@ import {
   Grid3x3,
   Radio,
   Rocket,
-  Trophy,
   UsersRound,
   X,
 } from "lucide-react";
@@ -113,6 +112,17 @@ export default function SudokuDuel() {
         .flat()
         .sort((left, right) => Number(right.isHost) - Number(left.isHost));
       setPlayers(connectedPlayers);
+    });
+
+    // RESET: semua client reset saat host mulai ronde baru
+    channel.on("broadcast", { event: "game-reset" }, () => {
+      setPuzzle(null);
+      setSolution(null);
+      setBoard(null);
+      setSelected(null);
+      setWinnerId(null);
+      setWinnerName("");
+      setPhase("lobby");
     });
 
     channel.on("broadcast", { event: "round-start" }, ({ payload }) => {
@@ -243,9 +253,26 @@ export default function SudokuDuel() {
     )
       return;
 
+    // 1. Beritahu semua client untuk reset state
+    void channelRef.current?.send({
+      type: "broadcast",
+      event: "game-reset",
+      payload: {},
+    });
+
+    // 2. Reset lokal host
+    setPuzzle(null);
+    setSolution(null);
+    setBoard(null);
+    setSelected(null);
+    setWinnerId(null);
+    setWinnerName("");
+
+    // 3. Fetch puzzle baru
     const data = await fetchSudoku();
     if (!data) return;
 
+    // 4. Setup & broadcast
     setPuzzle(data.puzzle);
     setSolution(data.solution);
     setBoard(clonePuzzle(data.puzzle));
@@ -324,7 +351,7 @@ export default function SudokuDuel() {
   const conflictCells = useMemo(() => {
     const set = new Set<string>();
     if (!board) return set;
-    // cek baris & kolom & 3x3
+    // cek baris
     for (let r = 0; r < SIZE; r += 1) {
       const seen = new Map<number, number[]>();
       for (let c = 0; c < SIZE; c += 1) {
@@ -339,6 +366,7 @@ export default function SudokuDuel() {
         }
       }
     }
+    // cek kolom
     for (let c = 0; c < SIZE; c += 1) {
       const seen = new Map<number, number[]>();
       for (let r = 0; r < SIZE; r += 1) {
@@ -353,6 +381,7 @@ export default function SudokuDuel() {
         }
       }
     }
+    // cek 3x3
     for (let br = 0; br < 3; br += 1) {
       for (let bc = 0; bc < 3; bc += 1) {
         const seen = new Map<number, string[]>();

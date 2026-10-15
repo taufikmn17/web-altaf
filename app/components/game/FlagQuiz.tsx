@@ -361,6 +361,18 @@ export default function FlagQuiz() {
       setPlayers(connectedPlayers);
     });
 
+    // RESET: semua client reset saat host mulai kuis baru
+    channel.on("broadcast", { event: "game-reset" }, () => {
+      setQuestions([]);
+      setCurrentIndex(0);
+      setTimeLeft(ROUND_SECONDS);
+      setScores({});
+      setCorrectCount({});
+      setMyAnswer(null);
+      setNotices([]);
+      setPhase("lobby");
+    });
+
     channel.on("broadcast", { event: "quiz-start" }, ({ payload }) => {
       const data = payload as { questions?: Question[] };
       if (!data.questions) return;
@@ -495,7 +507,7 @@ export default function FlagQuiz() {
         .map((c) => pickCountryName(c));
       const options = shuffle([answer, ...distractors]);
       return {
-        flag: country.flags.png, // <-- pakai PNG
+        flag: country.flags.png,
         answer,
         options,
       };
@@ -546,15 +558,26 @@ export default function FlagQuiz() {
       countryPool.length < 4
     )
       return;
-    const q = buildQuestions();
-    if (q.length === 0) return;
-    setQuestions(q);
-    setCurrentIndex(0);
+
+    // 1. Beritahu semua client untuk reset state
+    void channelRef.current?.send({
+      type: "broadcast",
+      event: "game-reset",
+      payload: {},
+    });
+
+    // 2. Reset lokal host
     setScores({});
     setCorrectCount({});
     setMyAnswer(null);
-    setTimeLeft(ROUND_SECONDS);
     setNotices([]);
+    setCurrentIndex(0);
+    setTimeLeft(ROUND_SECONDS);
+
+    // 3. Build soal baru & mulai
+    const q = buildQuestions();
+    if (q.length === 0) return;
+    setQuestions(q);
     setPhase("playing");
     void channelRef.current?.send({
       type: "broadcast",
@@ -874,7 +897,6 @@ export default function FlagQuiz() {
                     className="flag-quiz-flag-img"
                     loading="eager"
                     onError={(e) => {
-                      // Fallback kalau gambar gagal load
                       (e.currentTarget as HTMLImageElement).style.display =
                         "none";
                     }}
@@ -1030,9 +1052,14 @@ export default function FlagQuiz() {
           padding: 28px 20px;
           text-align: center;
         }
-        .flag-quiz-flag {
-          font-size: clamp(80px, 22vw, 160px);
-          line-height: 1;
+        .flag-quiz-flag-img {
+          max-width: 220px;
+          width: 100%;
+          height: auto;
+          max-height: 140px;
+          object-fit: contain;
+          border-radius: 6px;
+          box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
         }
         .flag-quiz-prompt {
           margin-top: 14px;

@@ -118,6 +118,24 @@ export default function TriviaBlitz() {
       });
     });
 
+    // RESET: dipanggil host sebelum game baru -> semua client reset state
+    channel.on("broadcast", { event: "game-reset" }, () => {
+      setScores({});
+      setAnsweredIds({});
+      setMyAnswer(null);
+      setRevealAt(null);
+      setRound(0);
+      setRoundData(null);
+    });
+
+    // Host broadcast bank soal biar guest punya backup
+    channel.on("broadcast", { event: "question-bank" }, ({ payload }) => {
+      const data = payload as { questions?: TriviaQuestion[] };
+      if (!Array.isArray(data.questions)) return;
+      setQuestionBank(data.questions);
+      bankRef.current = data.questions;
+    });
+
     channel.on("broadcast", { event: "new-round" }, ({ payload }) => {
       const data = payload as RoundData;
       if (!data || typeof data.round !== "number" || !data.question) return;
@@ -318,12 +336,33 @@ export default function TriviaBlitz() {
     )
       return;
 
+    // 1. Beritahu semua client untuk reset skor & state
+    void channelRef.current?.send({
+      type: "broadcast",
+      event: "game-reset",
+      payload: {},
+    });
+
+    // 2. Reset lokal host
+    setScores({});
+    setAnsweredIds({});
+    setMyAnswer(null);
+    setRevealAt(null);
+
+    // 3. Fetch soal baru
     const questions = await fetchQuestions();
     if (questions.length === 0) return;
 
-    setScores({});
+    // 4. Simpan & broadcast bank soal
     setQuestionBank(questions);
     bankRef.current = questions;
+    void channelRef.current?.send({
+      type: "broadcast",
+      event: "question-bank",
+      payload: { questions },
+    });
+
+    // 5. Mulai ronde 1
     broadcastNewRound(1);
   };
 

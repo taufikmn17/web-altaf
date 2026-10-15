@@ -185,6 +185,17 @@ export default function SnakeDuel() {
       setPlayers(connectedPlayers);
     });
 
+    // RESET: semua client reset saat host mulai ronde baru
+    channel.on("broadcast", { event: "game-reset" }, () => {
+      setMySnake(null);
+      setPeerSnake(null);
+      setFood({ x: 12, y: 12 });
+      setWinner(null);
+      setPhase("lobby");
+      dirQueueRef.current = [];
+      tickMsRef.current = BASE_TICK_MS;
+    });
+
     channel.on("broadcast", { event: "round-start" }, ({ payload }) => {
       const data = payload as { food?: Vec; hostId?: string; guestId?: string };
       if (!data.food) return;
@@ -452,6 +463,7 @@ export default function SnakeDuel() {
     setMySnake(null);
     setPeerSnake(null);
     setWinner(null);
+    dirQueueRef.current = [];
     tickMsRef.current = BASE_TICK_MS;
   };
 
@@ -478,6 +490,20 @@ export default function SnakeDuel() {
     const hostId = playerId;
     const guest = players.find((p) => !p.isHost);
     if (!guest) return;
+
+    // 1. Beritahu semua client untuk reset state
+    void channelRef.current?.send({
+      type: "broadcast",
+      event: "game-reset",
+      payload: {},
+    });
+
+    // 2. Reset lokal host
+    setMySnake(null);
+    setPeerSnake(null);
+    setWinner(null);
+
+    // 3. Setup ronde baru & broadcast
     const startFood = randomFood([
       initialSnake(hostId, P1_COLOR, true),
       initialSnake(guest.id, P2_COLOR, false),
@@ -487,7 +513,6 @@ export default function SnakeDuel() {
     setMySnake(initialSnake(hostId, P1_COLOR, true));
     setPeerSnake(initialSnake(guest.id, P2_COLOR, false));
     setFood(startFood);
-    setWinner(null);
     setPhase("playing");
     void channelRef.current?.send({
       type: "broadcast",

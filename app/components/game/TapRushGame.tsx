@@ -28,8 +28,8 @@ type GamePhase = "lobby" | "playing" | "results";
 type Spawn = {
   id: string;
   kind: "target" | "trap";
-  x: number; // persen 0-100
-  y: number; // persen 0-100
+  x: number;
+  y: number;
   bornAt: number;
   lifetimeMs: number;
 };
@@ -137,17 +137,29 @@ export default function TapRushGame() {
       });
     });
 
+    // RESET: semua client reset saat host mulai ronde baru
+    channel.on("broadcast", { event: "game-reset" }, () => {
+      setScores({});
+      setEliminated({});
+      setSpawns([]);
+      setLoserId(null);
+      setRemainingMs(ROUND_DURATION_MS);
+      setRoundEndsAt(null);
+      setPhase("lobby");
+    });
+
     channel.on("broadcast", { event: "round-start" }, ({ payload }) => {
       const data = payload as { endsAt?: unknown };
       const endTime = Number(data.endsAt);
       if (!Number.isFinite(endTime)) return;
 
+      // Reset state juga di sini sebagai pengaman
       setScores({});
       setEliminated({});
       setSpawns([]);
+      setLoserId(null);
       setRemainingMs(ROUND_DURATION_MS);
       setRoundEndsAt(endTime);
-      setLoserId(null);
       setPhase("playing");
       setError("");
     });
@@ -178,7 +190,6 @@ export default function TapRushGame() {
       setScores((current) => ({ ...current, [id]: score }));
     });
 
-    // Saat ada yang gugur, ronde langsung berakhir untuk SEMUA pemain
     channel.on("broadcast", { event: "eliminated" }, ({ payload }) => {
       const data = payload as { id?: string };
       if (typeof data.id !== "string") return;
@@ -227,7 +238,6 @@ export default function TapRushGame() {
       const next = Math.max(0, roundEndsAt - Date.now());
       setRemainingMs(next);
       if (next === 0) {
-        // Waktu habis tanpa ada yang gugur -> tetap selesai, pemenang = poin tertinggi
         setSpawns([]);
         setPhase("results");
       }
@@ -326,11 +336,21 @@ export default function TapRushGame() {
     )
       return;
 
-    const endsAt = Date.now() + ROUND_DURATION_MS;
+    // 1. Beritahu semua client untuk reset state
+    void channelRef.current?.send({
+      type: "broadcast",
+      event: "game-reset",
+      payload: {},
+    });
+
+    // 2. Reset lokal host
     setScores({});
     setEliminated({});
     setSpawns([]);
     setLoserId(null);
+
+    // 3. Mulai ronde baru
+    const endsAt = Date.now() + ROUND_DURATION_MS;
     setRemainingMs(ROUND_DURATION_MS);
     setRoundEndsAt(endsAt);
     setPhase("playing");
@@ -355,7 +375,6 @@ export default function TapRushGame() {
     });
 
     if (spawn.kind === "trap") {
-      // Kena jebakan -> gugur, ronde langsung berakhir untuk semua
       setEliminated((current) => ({ ...current, [playerId]: true }));
       setLoserId(playerId);
       setRoundEndsAt(null);
@@ -410,9 +429,6 @@ export default function TapRushGame() {
   const canStart = isHost && players.length >= 2 && guestsReady && isConnected;
   const secondsLeft = Math.ceil(remainingMs / 1000);
 
-  // Tentukan pemenang:
-  // - Kalau ada yang gugur (loserId), pemenang = pemain hidup dengan poin tertinggi
-  // - Kalau waktu habis tanpa gugur, pemenang = poin tertinggi
   const survivors = orderedPlayers.filter((p) => !eliminated[p.id]);
   const winner =
     survivors.length > 0 && players.length >= 2 ? survivors[0] : null;
