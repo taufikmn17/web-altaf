@@ -109,9 +109,8 @@ export default function DaftarGamePage() {
               </div>
               <h2>Two Sides</h2>
               <p className="game-feature-description">
-                Satu pemain lihat kunci, satu lihat lubang. Deskripsikan ke
-                teman dan pilih yang cocok. Kerja sama wajib — komunikasi adalah
-                kuncinya!
+                Saling deskripsikan objek rahasia — temanmu harus menebak. Lalu
+                gantian. Komunikasi adalah kuncinya!
               </p>
               <div className="game-feature-facts">
                 <span>
@@ -185,7 +184,7 @@ export default function DaftarGamePage() {
               </p>
               <div className="game-feature-facts">
                 <span>
-                  <UsersRound size={16} /> 2—8 pemain
+                  <UsersRound size={16} /> 2—4 pemain
                 </span>
                 <span>
                   <Globe2 size={16} /> Kuis real-time
@@ -220,7 +219,7 @@ export default function DaftarGamePage() {
               </p>
               <div className="game-feature-facts">
                 <span>
-                  <UsersRound size={16} /> 2—8 pemain
+                  <UsersRound size={16} /> 2—4 pemain
                 </span>
                 <span>
                   <Grid3x3 size={16} /> Real-time
@@ -255,7 +254,7 @@ export default function DaftarGamePage() {
               </p>
               <div className="game-feature-facts">
                 <span>
-                  <UsersRound size={16} /> 2—8 pemain
+                  <UsersRound size={16} /> 2—4 pemain
                 </span>
                 <span>
                   <HelpCircle size={16} /> Kuis real-time
