@@ -5,6 +5,7 @@ import {
   Grid3x3,
   HelpCircle,
   Key,
+  PawPrint,
   Radio,
   Swords,
   UsersRound,
@@ -17,7 +18,7 @@ import Footer from "../components/Footer";
 export const metadata: Metadata = {
   title: "Game Arcade - Altaf Story",
   description:
-    "Mainkan Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz, dan Trivia Indonesia online bareng teman — arena game real-time dari Altaf Story.",
+    "Mainkan Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz, Trivia Indonesia, dan Cat & Mouse online bareng teman — arena game real-time dari Altaf Story.",
   keywords: [
     "game multiplayer online",
     "game party online",
@@ -40,12 +41,16 @@ export const metadata: Metadata = {
     "kuis indonesia",
     "trivia indonesia",
     "kuis pengetahuan umum",
+    "game kejar kejaran",
+    "game cat mouse",
+    "game kucing tikus",
     "Two Sides",
     "Snake Duel",
     "Flag Quiz",
     "Sudoku Duel",
     "Trivia Blitz",
     "Trivia Indonesia",
+    "Cat & Mouse",
     "Altaf Story games",
   ],
   alternates: {
@@ -54,7 +59,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Game Arcade - Altaf Story",
     description:
-      "Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz & Trivia Indonesia — main bareng teman secara real-time.",
+      "Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz, Trivia Indonesia & Cat & Mouse — main bareng teman secara real-time.",
     url: "/game",
     siteName: "Altaf Story",
     locale: "id_ID",
@@ -72,7 +77,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Game Arcade - Altaf Story",
     description:
-      "Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz & Trivia Indonesia — main bareng teman secara real-time.",
+      "Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz, Trivia Indonesia & Cat & Mouse — main bareng teman secara real-time.",
     images: ["/assets/img/hero.jpeg"],
   },
 };
@@ -84,7 +89,7 @@ export default function DaftarGamePage() {
 
       <main className="game-hub-main">
         <div className="game-hub-overline">
-          <span /> ALTAF ARCADE <span>06 / ONLINE</span>
+          <span /> ALTAF ARCADE <span>07 / ONLINE</span>
         </div>
         <header className="game-hub-heading">
           <p>PLAY TOGETHER</p>
@@ -132,6 +137,42 @@ export default function DaftarGamePage() {
             </div>
           </section>
 
+          {/* ---- KARTU CAT & MOUSE ---- */}
+          <section className="game-feature">
+            <div className="game-feature-art" aria-hidden="true">
+              <div className="game-feature-scanlines" />
+              <div className="game-feature-target">
+                <PawPrint size={88} strokeWidth={1.5} />
+              </div>
+              <span className="game-feature-number">1V1</span>
+              <span className="game-feature-art-label">KEJAR-KEJARAN</span>
+              <span className="game-feature-live">
+                <i /> LIVE ROOM
+              </span>
+            </div>
+            <div className="game-feature-copy">
+              <div className="game-feature-kicker">
+                <Radio size={14} /> PARTY GAME / 007
+              </div>
+              <h2>Cat & Mouse</h2>
+              <p className="game-feature-description">
+                Satu jadi kucing pengejar, satu jadi tikus yang kabur. Kucing
+                lebih cepat, tikus punya waktu. Siapa yang menang?
+              </p>
+              <div className="game-feature-facts">
+                <span>
+                  <UsersRound size={16} /> 2 pemain
+                </span>
+                <span>
+                  <PawPrint size={16} /> Kejar-kejaran
+                </span>
+              </div>
+              <Link href="/game/cat-mouse" className="game-feature-cta">
+                Tantang teman <ArrowUpRight size={18} />
+              </Link>
+            </div>
+          </section>
+
           <section className="game-feature">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
@@ -167,7 +208,6 @@ export default function DaftarGamePage() {
             </div>
           </section>
 
-          {/* ---- KARTU TEBAK NEGARA (pakai icon Flag) ---- */}
           <section className="game-feature">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
@@ -273,7 +313,6 @@ export default function DaftarGamePage() {
             </div>
           </section>
 
-          {/* ---- KARTU TRIVIA INDONESIA ---- */}
           <section className="game-feature">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
@@ -311,7 +350,7 @@ export default function DaftarGamePage() {
         </div>
 
         <div className="game-hub-footerline">
-          <span>06 GAME DI ARENA</span>
+          <span>07 GAME DI ARENA</span>
           <span>SEMUA ONLINE</span>
         </div>
       </main>
