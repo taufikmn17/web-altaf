@@ -352,14 +352,29 @@ export default function FlagQuiz() {
     });
     channelRef.current = channel;
 
-    channel.on("presence", { event: "sync" }, () => {
-      const connectedPlayers = Object.values(
-        channel.presenceState<RoomPlayer>(),
-      )
+    const syncFromPresence = () => {
+      const state = channel.presenceState<RoomPlayer>();
+      const connectedPlayers = Object.values(state)
         .flat()
         .sort((left, right) => Number(right.isHost) - Number(left.isHost));
       setPlayers(connectedPlayers);
-    });
+      // Bersihkan skor & correctCount player yang sudah keluar
+      setScores((current) => {
+        const next: Record<string, number> = {};
+        for (const p of connectedPlayers) next[p.id] = current[p.id] ?? 0;
+        return next;
+      });
+      setCorrectCount((current) => {
+        const next: Record<string, number> = {};
+        for (const p of connectedPlayers) next[p.id] = current[p.id] ?? 0;
+        return next;
+      });
+    };
+
+    channel.on("presence", { event: "sync" }, syncFromPresence);
+    channel.on("presence", { event: "join" }, syncFromPresence);
+    // Player keluar: game tetap jalan, hanya update daftar
+    channel.on("presence", { event: "leave" }, syncFromPresence);
 
     // RESET: semua client reset saat host mulai kuis baru
     channel.on("broadcast", { event: "game-reset" }, () => {
@@ -559,14 +574,12 @@ export default function FlagQuiz() {
     )
       return;
 
-    // 1. Beritahu semua client untuk reset state
     void channelRef.current?.send({
       type: "broadcast",
       event: "game-reset",
       payload: {},
     });
 
-    // 2. Reset lokal host
     setScores({});
     setCorrectCount({});
     setMyAnswer(null);
@@ -574,7 +587,6 @@ export default function FlagQuiz() {
     setCurrentIndex(0);
     setTimeLeft(ROUND_SECONDS);
 
-    // 3. Build soal baru & mulai
     const q = buildQuestions();
     if (q.length === 0) return;
     setQuestions(q);

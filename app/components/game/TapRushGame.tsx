@@ -91,6 +91,7 @@ export default function TapRushGame() {
   const eliminatedRef = useRef<Record<string, boolean>>({});
   const spawnsRef = useRef<Spawn[]>([]);
   const phaseRef = useRef<GamePhase>("lobby");
+  const playersRef = useRef<RoomPlayer[]>([]);
 
   useEffect(() => {
     scoresRef.current = scores;
@@ -104,6 +105,9 @@ export default function TapRushGame() {
   useEffect(() => {
     phaseRef.current = phase;
   }, [phase]);
+  useEffect(() => {
+    playersRef.current = players;
+  }, [players]);
 
   // ---- Realtime channel ----
   useEffect(() => {
@@ -117,14 +121,13 @@ export default function TapRushGame() {
     });
     channelRef.current = channel;
 
-    channel.on("presence", { event: "sync" }, () => {
-      const connectedPlayers = Object.values(
-        channel.presenceState<RoomPlayer>(),
-      )
+    const syncFromPresence = () => {
+      const state = channel.presenceState<RoomPlayer>();
+      const connectedPlayers = Object.values(state)
         .flat()
         .sort((left, right) => Number(right.isHost) - Number(left.isHost));
-
       setPlayers(connectedPlayers);
+      // Bersihkan skor/eliminasi player yang sudah tidak ada
       setScores((current) => {
         const next: Record<string, number> = {};
         for (const p of connectedPlayers) next[p.id] = current[p.id] ?? 0;
@@ -135,7 +138,12 @@ export default function TapRushGame() {
         for (const p of connectedPlayers) next[p.id] = current[p.id] ?? false;
         return next;
       });
-    });
+    };
+
+    channel.on("presence", { event: "sync" }, syncFromPresence);
+    channel.on("presence", { event: "join" }, syncFromPresence);
+    // Player keluar: cukup update daftar player, TIDAK menghentikan game
+    channel.on("presence", { event: "leave" }, syncFromPresence);
 
     // RESET: semua client reset saat host mulai ronde baru
     channel.on("broadcast", { event: "game-reset" }, () => {
@@ -153,7 +161,6 @@ export default function TapRushGame() {
       const endTime = Number(data.endsAt);
       if (!Number.isFinite(endTime)) return;
 
-      // Reset state juga di sini sebagai pengaman
       setScores({});
       setEliminated({});
       setSpawns([]);
@@ -336,20 +343,17 @@ export default function TapRushGame() {
     )
       return;
 
-    // 1. Beritahu semua client untuk reset state
     void channelRef.current?.send({
       type: "broadcast",
       event: "game-reset",
       payload: {},
     });
 
-    // 2. Reset lokal host
     setScores({});
     setEliminated({});
     setSpawns([]);
     setLoserId(null);
 
-    // 3. Mulai ronde baru
     const endsAt = Date.now() + ROUND_DURATION_MS;
     setRemainingMs(ROUND_DURATION_MS);
     setRoundEndsAt(endsAt);

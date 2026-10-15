@@ -57,7 +57,6 @@ function isSolved(board: Puzzle, solution: number[][]): boolean {
   return true;
 }
 
-// Hitung berapa petak yang benar (diisi user & sesuai solution)
 function countCorrectCells(
   board: Puzzle | null,
   solution: number[][] | null,
@@ -67,7 +66,6 @@ function countCorrectCells(
   let count = 0;
   for (let r = 0; r < SIZE; r += 1) {
     for (let c = 0; c < SIZE; c += 1) {
-      // Hanya hitung petak yang awalnya kosong & diisi user dengan benar
       if (puzzle[r][c] !== null) continue;
       if (board[r][c] === solution[r][c]) count += 1;
     }
@@ -75,7 +73,6 @@ function countCorrectCells(
   return count;
 }
 
-// Total petak kosong di puzzle awal (target maksimal)
 function countTotalEmpty(puzzle: Puzzle | null): number {
   if (!puzzle) return 0;
   let count = 0;
@@ -141,7 +138,7 @@ export default function SudokuDuel() {
     });
     channelRef.current = channel;
 
-    channel.on("presence", { event: "sync" }, () => {
+    const syncFromPresence = () => {
       const state = channel.presenceState<RoomPlayer>();
       const connectedPlayers = Object.values(state)
         .flat()
@@ -155,17 +152,12 @@ export default function SudokuDuel() {
         }
         return next;
       });
-    });
+    };
 
-    channel.on("presence", { event: "leave" }, ({ key }) => {
-      // Hapus player yang keluar dari daftar progress
-      if (typeof key !== "string") return;
-      setProgress((current) => {
-        const next = { ...current };
-        delete next[key];
-        return next;
-      });
-    });
+    channel.on("presence", { event: "sync" }, syncFromPresence);
+    channel.on("presence", { event: "join" }, syncFromPresence);
+    // Player keluar: game tetap jalan, cukup refresh daftar & progress
+    channel.on("presence", { event: "leave" }, syncFromPresence);
 
     channel.on("broadcast", { event: "game-reset" }, () => {
       setPuzzle(null);
@@ -485,7 +477,6 @@ export default function SudokuDuel() {
     return set;
   }, [board]);
 
-  // Urutkan player berdasarkan progress tertinggi saat playing
   const orderedByProgress = [...players].sort(
     (left, right) => (progress[right.id] ?? 0) - (progress[left.id] ?? 0),
   );
@@ -942,7 +933,6 @@ export default function SudokuDuel() {
           color: #ef4444;
         }
 
-        /* ---- Progress list ---- */
         .sudoku-progress {
           width: min(100%, 480px);
           margin-top: 8px;
