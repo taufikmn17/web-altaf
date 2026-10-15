@@ -7,6 +7,7 @@ import {
   DoorOpen,
   PawPrint,
   Radio,
+  Snowflake,
   UsersRound,
 } from "lucide-react";
 import Link from "next/link";
@@ -35,35 +36,119 @@ type PlayerPos = {
 const COLS = 18;
 const ROWS = 18;
 const ROUND_TIME_MS = 30_000;
-const CAT_TICK_MS = 110; // kucing gerak lebih cepat
-const MOUSE_TICK_MS = 160; // tikus lebih lambat (biar kucing bisa nangkap)
+const CAT_TICK_MS = 110;
+const MOUSE_TICK_MS = 160;
 const TOTAL_ROUNDS = 5;
+const FREEZE_DURATION_MS = 2000; // freeze 2 detik
 const ROOM_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-// Labirin (1 = dinding, 0 = kosong). 18×18
-const MAZE: number[][] = [
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-  [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-  [1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1],
-  [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1],
-  [1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1],
-  [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1],
-  [1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1],
-  [1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-  [1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1],
-  [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-  [1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1],
-  [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-  [1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1],
-  [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-  [1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1],
-  [1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-  [1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1],
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-];
+// ---- Maze generator ----
+// Bikin maze random 18×18 dengan cara "recursive backtracker"
+// lalu buka dinding tambahan biar ada loop (biar tidak terlalu maze-y)
+function generateMaze(): number[][] {
+  // Mulai dengan semua dinding
+  const grid: number[][] = Array.from({ length: ROWS }, () =>
+    Array.from({ length: COLS }, () => 1),
+  );
 
-const CAT_START: Vec = { x: 1, y: 1 };
-const MOUSE_START: Vec = { x: COLS - 2, y: ROWS - 2 };
+  // Recursive backtracker pada grid sel (cell) berjarak 2
+  const visited = Array.from({ length: ROWS }, () =>
+    Array.from({ length: COLS }, () => false),
+  );
+
+  const stack: Vec[] = [];
+  // Start di (1,1)
+  const startX = 1;
+  const startY = 1;
+  grid[startY][startX] = 0;
+  visited[startY][startX] = true;
+  stack.push({ x: startX, y: startY });
+
+  const dirs: Vec[] = [
+    { x: 0, y: -2 },
+    { x: 0, y: 2 },
+    { x: -2, y: 0 },
+    { x: 2, y: 0 },
+  ];
+
+  while (stack.length > 0) {
+    const current = stack[stack.length - 1];
+    // Cari neighbor yang belum dikunjungi
+    const neighbors = dirs
+      .map((d) => ({ x: current.x + d.x, y: current.y + d.y, d }))
+      .filter(
+        (n) =>
+          n.x > 0 &&
+          n.y > 0 &&
+          n.x < COLS - 1 &&
+          n.y < ROWS - 1 &&
+          !visited[n.y][n.x],
+      );
+
+    if (neighbors.length === 0) {
+      stack.pop();
+      continue;
+    }
+
+    const chosen = neighbors[Math.floor(Math.random() * neighbors.length)];
+    // Buka dinding antara current dan chosen
+    const wallX = current.x + chosen.d.x / 2;
+    const wallY = current.y + chosen.d.y / 2;
+    grid[wallY][wallX] = 0;
+    grid[chosen.y][chosen.x] = 0;
+    visited[chosen.y][chosen.x] = true;
+    stack.push({ x: chosen.x, y: chosen.y });
+  }
+
+  // Tambah beberapa loop tambahan (buka dinding random) biar tidak terlalu "pohon"
+  // ~15% cell walls dibuka
+  for (let y = 1; y < ROWS - 1; y += 1) {
+    for (let x = 1; x < COLS - 1; x += 1) {
+      if (grid[y][x] === 1) {
+        // Cek kalau dinding ini "tipis" (antara 2 jalur)
+        const isHorizontalWall =
+          grid[y - 1]?.[x] === 0 && grid[y + 1]?.[x] === 0;
+        const isVerticalWall = grid[y]?.[x - 1] === 0 && grid[y]?.[x + 1] === 0;
+        if ((isHorizontalWall || isVerticalWall) && Math.random() < 0.15) {
+          grid[y][x] = 0;
+        }
+      }
+    }
+  }
+
+  // Pastikan border tetap tembok
+  for (let i = 0; i < COLS; i += 1) {
+    grid[0][i] = 1;
+    grid[ROWS - 1][i] = 1;
+  }
+  for (let i = 0; i < ROWS; i += 1) {
+    grid[i][0] = 1;
+    grid[i][COLS - 1] = 1;
+  }
+
+  return grid;
+}
+
+// Cari start position yang valid (bukan dinding)
+function findStartPos(
+  maze: number[][],
+  prefer: "top-left" | "bottom-right",
+): Vec {
+  const positions: Vec[] = [];
+  for (let y = 1; y < ROWS - 1; y += 1) {
+    for (let x = 1; x < COLS - 1; x += 1) {
+      if (maze[y][x] === 0) positions.push({ x, y });
+    }
+  }
+  if (positions.length === 0) return { x: 1, y: 1 };
+
+  if (prefer === "top-left") {
+    positions.sort((a, b) => a.x + a.y - (b.x + b.y));
+  } else {
+    positions.sort((a, b) => b.x + b.y - (a.x + a.y));
+  }
+  return positions[0];
+}
 
 function makeRoomCode() {
   const values = new Uint32Array(6);
@@ -74,9 +159,9 @@ function makeRoomCode() {
   ).join("");
 }
 
-function isWall(x: number, y: number): boolean {
+function isWall(maze: number[][], x: number, y: number): boolean {
   if (x < 0 || y < 0 || x >= COLS || y >= ROWS) return true;
-  return MAZE[y][x] === 1;
+  return maze[y][x] === 1;
 }
 
 function directionFromKey(key: string): Vec | null {
@@ -118,6 +203,7 @@ export default function CatMouse() {
   const [joiningRoom, setJoiningRoom] = useState(false);
 
   const [roundIndex, setRoundIndex] = useState(0);
+  const [maze, setMaze] = useState<number[][]>([]);
   const [myPos, setMyPos] = useState<Vec | null>(null);
   const [peerPos, setPeerPos] = useState<Vec | null>(null);
   const [roundEndsAt, setRoundEndsAt] = useState<number | null>(null);
@@ -128,11 +214,19 @@ export default function CatMouse() {
     mouseScore: number;
   }>({ catScore: 0, mouseScore: 0 });
 
+  // Freeze state
+  const [catFrozenUntil, setCatFrozenUntil] = useState<number>(0);
+  const [freezeUsedThisRound, setFreezeUsedThisRound] = useState(false);
+  const [freezeNoticeUntil, setFreezeNoticeUntil] = useState<number>(0);
+
   const myPosRef = useRef<Vec | null>(null);
   const peerPosRef = useRef<Vec | null>(null);
+  const mazeRef = useRef<number[][]>([]);
   const dirQueueRef = useRef<Vec[]>([]);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const phaseRef = useRef<GamePhase>("lobby");
+  const catFrozenUntilRef = useRef<number>(0);
+  const freezeUsedRef = useRef(false);
 
   useEffect(() => {
     myPosRef.current = myPos;
@@ -141,8 +235,17 @@ export default function CatMouse() {
     peerPosRef.current = peerPos;
   }, [peerPos]);
   useEffect(() => {
+    mazeRef.current = maze;
+  }, [maze]);
+  useEffect(() => {
     phaseRef.current = phase;
   }, [phase]);
+  useEffect(() => {
+    catFrozenUntilRef.current = catFrozenUntil;
+  }, [catFrozenUntil]);
+  useEffect(() => {
+    freezeUsedRef.current = freezeUsedThisRound;
+  }, [freezeUsedThisRound]);
 
   const pushDir = (dir: Vec) => {
     const queue = dirQueueRef.current;
@@ -177,11 +280,14 @@ export default function CatMouse() {
 
     channel.on("broadcast", { event: "game-reset" }, () => {
       setRoundIndex(0);
+      setMaze([]);
       setMyPos(null);
       setPeerPos(null);
       setRoundEndsAt(null);
       setRoundWinner(null);
       setScores({ catScore: 0, mouseScore: 0 });
+      setCatFrozenUntil(0);
+      setFreezeUsedThisRound(false);
       setPhase("lobby");
       dirQueueRef.current = [];
     });
@@ -192,20 +298,32 @@ export default function CatMouse() {
         endsAt?: number;
         hostId?: string;
         guestId?: string;
+        maze?: number[][];
       };
       if (
         typeof data.roundIndex !== "number" ||
-        typeof data.endsAt !== "number"
+        typeof data.endsAt !== "number" ||
+        !data.maze
       )
         return;
 
+      const newMaze = data.maze;
+      const catStart = findStartPos(newMaze, "top-left");
+      const mouseStart = findStartPos(newMaze, "bottom-right");
+
       const iAmHost = data.hostId === playerId;
+      setMaze(newMaze);
+      mazeRef.current = newMaze;
       setRoundIndex(data.roundIndex);
-      setMyPos(iAmHost ? { ...CAT_START } : { ...MOUSE_START });
-      setPeerPos(iAmHost ? { ...MOUSE_START } : { ...CAT_START });
+      setMyPos(iAmHost ? { ...catStart } : { ...mouseStart });
+      setPeerPos(iAmHost ? { ...mouseStart } : { ...catStart });
       setRoundEndsAt(data.endsAt);
       setRoundWinner(null);
       setRemainingMs(ROUND_TIME_MS);
+      setCatFrozenUntil(0);
+      catFrozenUntilRef.current = 0;
+      setFreezeUsedThisRound(false);
+      freezeUsedRef.current = false;
       setPhase("playing");
       setError("");
       dirQueueRef.current = [];
@@ -215,6 +333,17 @@ export default function CatMouse() {
       const data = payload as PlayerPos;
       if (!data.id || data.id === playerId) return;
       setPeerPos({ x: data.x, y: data.y });
+    });
+
+    channel.on("broadcast", { event: "freeze" }, ({ payload }) => {
+      const data = payload as { durationMs?: number };
+      const duration = data.durationMs ?? FREEZE_DURATION_MS;
+      const until = Date.now() + duration;
+      setCatFrozenUntil(until);
+      catFrozenUntilRef.current = until;
+      setFreezeNoticeUntil(until);
+      // Stop cat loop sementara
+      if (catLoopRef.current) window.clearTimeout(catLoopRef.current);
     });
 
     channel.on("broadcast", { event: "round-end" }, ({ payload }) => {
@@ -239,20 +368,32 @@ export default function CatMouse() {
         endsAt?: number;
         hostId?: string;
         guestId?: string;
+        maze?: number[][];
       };
       if (
         typeof data.roundIndex !== "number" ||
-        typeof data.endsAt !== "number"
+        typeof data.endsAt !== "number" ||
+        !data.maze
       )
         return;
 
+      const newMaze = data.maze;
+      const catStart = findStartPos(newMaze, "top-left");
+      const mouseStart = findStartPos(newMaze, "bottom-right");
+
       const iAmHost = data.hostId === playerId;
+      setMaze(newMaze);
+      mazeRef.current = newMaze;
       setRoundIndex(data.roundIndex);
-      setMyPos(iAmHost ? { ...CAT_START } : { ...MOUSE_START });
-      setPeerPos(iAmHost ? { ...MOUSE_START } : { ...CAT_START });
+      setMyPos(iAmHost ? { ...catStart } : { ...mouseStart });
+      setPeerPos(iAmHost ? { ...mouseStart } : { ...catStart });
       setRoundEndsAt(data.endsAt);
       setRoundWinner(null);
       setRemainingMs(ROUND_TIME_MS);
+      setCatFrozenUntil(0);
+      catFrozenUntilRef.current = 0;
+      setFreezeUsedThisRound(false);
+      freezeUsedRef.current = false;
       dirQueueRef.current = [];
     });
 
@@ -306,6 +447,7 @@ export default function CatMouse() {
     if (phase !== "playing") return;
     if (roundWinner !== null) return;
     if (!myPos) return;
+    if (maze.length === 0) return;
 
     let cancelled = false;
 
@@ -315,10 +457,22 @@ export default function CatMouse() {
       if (!currentPos) return;
       if (phaseRef.current !== "playing") return;
 
+      // Kalau kucing lagi kena freeze → skip gerak
+      if (isHost && Date.now() < catFrozenUntilRef.current) {
+        catLoopRef.current = window.setTimeout(tick, 50);
+        return;
+      }
+
       let dir: Vec | null = null;
       while (dirQueueRef.current.length > 0) {
         const candidate = dirQueueRef.current.shift()!;
-        if (isWall(currentPos.x + candidate.x, currentPos.y + candidate.y))
+        if (
+          isWall(
+            mazeRef.current,
+            currentPos.x + candidate.x,
+            currentPos.y + candidate.y,
+          )
+        )
           continue;
         dir = candidate;
         break;
@@ -329,7 +483,7 @@ export default function CatMouse() {
           x: currentPos.x + dir.x,
           y: currentPos.y + dir.y,
         };
-        if (!isWall(next.x, next.y)) {
+        if (!isWall(mazeRef.current, next.x, next.y)) {
           setMyPos(next);
           myPosRef.current = next;
           void channelRef.current?.send({
@@ -360,7 +514,7 @@ export default function CatMouse() {
       if (catLoopRef.current) window.clearTimeout(catLoopRef.current);
       if (mouseLoopRef.current) window.clearTimeout(mouseLoopRef.current);
     };
-  }, [phase, isHost, myPos, roundWinner, playerId]);
+  }, [phase, isHost, myPos, roundWinner, playerId, maze]);
 
   // ---- Cek tabrakan (host yang cek, karena host = cat) ----
   useEffect(() => {
@@ -437,17 +591,27 @@ export default function CatMouse() {
         return;
       }
 
+      // Generate maze baru
+      const newMaze = generateMaze();
+      const catStart = findStartPos(newMaze, "top-left");
+      const mouseStart = findStartPos(newMaze, "bottom-right");
       const endsAt = Date.now() + ROUND_TIME_MS;
       const hostId = playerId;
       const guest = players.find((p) => !p.isHost);
       if (!guest) return;
 
+      setMaze(newMaze);
+      mazeRef.current = newMaze;
       setRoundIndex(nextRound);
-      setMyPos({ ...CAT_START });
-      setPeerPos({ ...MOUSE_START });
+      setMyPos({ ...catStart });
+      setPeerPos({ ...mouseStart });
       setRoundEndsAt(endsAt);
       setRoundWinner(null);
       setRemainingMs(ROUND_TIME_MS);
+      setCatFrozenUntil(0);
+      catFrozenUntilRef.current = 0;
+      setFreezeUsedThisRound(false);
+      freezeUsedRef.current = false;
       dirQueueRef.current = [];
 
       void channelRef.current?.send({
@@ -458,6 +622,7 @@ export default function CatMouse() {
           endsAt,
           hostId,
           guestId: guest.id,
+          maze: newMaze,
         },
       });
     }, 2500);
@@ -484,6 +649,25 @@ export default function CatMouse() {
     } else {
       pushDir({ x: 0, y: dy > 0 ? 1 : -1 });
     }
+  };
+
+  // ---- Freeze action (hanya tikus / guest) ----
+  const handleFreeze = () => {
+    if (isHost) return; // hanya tikus
+    if (phase !== "playing") return;
+    if (roundWinner !== null) return;
+    if (freezeUsedRef.current) return;
+
+    setFreezeUsedThisRound(true);
+    freezeUsedRef.current = true;
+
+    void channelRef.current?.send({
+      type: "broadcast",
+      event: "freeze",
+      payload: { durationMs: FREEZE_DURATION_MS },
+    });
+
+    // Freeze diri sendiri juga tidak perlu — tikus jalan terus
   };
 
   // ---- Preflight ----
@@ -554,11 +738,14 @@ export default function CatMouse() {
       setPlayers([]);
       setPhase("lobby");
       setRoundIndex(0);
+      setMaze([]);
       setMyPos(null);
       setPeerPos(null);
       setRoundEndsAt(null);
       setRoundWinner(null);
       setScores({ catScore: 0, mouseScore: 0 });
+      setCatFrozenUntil(0);
+      setFreezeUsedThisRound(false);
       setIsReady(host);
       setIsHost(host);
       setActiveRoom(roomCode);
@@ -601,14 +788,23 @@ export default function CatMouse() {
       payload: {},
     });
 
+    // Generate maze awal
+    const newMaze = generateMaze();
+    const catStart = findStartPos(newMaze, "top-left");
+    const mouseStart = findStartPos(newMaze, "bottom-right");
     const endsAt = Date.now() + ROUND_TIME_MS;
+
+    setMaze(newMaze);
+    mazeRef.current = newMaze;
     setRoundIndex(1);
-    setMyPos({ ...CAT_START });
-    setPeerPos({ ...MOUSE_START });
+    setMyPos({ ...catStart });
+    setPeerPos({ ...mouseStart });
     setRoundEndsAt(endsAt);
     setRoundWinner(null);
     setRemainingMs(ROUND_TIME_MS);
     setScores({ catScore: 0, mouseScore: 0 });
+    setCatFrozenUntil(0);
+    setFreezeUsedThisRound(false);
     setPhase("playing");
     dirQueueRef.current = [];
 
@@ -620,6 +816,7 @@ export default function CatMouse() {
         endsAt,
         hostId,
         guestId: guest.id,
+        maze: newMaze,
       },
     });
   };
@@ -642,11 +839,14 @@ export default function CatMouse() {
     setPlayers([]);
     setPhase("lobby");
     setRoundIndex(0);
+    setMaze([]);
     setMyPos(null);
     setPeerPos(null);
     setRoundEndsAt(null);
     setRoundWinner(null);
     setScores({ catScore: 0, mouseScore: 0 });
+    setCatFrozenUntil(0);
+    setFreezeUsedThisRound(false);
     setError("");
     dirQueueRef.current = [];
   };
@@ -663,6 +863,10 @@ export default function CatMouse() {
   const myRole: "cat" | "mouse" = isHost ? "cat" : "mouse";
   const myName = players.find((p) => p.id === playerId)?.name ?? "Kamu";
   const peerName = players.find((p) => p.id !== playerId)?.name ?? "Lawan";
+
+  // Cek cat lagi kena freeze
+  const catIsFrozen =
+    isHost && phase === "playing" && Date.now() < catFrozenUntil;
 
   return (
     <main className="tap-rush-shell">
@@ -683,8 +887,8 @@ export default function CatMouse() {
             Cat & Mouse<span>!</span>
           </h1>
           <p>
-            Satu jadi kucing (kejar), satu jadi tikus (kabur). Siapa yang
-            bertahan sampai waktu habis?
+            Satu jadi kucing (kejar), satu jadi tikus (kabur). Peta berubah tiap
+            ronde — tikus punya 1x freeze!
           </p>
         </header>
 
@@ -697,8 +901,8 @@ export default function CatMouse() {
               <div>
                 <h2>Bikin room, tantang teman</h2>
                 <p>
-                  Host jadi KUCING (pengejar), Guest jadi TIKUS (kabur). Kucing
-                  lebih cepat, tapi tikus punya waktu 30 detik.
+                  Host jadi KUCING (pengejar), Guest jadi TIKUS (kabur). Peta
+                  berubah tiap ronde + tikus punya 1x freeze!
                 </p>
               </div>
             </div>
@@ -855,7 +1059,7 @@ export default function CatMouse() {
               </div>
             )}
 
-            {phase === "playing" && myPos && (
+            {phase === "playing" && myPos && maze.length > 0 && (
               <div className="cat-mouse-wrap">
                 <div className="cat-mouse-topbar">
                   <span className="cat-mouse-round">
@@ -880,6 +1084,15 @@ export default function CatMouse() {
                 <div className={`cat-mouse-badge is-${myRole}`}>
                   PERAN KAMU:{" "}
                   <strong>{myRole === "cat" ? "KUCING" : "TIKUS"}</strong>
+                  {myRole === "mouse" && (
+                    <span className="cat-mouse-badge-hint">
+                      {" "}
+                      ·{" "}
+                      {freezeUsedThisRound
+                        ? "❄️ sudah pakai"
+                        : "❄️ 1x freeze siap"}
+                    </span>
+                  )}
                 </div>
 
                 <div
@@ -892,7 +1105,8 @@ export default function CatMouse() {
                     preserveAspectRatio="xMidYMid meet"
                     className="cat-mouse-svg"
                   >
-                    {MAZE.map((row, y) =>
+                    {/* Maze walls */}
+                    {maze.map((row, y) =>
                       row.map((cell, x) =>
                         cell === 1 ? (
                           <rect
@@ -909,29 +1123,7 @@ export default function CatMouse() {
                       ),
                     )}
 
-                    {Array.from({ length: COLS + 1 }).map((_, i) => (
-                      <line
-                        key={`vg-${i}`}
-                        x1={i}
-                        y1={0}
-                        x2={i}
-                        y2={ROWS}
-                        stroke="rgba(255,255,255,0.02)"
-                        strokeWidth={0.02}
-                      />
-                    ))}
-                    {Array.from({ length: ROWS + 1 }).map((_, i) => (
-                      <line
-                        key={`hg-${i}`}
-                        x1={0}
-                        y1={i}
-                        x2={COLS}
-                        y2={i}
-                        stroke="rgba(255,255,255,0.02)"
-                        strokeWidth={0.02}
-                      />
-                    ))}
-
+                    {/* Peer */}
                     {peerPos && (
                       <g
                         transform={`translate(${peerPos.x + 0.5}, ${peerPos.y + 0.5})`}
@@ -946,6 +1138,7 @@ export default function CatMouse() {
                       </g>
                     )}
 
+                    {/* Me */}
                     <g
                       transform={`translate(${myPos.x + 0.5}, ${myPos.y + 0.5})`}
                     >
@@ -957,6 +1150,34 @@ export default function CatMouse() {
                         {myRole === "cat" ? "🐱" : "🐭"}
                       </text>
                     </g>
+
+                    {/* Efek freeze di kucing (kalau lagi kena freeze) */}
+                    {catIsFrozen && myPos && (
+                      <g
+                        transform={`translate(${myPos.x + 0.5}, ${myPos.y + 0.5})`}
+                      >
+                        <circle
+                          r={0.6}
+                          fill="none"
+                          stroke="#60a5fa"
+                          strokeWidth={0.1}
+                          opacity={0.8}
+                        />
+                      </g>
+                    )}
+                    {!isHost && peerPos && Date.now() < freezeNoticeUntil && (
+                      <g
+                        transform={`translate(${peerPos.x + 0.5}, ${peerPos.y + 0.5})`}
+                      >
+                        <circle
+                          r={0.6}
+                          fill="none"
+                          stroke="#60a5fa"
+                          strokeWidth={0.1}
+                          opacity={0.8}
+                        />
+                      </g>
+                    )}
                   </svg>
 
                   {roundWinner !== null && (
@@ -969,8 +1190,34 @@ export default function CatMouse() {
                       <span>Ronde berikutnya…</span>
                     </div>
                   )}
+
+                  {catIsFrozen && (
+                    <div className="cat-mouse-freeze-notice is-cat">
+                      ❄️ Kamu di-freeze! Tunggu…
+                    </div>
+                  )}
                 </div>
 
+                {/* Tombol Freeze untuk tikus */}
+                {myRole === "mouse" && (
+                  <button
+                    type="button"
+                    className={`cat-mouse-freeze-btn ${freezeUsedThisRound ? "is-used" : ""}`}
+                    onClick={handleFreeze}
+                    disabled={
+                      freezeUsedThisRound ||
+                      roundWinner !== null ||
+                      !isConnected
+                    }
+                  >
+                    <Snowflake size={18} />
+                    {freezeUsedThisRound
+                      ? "Freeze sudah dipakai"
+                      : "Freeze Kucing!"}
+                  </button>
+                )}
+
+                {/* D-pad */}
                 <div
                   className="cat-mouse-dpad"
                   role="group"
@@ -1079,7 +1326,7 @@ export default function CatMouse() {
         <footer className="tap-rush-footnote">
           <span>2 PEMAIN</span>
           <span>30 DETIK / RONDE</span>
-          <span>KUCING vs TIKUS</span>
+          <span>MAPS BERGANTI + FREEZE</span>
         </footer>
       </section>
 
@@ -1149,6 +1396,10 @@ export default function CatMouse() {
           border-color: rgba(96, 165, 250, 0.5);
           color: #60a5fa;
         }
+        .cat-mouse-badge-hint {
+          opacity: 0.8;
+          font-size: 11px;
+        }
         .cat-mouse-arena {
           position: relative;
           width: 100%;
@@ -1184,6 +1435,50 @@ export default function CatMouse() {
         .cat-mouse-overlay span {
           font-size: 12px;
           opacity: 0.7;
+        }
+        .cat-mouse-freeze-notice {
+          position: absolute;
+          top: 8px;
+          left: 50%;
+          transform: translateX(-50%);
+          padding: 6px 14px;
+          border-radius: 999px;
+          font-size: 12px;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          font-weight: 700;
+          background: rgba(96, 165, 250, 0.9);
+          color: #fff;
+          animation: pulse 1s infinite;
+        }
+        .cat-mouse-freeze-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 12px 24px;
+          border-radius: 12px;
+          border: 1px solid rgba(96, 165, 250, 0.5);
+          background: rgba(96, 165, 250, 0.15);
+          color: #93c5fd;
+          font-size: 14px;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          font-weight: 700;
+          cursor: pointer;
+          -webkit-tap-highlight-color: transparent;
+          touch-action: manipulation;
+          transition: all 120ms ease;
+        }
+        .cat-mouse-freeze-btn:active:not(:disabled) {
+          background: rgba(96, 165, 250, 0.3);
+          transform: scale(0.96);
+        }
+        .cat-mouse-freeze-btn.is-used {
+          background: rgba(255, 255, 255, 0.03);
+          border-color: rgba(255, 255, 255, 0.1);
+          color: rgba(255, 255, 255, 0.3);
+          cursor: not-allowed;
         }
         .cat-mouse-dpad {
           display: grid;
