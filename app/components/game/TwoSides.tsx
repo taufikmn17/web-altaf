@@ -61,7 +61,6 @@ function makeRoomCode() {
 }
 
 function randomTeeth(): boolean[] {
-  // Minimal 1 gerigi, maksimal 3
   const count = 1 + Math.floor(Math.random() * 3);
   const arr = [false, false, false, false];
   const positions = [0, 1, 2, 3]
@@ -195,7 +194,6 @@ function ShapePreview({
       return <polygon points={p} fill={fill} stroke={stroke} strokeWidth={3} />;
     }
     if (shape.head === "star") {
-      // Bintang 5 sudut
       const points: string[] = [];
       const outerR = headSize * 1.15;
       const innerR = headSize * 0.5;
@@ -213,7 +211,6 @@ function ShapePreview({
         />
       );
     }
-    // hexagon
     const points: string[] = [];
     for (let i = 0; i < 6; i += 1) {
       const angle = (Math.PI / 3) * i - Math.PI / 2;
@@ -347,7 +344,6 @@ export default function TwoSides() {
   const myRoundRef = useRef<Round | null>(null);
   const roundIndexRef = useRef(0);
   const phaseRef = useRef<GamePhase>("lobby");
-  const playerCountRef = useRef(0);
 
   useEffect(() => {
     myChoiceRef.current = myChoice;
@@ -361,9 +357,6 @@ export default function TwoSides() {
   useEffect(() => {
     phaseRef.current = phase;
   }, [phase]);
-  useEffect(() => {
-    playerCountRef.current = players.length;
-  }, [players]);
 
   // ---- Realtime channel ----
   useEffect(() => {
@@ -384,7 +377,6 @@ export default function TwoSides() {
         .sort((left, right) => Number(right.isHost) - Number(left.isHost));
       setPlayers(connected);
 
-      // Auto-end kalau sedang main & pemain < 2
       if (phaseRef.current === "playing" && connected.length < 2) {
         setAbortReason("Lawan keluar dari game.");
         setPhase("results");
@@ -465,7 +457,6 @@ export default function TwoSides() {
       if (timerRef.current) window.clearInterval(timerRef.current);
     });
 
-    // Player lain keluar -> game abort
     channel.on("broadcast", { event: "abort" }, ({ payload }) => {
       const data = payload as { reason?: string };
       setAbortReason(data.reason ?? "Game dihentikan.");
@@ -766,8 +757,8 @@ export default function TwoSides() {
             Two Sides<span>!</span>
           </h1>
           <p>
-            Satu lihat kunci, satu lihat lubang. Deskripsikan & pilih objek yang
-            sama — bareng!
+            Cari kunci yang sama! Satu lihat kunci, satu lihat lubang —
+            deskripsikan & pilih objek yang cocok.
           </p>
         </header>
 
@@ -780,9 +771,9 @@ export default function TwoSides() {
               <div>
                 <h2>Butuh 2 pemain, kerja sama wajib</h2>
                 <p>
-                  Host = pemegang <strong>KUNCI</strong>. Guest = pemegang{" "}
-                  <strong>LUBANG</strong>. Kalian harus deskripsikan bentuk
-                  masing-masing dan pilih yang cocok.
+                  Deskripsikan bentuk yang kamu lihat ke teman, lalu{" "}
+                  <strong>cari & pilih objek yang sama</strong>. Kalau cocok,
+                  dapat poin!
                 </p>
               </div>
             </div>
@@ -807,7 +798,7 @@ export default function TwoSides() {
                 disabled={!supabase}
                 onClick={() => enterRoom(makeRoomCode(), true)}
               >
-                <Key size={17} /> Buat room (KUNCI)
+                <Rocket size={17} /> Buat room
               </button>
               <span className="tap-rush-or">ATAU</span>
               <form className="tap-rush-join" onSubmit={handleJoinRoom}>
@@ -827,10 +818,16 @@ export default function TwoSides() {
                   type="submit"
                   disabled={!supabase}
                 >
-                  Gabung (LUBANG)
+                  Gabung
                 </button>
               </form>
             </div>
+
+            <p className="two-sides-role-note">
+              Yang <strong>buat room</strong> jadi pemegang{" "}
+              <strong>KUNCI</strong> · yang <strong>gabung</strong> jadi
+              pemegang <strong>LUBANG</strong>
+            </p>
 
             {!supabase && (
               <div className="tap-rush-setup" role="status">
@@ -967,13 +964,13 @@ export default function TwoSides() {
 
                 <p className="two-sides-hint">
                   {isHost
-                    ? "Deskripsikan kunci kamu ke teman (bentuk kepala + gerigi)."
-                    : "Deskripsikan lubang kamu ke teman (bentuk kepala + gerigi)."}
+                    ? "Deskripsikan KUNCI kamu ke teman — sebutkan bentuk kepala & gerigi. Lalu pilih kunci yang sama dengan lubang temanmu."
+                    : "Deskripsikan LUBANG kamu ke teman — sebutkan bentuk kepala & gerigi. Lalu pilih lubang yang sama dengan kunci temanmu."}
                 </p>
 
                 <div className="two-sides-preview">
                   <span className="two-sides-preview-label">
-                    BENTUK {myRoleLabel} KAMU
+                    BENTUK {myRoleLabel} KAMU — CARI YANG SAMA!
                   </span>
                   <ShapePreview
                     shape={isHost ? myRound.keyShape : myRound.holeShape}
@@ -1093,6 +1090,18 @@ export default function TwoSides() {
       </section>
 
       <style jsx>{`
+        .two-sides-role-note {
+          font-size: 12px;
+          opacity: 0.6;
+          text-align: center;
+          letter-spacing: 0.04em;
+          line-height: 1.5;
+          margin-top: 4px;
+        }
+        .two-sides-role-note strong {
+          color: #fbbf24;
+          font-weight: 700;
+        }
         .two-sides-wrap {
           display: flex;
           flex-direction: column;
@@ -1161,6 +1170,7 @@ export default function TwoSides() {
           text-align: center;
           letter-spacing: 0.04em;
           max-width: 340px;
+          line-height: 1.5;
         }
         .two-sides-preview {
           display: flex;
@@ -1179,6 +1189,7 @@ export default function TwoSides() {
           letter-spacing: 0.14em;
           text-transform: uppercase;
           opacity: 0.65;
+          text-align: center;
         }
         .two-sides-preview-desc {
           font-size: 12px;
@@ -1236,9 +1247,6 @@ export default function TwoSides() {
           border: 1px solid rgba(239, 68, 68, 0.5);
           color: #fca5a5;
         }
-
-        /* Mobile kecil: opsi 4x1 scroll horizontal di layar sempit
-           Tidak perlu, karena sudah grid 2x2. Layout otomatis fit. */
       `}</style>
     </main>
   );
