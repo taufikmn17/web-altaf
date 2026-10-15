@@ -386,7 +386,7 @@ export default function FlagQuiz() {
       if (data.id === playerId) return;
 
       if (data.correct) {
-        pushNotice(`${data.name ?? "Teman"} selesai menebak lebih dulu!`);
+        pushNotice(`${data.name ?? "Teman"} menebak dengan benar!`);
         setScores((current) => ({
           ...current,
           [data.id as string]: (current[data.id as string] ?? 0) + 1,
@@ -396,7 +396,7 @@ export default function FlagQuiz() {
           [data.id as string]: (current[data.id as string] ?? 0) + 1,
         }));
       } else {
-        pushNotice(`${data.name ?? "Teman"} salah menebak.`);
+        pushNotice(`${data.name ?? "Teman"} salah menebak!`);
       }
     });
 
