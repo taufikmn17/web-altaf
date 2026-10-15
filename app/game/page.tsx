@@ -95,7 +95,7 @@ export default function DaftarGamePage() {
               <h2>Tap Rush</h2>
               <p className="game-feature-description">
                 Jempol siap? Masuk ke room, tunggu teman, lalu tap secepat
-                mungkin dan hati-hati jebakan.
+                mungkin dan hindari jebakan.
               </p>
               <div className="game-feature-facts">
                 <span>
