@@ -32,37 +32,28 @@ type PlayerPos = {
   y: number;
 };
 
-// Grid 18×18
 const COLS = 18;
 const ROWS = 18;
 const ROUND_TIME_MS = 30_000;
 const CAT_TICK_MS = 110;
 const MOUSE_TICK_MS = 160;
 const TOTAL_ROUNDS = 5;
-const FREEZE_DURATION_MS = 2000; // freeze 2 detik
+const FREEZE_DURATION_MS = 2000;
 const ROOM_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-// ---- Maze generator ----
-// Bikin maze random 18×18 dengan cara "recursive backtracker"
-// lalu buka dinding tambahan biar ada loop (biar tidak terlalu maze-y)
 function generateMaze(): number[][] {
-  // Mulai dengan semua dinding
   const grid: number[][] = Array.from({ length: ROWS }, () =>
     Array.from({ length: COLS }, () => 1),
   );
 
-  // Recursive backtracker pada grid sel (cell) berjarak 2
   const visited = Array.from({ length: ROWS }, () =>
     Array.from({ length: COLS }, () => false),
   );
 
   const stack: Vec[] = [];
-  // Start di (1,1)
-  const startX = 1;
-  const startY = 1;
-  grid[startY][startX] = 0;
-  visited[startY][startX] = true;
-  stack.push({ x: startX, y: startY });
+  grid[1][1] = 0;
+  visited[1][1] = true;
+  stack.push({ x: 1, y: 1 });
 
   const dirs: Vec[] = [
     { x: 0, y: -2 },
@@ -73,7 +64,6 @@ function generateMaze(): number[][] {
 
   while (stack.length > 0) {
     const current = stack[stack.length - 1];
-    // Cari neighbor yang belum dikunjungi
     const neighbors = dirs
       .map((d) => ({ x: current.x + d.x, y: current.y + d.y, d }))
       .filter(
@@ -91,7 +81,6 @@ function generateMaze(): number[][] {
     }
 
     const chosen = neighbors[Math.floor(Math.random() * neighbors.length)];
-    // Buka dinding antara current dan chosen
     const wallX = current.x + chosen.d.x / 2;
     const wallY = current.y + chosen.d.y / 2;
     grid[wallY][wallX] = 0;
@@ -100,12 +89,10 @@ function generateMaze(): number[][] {
     stack.push({ x: chosen.x, y: chosen.y });
   }
 
-  // Tambah beberapa loop tambahan (buka dinding random) biar tidak terlalu "pohon"
-  // ~15% cell walls dibuka
+  // Buka beberapa dinding tambahan biar ada loop
   for (let y = 1; y < ROWS - 1; y += 1) {
     for (let x = 1; x < COLS - 1; x += 1) {
       if (grid[y][x] === 1) {
-        // Cek kalau dinding ini "tipis" (antara 2 jalur)
         const isHorizontalWall =
           grid[y - 1]?.[x] === 0 && grid[y + 1]?.[x] === 0;
         const isVerticalWall = grid[y]?.[x - 1] === 0 && grid[y]?.[x + 1] === 0;
@@ -116,7 +103,6 @@ function generateMaze(): number[][] {
     }
   }
 
-  // Pastikan border tetap tembok
   for (let i = 0; i < COLS; i += 1) {
     grid[0][i] = 1;
     grid[ROWS - 1][i] = 1;
@@ -129,7 +115,6 @@ function generateMaze(): number[][] {
   return grid;
 }
 
-// Cari start position yang valid (bukan dinding)
 function findStartPos(
   maze: number[][],
   prefer: "top-left" | "bottom-right",
@@ -214,10 +199,10 @@ export default function CatMouse() {
     mouseScore: number;
   }>({ catScore: 0, mouseScore: 0 });
 
-  // Freeze state
   const [catFrozenUntil, setCatFrozenUntil] = useState<number>(0);
   const [freezeUsedThisRound, setFreezeUsedThisRound] = useState(false);
   const [freezeNoticeUntil, setFreezeNoticeUntil] = useState<number>(0);
+  const [now, setNow] = useState(Date.now());
 
   const myPosRef = useRef<Vec | null>(null);
   const peerPosRef = useRef<Vec | null>(null);
@@ -227,6 +212,7 @@ export default function CatMouse() {
   const phaseRef = useRef<GamePhase>("lobby");
   const catFrozenUntilRef = useRef<number>(0);
   const freezeUsedRef = useRef(false);
+  const roundWinnerRef = useRef<"cat" | "mouse" | null>(null);
 
   useEffect(() => {
     myPosRef.current = myPos;
@@ -241,11 +227,17 @@ export default function CatMouse() {
     phaseRef.current = phase;
   }, [phase]);
   useEffect(() => {
-    catFrozenUntilRef.current = catFrozenUntil;
-  }, [catFrozenUntil]);
-  useEffect(() => {
     freezeUsedRef.current = freezeUsedThisRound;
   }, [freezeUsedThisRound]);
+  useEffect(() => {
+    roundWinnerRef.current = roundWinner;
+  }, [roundWinner]);
+
+  // Re-render setiap 100ms buat update freeze timer di UI
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 100);
+    return () => clearInterval(timer);
+  }, []);
 
   const pushDir = (dir: Vec) => {
     const queue = dirQueueRef.current;
@@ -287,7 +279,9 @@ export default function CatMouse() {
       setRoundWinner(null);
       setScores({ catScore: 0, mouseScore: 0 });
       setCatFrozenUntil(0);
+      catFrozenUntilRef.current = 0;
       setFreezeUsedThisRound(false);
+      freezeUsedRef.current = false;
       setPhase("lobby");
       dirQueueRef.current = [];
     });
@@ -339,11 +333,9 @@ export default function CatMouse() {
       const data = payload as { durationMs?: number };
       const duration = data.durationMs ?? FREEZE_DURATION_MS;
       const until = Date.now() + duration;
-      setCatFrozenUntil(until);
       catFrozenUntilRef.current = until;
+      setCatFrozenUntil(until);
       setFreezeNoticeUntil(until);
-      // Stop cat loop sementara
-      if (catLoopRef.current) window.clearTimeout(catLoopRef.current);
     });
 
     channel.on("broadcast", { event: "round-end" }, ({ payload }) => {
@@ -442,7 +434,7 @@ export default function CatMouse() {
     return () => window.removeEventListener("keydown", handler);
   }, [phase, roundWinner]);
 
-  // ---- Game loop (host = cat, guest = mouse) ----
+  // ---- Game loop ----
   useEffect(() => {
     if (phase !== "playing") return;
     if (roundWinner !== null) return;
@@ -456,8 +448,9 @@ export default function CatMouse() {
       const currentPos = myPosRef.current;
       if (!currentPos) return;
       if (phaseRef.current !== "playing") return;
+      if (roundWinnerRef.current !== null) return;
 
-      // Kalau kucing lagi kena freeze → skip gerak
+      // Kalau kucing lagi freeze → skip gerak, tapi tetap loop
       if (isHost && Date.now() < catFrozenUntilRef.current) {
         catLoopRef.current = window.setTimeout(tick, 50);
         return;
@@ -516,7 +509,7 @@ export default function CatMouse() {
     };
   }, [phase, isHost, myPos, roundWinner, playerId, maze]);
 
-  // ---- Cek tabrakan (host yang cek, karena host = cat) ----
+  // ---- Cek tabrakan ----
   useEffect(() => {
     if (!isHost) return;
     if (phase !== "playing") return;
@@ -573,7 +566,7 @@ export default function CatMouse() {
     return () => clearInterval(timer);
   }, [phase, roundEndsAt, isHost, scores]);
 
-  // ---- Auto-advance setelah round-end ----
+  // ---- Auto-advance ----
   useEffect(() => {
     if (!isHost) return;
     if (phase !== "playing") return;
@@ -591,7 +584,6 @@ export default function CatMouse() {
         return;
       }
 
-      // Generate maze baru
       const newMaze = generateMaze();
       const catStart = findStartPos(newMaze, "top-left");
       const mouseStart = findStartPos(newMaze, "bottom-right");
@@ -630,7 +622,7 @@ export default function CatMouse() {
     return () => clearTimeout(timer);
   }, [phase, roundWinner, isHost, roundIndex, playerId, players]);
 
-  // ---- Touch / swipe handler ----
+  // ---- Touch ----
   const handleTouchStart = (e: React.TouchEvent) => {
     const t = e.touches[0];
     touchStartRef.current = { x: t.clientX, y: t.clientY };
@@ -651,9 +643,9 @@ export default function CatMouse() {
     }
   };
 
-  // ---- Freeze action (hanya tikus / guest) ----
+  // ---- Freeze action ----
   const handleFreeze = () => {
-    if (isHost) return; // hanya tikus
+    if (isHost) return;
     if (phase !== "playing") return;
     if (roundWinner !== null) return;
     if (freezeUsedRef.current) return;
@@ -666,8 +658,6 @@ export default function CatMouse() {
       event: "freeze",
       payload: { durationMs: FREEZE_DURATION_MS },
     });
-
-    // Freeze diri sendiri juga tidak perlu — tikus jalan terus
   };
 
   // ---- Preflight ----
@@ -745,7 +735,9 @@ export default function CatMouse() {
       setRoundWinner(null);
       setScores({ catScore: 0, mouseScore: 0 });
       setCatFrozenUntil(0);
+      catFrozenUntilRef.current = 0;
       setFreezeUsedThisRound(false);
+      freezeUsedRef.current = false;
       setIsReady(host);
       setIsHost(host);
       setActiveRoom(roomCode);
@@ -788,7 +780,6 @@ export default function CatMouse() {
       payload: {},
     });
 
-    // Generate maze awal
     const newMaze = generateMaze();
     const catStart = findStartPos(newMaze, "top-left");
     const mouseStart = findStartPos(newMaze, "bottom-right");
@@ -804,7 +795,9 @@ export default function CatMouse() {
     setRemainingMs(ROUND_TIME_MS);
     setScores({ catScore: 0, mouseScore: 0 });
     setCatFrozenUntil(0);
+    catFrozenUntilRef.current = 0;
     setFreezeUsedThisRound(false);
+    freezeUsedRef.current = false;
     setPhase("playing");
     dirQueueRef.current = [];
 
@@ -846,7 +839,9 @@ export default function CatMouse() {
     setRoundWinner(null);
     setScores({ catScore: 0, mouseScore: 0 });
     setCatFrozenUntil(0);
+    catFrozenUntilRef.current = 0;
     setFreezeUsedThisRound(false);
+    freezeUsedRef.current = false;
     setError("");
     dirQueueRef.current = [];
   };
@@ -864,9 +859,9 @@ export default function CatMouse() {
   const myName = players.find((p) => p.id === playerId)?.name ?? "Kamu";
   const peerName = players.find((p) => p.id !== playerId)?.name ?? "Lawan";
 
-  // Cek cat lagi kena freeze
-  const catIsFrozen =
-    isHost && phase === "playing" && Date.now() < catFrozenUntil;
+  // Cek freeze pakai `now` biar re-render berkala
+  const catIsFrozen = isHost && phase === "playing" && now < catFrozenUntil;
+  const freezeNoticeActive = now < freezeNoticeUntil;
 
   return (
     <main className="tap-rush-shell">
@@ -1105,7 +1100,6 @@ export default function CatMouse() {
                     preserveAspectRatio="xMidYMid meet"
                     className="cat-mouse-svg"
                   >
-                    {/* Maze walls */}
                     {maze.map((row, y) =>
                       row.map((cell, x) =>
                         cell === 1 ? (
@@ -1123,7 +1117,6 @@ export default function CatMouse() {
                       ),
                     )}
 
-                    {/* Peer */}
                     {peerPos && (
                       <g
                         transform={`translate(${peerPos.x + 0.5}, ${peerPos.y + 0.5})`}
@@ -1135,10 +1128,20 @@ export default function CatMouse() {
                         >
                           {myRole === "cat" ? "🐭" : "🐱"}
                         </text>
+                        {((isHost && freezeNoticeActive) ||
+                          (!isHost &&
+                            catFrozenUntilRef.current > Date.now())) && (
+                          <circle
+                            r={0.7}
+                            fill="none"
+                            stroke="#60a5fa"
+                            strokeWidth={0.1}
+                            opacity={0.8}
+                          />
+                        )}
                       </g>
                     )}
 
-                    {/* Me */}
                     <g
                       transform={`translate(${myPos.x + 0.5}, ${myPos.y + 0.5})`}
                     >
@@ -1149,35 +1152,16 @@ export default function CatMouse() {
                       >
                         {myRole === "cat" ? "🐱" : "🐭"}
                       </text>
+                      {catIsFrozen && (
+                        <circle
+                          r={0.7}
+                          fill="none"
+                          stroke="#60a5fa"
+                          strokeWidth={0.1}
+                          opacity={0.8}
+                        />
+                      )}
                     </g>
-
-                    {/* Efek freeze di kucing (kalau lagi kena freeze) */}
-                    {catIsFrozen && myPos && (
-                      <g
-                        transform={`translate(${myPos.x + 0.5}, ${myPos.y + 0.5})`}
-                      >
-                        <circle
-                          r={0.6}
-                          fill="none"
-                          stroke="#60a5fa"
-                          strokeWidth={0.1}
-                          opacity={0.8}
-                        />
-                      </g>
-                    )}
-                    {!isHost && peerPos && Date.now() < freezeNoticeUntil && (
-                      <g
-                        transform={`translate(${peerPos.x + 0.5}, ${peerPos.y + 0.5})`}
-                      >
-                        <circle
-                          r={0.6}
-                          fill="none"
-                          stroke="#60a5fa"
-                          strokeWidth={0.1}
-                          opacity={0.8}
-                        />
-                      </g>
-                    )}
                   </svg>
 
                   {roundWinner !== null && (
@@ -1198,7 +1182,6 @@ export default function CatMouse() {
                   )}
                 </div>
 
-                {/* Tombol Freeze untuk tikus */}
                 {myRole === "mouse" && (
                   <button
                     type="button"
@@ -1217,7 +1200,6 @@ export default function CatMouse() {
                   </button>
                 )}
 
-                {/* D-pad */}
                 <div
                   className="cat-mouse-dpad"
                   role="group"
