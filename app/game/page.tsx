@@ -1,6 +1,5 @@
 import {
   ArrowUpRight,
-  Flag,
   Globe2,
   Grid3x3,
   HelpCircle,
@@ -36,11 +35,10 @@ export const metadata: Metadata = {
     "kuis trivia online",
     "trivia multiplayer",
     "game kuis realtime",
+    "kuis dunia",
     "kuis indonesia",
     "trivia indonesia",
     "kuis pengetahuan umum",
-    "kuis sejarah indonesia",
-    "kuis budaya indonesia",
     "Two Sides",
     "Snake Duel",
     "Flag Quiz",
@@ -256,7 +254,7 @@ export default function DaftarGamePage() {
               </div>
               <h2>Trivia Blitz</h2>
               <p className="game-feature-description">
-                Kuis pilihan ganda umum. Jawab paling cepat & tepat — kalahkan
+                Kuis dunia pilihan ganda. Jawab paling cepat & tepat — kalahkan
                 teman. Soal dari sains, sejarah, geografi, sampai hiburan.
               </p>
               <div className="game-feature-facts">
@@ -264,7 +262,7 @@ export default function DaftarGamePage() {
                   <UsersRound size={16} /> 2—4 pemain
                 </span>
                 <span>
-                  <HelpCircle size={16} /> Kuis real-time
+                  <Globe2 size={16} /> Kuis dunia
                 </span>
               </div>
               <Link href="/game/trivia-blitz" className="game-feature-cta">
@@ -273,12 +271,12 @@ export default function DaftarGamePage() {
             </div>
           </section>
 
-          {/* ---- KARTU BARU: TRIVIA INDONESIA ---- */}
+          {/* ---- KARTU TRIVIA INDONESIA ---- */}
           <section className="game-feature">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
               <div className="game-feature-target">
-                <Flag size={88} strokeWidth={1.5} />
+                <HelpCircle size={88} strokeWidth={1.5} />
               </div>
               <span className="game-feature-number">7</span>
               <span className="game-feature-art-label">SOAL / 15 DETIK</span>
@@ -300,7 +298,7 @@ export default function DaftarGamePage() {
                   <UsersRound size={16} /> 2—4 pemain
                 </span>
                 <span>
-                  <Flag size={16} /> 100 soal lokal
+                  <HelpCircle size={16} /> 100 soal lokal
                 </span>
               </div>
               <Link href="/game/trivia-indonesia" className="game-feature-cta">

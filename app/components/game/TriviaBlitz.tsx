@@ -548,8 +548,9 @@ export default function TriviaBlitz() {
               <div>
                 <h2>Bikin room, tantang teman</h2>
                 <p>
-                  Soal kuis muncul acak (sains, sejarah, geografi, hiburan). Tap
-                  jawaban yang benar sebelum waktu habis!
+                  Soal kuis berbahasa inggris muncul acak (sains, sejarah,
+                  geografi, hiburan). Tap jawaban yang benar sebelum waktu
+                  habis!
                 </p>
               </div>
             </div>
