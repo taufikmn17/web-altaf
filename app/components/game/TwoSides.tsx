@@ -53,18 +53,16 @@ type RoundPhase = "phase1" | "phase2";
 
 type Round = {
   index: number;
-  // Objek rahasia
-  secretForHost: GameObject;
-  secretForGuest: GameObject;
-  // Opsi tebak: untuk guest menebak objek host (4 opsi)
-  guessOptionsForGuest: GameObject[];
-  // Opsi tebak: untuk host menebak objek guest (4 opsi)
-  guessOptionsForHost: GameObject[];
+  // Objek yang ditampilkan (hanya describer)
+  objectForHost: GameObject;
+  objectForGuest: GameObject;
+  // Opsi jawaban (hanya guesser)
+  guessOptionsForHost: GameObject[]; // saat host jadi guesser (fase 2)
+  guessOptionsForGuest: GameObject[]; // saat guest jadi guesser (fase 1)
 };
 
 const TOTAL_ROUNDS = 5;
-const ROUND_TIME_MS = 30_000;
-const PHASE_TIME_MS = 15_000;
+const PHASE_TIME_MS = 20_000;
 const START_LIVES = 3;
 const ROOM_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -110,7 +108,6 @@ function randomTeeth(): boolean[] {
 }
 
 function makeGameObject(id: number): GameObject {
-  // Warna unik per part biar rumit
   const colors = [...ALL_COLORS].sort(() => Math.random() - 0.5);
   return {
     id,
@@ -144,38 +141,37 @@ function makeDistinctObject(exclude: GameObject[]): GameObject {
 }
 
 function buildRound(roundIndex: number): Round {
-  const secretForHost = makeGameObject(0);
-  const secretForGuest = makeDistinctObject([secretForHost]);
+  const objectForHost = makeGameObject(0);
+  const objectForGuest = makeDistinctObject([objectForHost]);
 
-  // Opsi untuk GUEST (menebak objek HOST):
-  // correct = secretForHost, distractor = 3 objek acak yang BUKAN secretForHost
-  const optsForGuest: GameObject[] = [secretForHost];
-  while (optsForGuest.length < 4) {
-    const candidate = makeGameObject(optsForGuest.length);
-    if (objectsEqual(candidate, secretForHost)) continue;
-    if (optsForGuest.some((o) => objectsEqual(o, candidate))) continue;
-    optsForGuest.push(candidate);
+  // Opsi tebak untuk GUEST (guest nebak objek host) = correct + 3 distractor
+  const guessOptionsForGuest: GameObject[] = [objectForHost];
+  while (guessOptionsForGuest.length < 4) {
+    const candidate = makeGameObject(guessOptionsForGuest.length);
+    if (objectsEqual(candidate, objectForHost)) continue;
+    if (guessOptionsForGuest.some((o) => objectsEqual(o, candidate))) continue;
+    guessOptionsForGuest.push(candidate);
   }
-  optsForGuest.sort(() => Math.random() - 0.5);
-  optsForGuest.forEach((o, i) => (o.id = i));
+  guessOptionsForGuest.sort(() => Math.random() - 0.5);
+  guessOptionsForGuest.forEach((o, i) => (o.id = i));
 
-  // Opsi untuk HOST (menebak objek GUEST):
-  const optsForHost: GameObject[] = [secretForGuest];
-  while (optsForHost.length < 4) {
-    const candidate = makeGameObject(optsForHost.length);
-    if (objectsEqual(candidate, secretForGuest)) continue;
-    if (optsForHost.some((o) => objectsEqual(o, candidate))) continue;
-    optsForHost.push(candidate);
+  // Opsi tebak untuk HOST (host nebak objek guest) = correct + 3 distractor
+  const guessOptionsForHost: GameObject[] = [objectForGuest];
+  while (guessOptionsForHost.length < 4) {
+    const candidate = makeGameObject(guessOptionsForHost.length);
+    if (objectsEqual(candidate, objectForGuest)) continue;
+    if (guessOptionsForHost.some((o) => objectsEqual(o, candidate))) continue;
+    guessOptionsForHost.push(candidate);
   }
-  optsForHost.sort(() => Math.random() - 0.5);
-  optsForHost.forEach((o, i) => (o.id = i));
+  guessOptionsForHost.sort(() => Math.random() - 0.5);
+  guessOptionsForHost.forEach((o, i) => (o.id = i));
 
   return {
     index: roundIndex,
-    secretForHost,
-    secretForGuest,
-    guessOptionsForGuest: optsForGuest,
-    guessOptionsForHost: optsForHost,
+    objectForHost,
+    objectForGuest,
+    guessOptionsForHost,
+    guessOptionsForGuest,
   };
 }
 
@@ -183,16 +179,15 @@ function findCorrectId(options: GameObject[], target: GameObject): number {
   return options.find((o) => objectsEqual(o, target))?.id ?? -1;
 }
 
-// ---- Preview SVG ----
-function ObjectPreview({
-  obj,
-  variant = "default",
-  size = 96,
-}: {
-  obj: GameObject;
-  variant?: "default" | "muted";
-  size?: number;
-}) {
+function hexToRgba(hex: string, alpha: number): string {
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.substring(0, 2), 16);
+  const g = parseInt(clean.substring(2, 4), 16);
+  const b = parseInt(clean.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function ObjectPreview({ obj, size = 96 }: { obj: GameObject; size?: number }) {
   const cx = size / 2;
   const cy = size / 2;
   const bodyR = size * 0.14;
@@ -203,7 +198,6 @@ function ObjectPreview({
   const headStroke = obj.headColor;
   const bodyStroke = obj.bodyColor;
   const teethStroke = obj.teethColor;
-
   const headFill = hexToRgba(obj.headColor, 0.18);
   const bodyFill = hexToRgba(obj.bodyColor, 0.25);
 
@@ -304,12 +298,7 @@ function ObjectPreview({
   };
 
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox={`0 0 ${size} ${size}`}
-      style={variant === "muted" ? { opacity: 0.35 } : undefined}
-    >
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
       <circle
         cx={cx}
         cy={cy}
@@ -324,14 +313,6 @@ function ObjectPreview({
       {renderHead()}
     </svg>
   );
-}
-
-function hexToRgba(hex: string, alpha: number): string {
-  const clean = hex.replace("#", "");
-  const r = parseInt(clean.substring(0, 2), 16);
-  const g = parseInt(clean.substring(2, 4), 16);
-  const b = parseInt(clean.substring(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 function describeObject(obj: GameObject): string {
@@ -392,7 +373,6 @@ export default function TwoSides() {
   const [abortReason, setAbortReason] = useState<string | null>(null);
 
   const myGuessRef = useRef<number | null>(null);
-  const peerGuessRef = useRef<number | null>(null);
   const roundDataRef = useRef<Round | null>(null);
   const phaseStepRef = useRef<RoundPhase>("phase1");
   const roundIndexRef = useRef(0);
@@ -401,9 +381,6 @@ export default function TwoSides() {
   useEffect(() => {
     myGuessRef.current = myGuess;
   }, [myGuess]);
-  useEffect(() => {
-    peerGuessRef.current = peerGuess;
-  }, [peerGuess]);
   useEffect(() => {
     roundDataRef.current = roundData;
   }, [roundData]);
@@ -582,29 +559,29 @@ export default function TwoSides() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, phaseEndsAt, isHost]);
 
-  // ---- Host: cek apakah dua guess sudah ada ----
+  // ---- Host: cek apakah guess sudah ada ----
   useEffect(() => {
     if (!isHost) return;
     if (phase !== "playing") return;
     if (phaseResult !== null) return;
-    if (myGuess === null || peerGuess === null) return;
-
     const round = roundDataRef.current;
     if (!round) return;
 
     if (phaseStepRef.current === "phase1") {
-      // Fase 1: guest menebak objek host
+      // Fase 1: HOST describer, GUEST guesser
+      if (peerGuess === null) return;
       const correctId = findCorrectId(
         round.guessOptionsForGuest,
-        round.secretForHost,
+        round.objectForHost,
       );
       const correct = peerGuess === correctId;
       resolvePhase(correct ? "correct" : "wrong");
     } else {
-      // Fase 2: host menebak objek guest
+      // Fase 2: GUEST describer, HOST guesser
+      if (myGuess === null) return;
       const correctId = findCorrectId(
         round.guessOptionsForHost,
-        round.secretForGuest,
+        round.objectForGuest,
       );
       const correct = myGuess === correctId;
       resolvePhase(correct ? "correct" : "wrong");
@@ -619,11 +596,7 @@ export default function TwoSides() {
     if (phaseResult === null) return;
 
     const timer = setTimeout(() => {
-      // Hitung ulang dari state saat ini
-      const currentLives =
-        phaseResult === "correct" ? sharedLives : sharedLives;
-
-      if (currentLives <= 0) {
+      if (sharedLives <= 0) {
         setFinalStatus("lose");
         setPhase("results");
         void channelRef.current?.send({
@@ -834,18 +807,21 @@ export default function TwoSides() {
   const canStart = isHost && players.length === 2 && guestsReady && isConnected;
   const secondsLeft = Math.ceil(remainingMs / 1000);
 
-  // Data yang saya lihat & yang saya tebak
-  // - Host menebak objek GUEST -> pakai guessOptionsForHost
-  // - Guest menebak objek HOST -> pakai guessOptionsForGuest
+  // ---- Tentukan peran berdasarkan fase ----
+  // Fase 1: HOST = describer (lihat objek), GUEST = guesser (lihat opsi)
+  // Fase 2: GUEST = describer, HOST = guesser
+  const iAmDescriber =
+    (phaseStep === "phase1" && isHost) || (phaseStep === "phase2" && !isHost);
+
+  // Objek yang kulihat (kalau describer)
   const mySecretObject = isHost
-    ? roundData?.secretForHost
-    : roundData?.secretForGuest;
+    ? roundData?.objectForHost
+    : roundData?.objectForGuest;
+
+  // Opsi jawaban yang kulihat (kalau guesser)
   const myGuessOptions = isHost
     ? roundData?.guessOptionsForHost
     : roundData?.guessOptionsForGuest;
-
-  const iAmDescriber =
-    (phaseStep === "phase1" && isHost) || (phaseStep === "phase2" && !isHost);
 
   return (
     <main className="tap-rush-shell">
@@ -866,7 +842,8 @@ export default function TwoSides() {
             Two Sides<span>!</span>
           </h1>
           <p>
-            Deskripsikan objek rahasiamu — temanmu harus menebak. Lalu gantian!
+            Gantian! Satu orang deskripsikan objek, satu orang tebak. Lalu tukar
+            peran.
           </p>
         </header>
 
@@ -879,9 +856,8 @@ export default function TwoSides() {
               <div>
                 <h2>Butuh 2 pemain, kerja sama wajib</h2>
                 <p>
-                  Setiap ronde, kamu punya objek rahasia. Deskripsikan ke teman,
-                  dan temanmu juga deskripsikan objeknya ke kamu. Berdua harus
-                  tebak benar!
+                  Gantian: kamu deskripsikan objekmu, teman menebak. Lalu tukar
+                  — teman deskripsikan, kamu menebak.
                 </p>
               </div>
             </div>
@@ -932,7 +908,8 @@ export default function TwoSides() {
             </div>
 
             <p className="two-sides-role-note">
-              Berdua punya objek rahasia. Saling deskripsikan & saling tebak!
+              Ronde 1: Host deskripsikan, Guest tebak · Ronde berikutnya:
+              gantian
             </p>
 
             {!supabase && (
@@ -1046,8 +1023,7 @@ export default function TwoSides() {
 
             {phase === "playing" &&
               roundData &&
-              mySecretObject &&
-              myGuessOptions && (
+              (iAmDescriber ? mySecretObject : myGuessOptions) && (
                 <div className="two-sides-wrap">
                   <div className="two-sides-topbar">
                     <span className="two-sides-round">
@@ -1073,55 +1049,52 @@ export default function TwoSides() {
                   <div
                     className={`two-sides-badge ${iAmDescriber ? "is-describer" : "is-guesser"}`}
                   >
-                    {iAmDescriber ? "KAMU: DESKRIPSIKAN" : "KAMU: TEBAK"}
+                    {iAmDescriber
+                      ? "PERAN KAMU: DESKRIPSIKAN"
+                      : "PERAN KAMU: TEBAK"}
                   </div>
 
                   <p className="two-sides-hint">
                     {iAmDescriber
-                      ? "Deskripsikan objek rahasia kamu ke teman — sebutkan bentuk kepala, warna, dan posisi gerigi."
-                      : "Dengarkan deskripsi temanmu, lalu pilih objek yang cocok."}
+                      ? "Lihat objek rahasia kamu, deskripsikan ke teman. Sebutkan bentuk kepala, warna, dan posisi gerigi."
+                      : "Dengarkan deskripsi temanmu, lalu pilih salah satu dari 4 objek di bawah."}
                   </p>
 
-                  {/* Objek rahasia sendiri */}
-                  {iAmDescriber ? (
+                  {iAmDescriber && mySecretObject && (
                     <div className="two-sides-preview">
                       <span className="two-sides-preview-label">
                         OBJEK RAHASIA KAMU
                       </span>
-                      <ObjectPreview obj={mySecretObject} size={140} />
-                      <span className="two-sides-preview-desc">
-                        {describeObject(mySecretObject)}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="two-sides-preview">
-                      <span className="two-sides-preview-label">
-                        OBJEK RAHASIA KAMU (yang dideskripsikan teman)
-                      </span>
-                      <ObjectPreview obj={mySecretObject} size={120} />
+                      <ObjectPreview obj={mySecretObject} size={160} />
                       <span className="two-sides-preview-desc">
                         {describeObject(mySecretObject)}
                       </span>
                     </div>
                   )}
 
-                  {/* Pilihan tebak */}
-                  <div className="two-sides-options-grid">
-                    {myGuessOptions.map((opt) => {
-                      const isMyPick = myGuess === opt.id;
-                      return (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          className={`two-sides-option ${isMyPick ? "is-picked" : ""}`}
-                          disabled={myGuess !== null || phaseResult !== null}
-                          onClick={() => pickGuess(opt.id)}
-                        >
-                          <ObjectPreview obj={opt} size={72} />
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {!iAmDescriber && myGuessOptions && (
+                    <>
+                      <p className="two-sides-pick-label">PILIH JAWABANMU</p>
+                      <div className="two-sides-options-grid">
+                        {myGuessOptions.map((opt) => {
+                          const isMyPick = myGuess === opt.id;
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              className={`two-sides-option ${isMyPick ? "is-picked" : ""}`}
+                              disabled={
+                                myGuess !== null || phaseResult !== null
+                              }
+                              onClick={() => pickGuess(opt.id)}
+                            >
+                              <ObjectPreview obj={opt} size={80} />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
 
                   {phaseResult && (
                     <div
@@ -1286,12 +1259,19 @@ export default function TwoSides() {
           max-width: 340px;
           line-height: 1.5;
         }
+        .two-sides-pick-label {
+          font-size: 11px;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          opacity: 0.7;
+          margin-top: 4px;
+        }
         .two-sides-preview {
           display: flex;
           flex-direction: column;
           align-items: center;
           gap: 6px;
-          padding: 14px 20px;
+          padding: 18px 24px;
           border-radius: 16px;
           background: rgba(255, 255, 255, 0.03);
           border: 1px solid rgba(255, 255, 255, 0.08);
