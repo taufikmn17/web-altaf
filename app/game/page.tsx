@@ -16,7 +16,7 @@ import Footer from "../components/Footer";
 export const metadata: Metadata = {
   title: "Game Arcade - Altaf Story",
   description:
-    "Mainkan Tap Rush, Snake Duel, Tebak Negara, Sudoku Duel, dan Trivia Blitz online bareng teman — arena game real-time dari Altaf Story.",
+    "Mainkan Tap Battle, Snake Duel, Tebak Negara, Sudoku Duel, dan Trivia Blitz online bareng teman — arena game real-time dari Altaf Story.",
   keywords: [
     "game multiplayer online",
     "game party online",
@@ -30,7 +30,10 @@ export const metadata: Metadata = {
     "kuis trivia online",
     "trivia multiplayer",
     "game kuis realtime",
-    "Tap Rush",
+    "tap battle",
+    "game tap 1v1",
+    "duel tap online",
+    "Tap Battle",
     "Snake Duel",
     "Flag Quiz",
     "Sudoku Duel",
@@ -43,7 +46,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Game Arcade - Altaf Story",
     description:
-      "Tap Rush, Snake Duel, Tebak Negara, Sudoku Duel & Trivia Blitz — main bareng teman secara real-time.",
+      "Tap Battle, Snake Duel, Tebak Negara, Sudoku Duel & Trivia Blitz — main bareng teman secara real-time.",
     url: "/game",
     siteName: "Altaf Story",
     locale: "id_ID",
@@ -61,7 +64,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Game Arcade - Altaf Story",
     description:
-      "Tap Rush, Snake Duel, Tebak Negara, Sudoku Duel & Trivia Blitz — main bareng teman secara real-time.",
+      "Tap Battle, Snake Duel, Tebak Negara, Sudoku Duel & Trivia Blitz — main bareng teman secara real-time.",
     images: ["/assets/img/hero.jpeg"],
   },
 };
@@ -226,7 +229,7 @@ export default function DaftarGamePage() {
             </div>
           </section>
 
-          {/* ---- KARTU BARU: TRIVIA BLITZ ---- */}
+          {/* ---- KARTU TRIVIA BLITZ ---- */}
           <section className="game-feature">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
