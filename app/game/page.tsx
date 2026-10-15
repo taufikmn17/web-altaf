@@ -1,6 +1,7 @@
 import {
   ArrowUpRight,
   Globe2,
+  HelpCircle,
   Radio,
   Swords,
   UsersRound,
@@ -14,7 +15,7 @@ import Footer from "../components/Footer";
 export const metadata: Metadata = {
   title: "Game Arcade - Altaf Story",
   description:
-    "Mainkan Tap Rush, Snake Duel, dan Tebak Negara online bareng teman — arena game real-time dari Altaf Story.",
+    "Mainkan Tap Rush, Snake Duel, Tebak Negara, dan Teka-Teki Duel online bareng teman — arena game real-time dari Altaf Story.",
   keywords: [
     "game multiplayer online",
     "game party online",
@@ -22,9 +23,12 @@ export const metadata: Metadata = {
     "snake multiplayer",
     "kuis tebak negara",
     "tebak bendera",
+    "game teka-teki online",
+    "riddle game multiplayer",
     "Tap Rush",
     "Snake Duel",
     "Flag Quiz",
+    "Teka-Teki Duel",
     "Altaf Story games",
   ],
   alternates: {
@@ -33,7 +37,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Game Arcade - Altaf Story",
     description:
-      "Tap Rush, Snake Duel & Tebak Negara — main bareng teman secara real-time.",
+      "Tap Rush, Snake Duel, Tebak Negara & Teka-Teki Duel — main bareng teman secara real-time.",
     url: "/game",
     siteName: "Altaf Story",
     locale: "id_ID",
@@ -51,7 +55,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Game Arcade - Altaf Story",
     description:
-      "Tap Rush, Snake Duel & Tebak Negara — main bareng teman secara real-time.",
+      "Tap Rush, Snake Duel, Tebak Negara & Teka-Teki Duel — main bareng teman secara real-time.",
     images: ["/assets/img/hero.jpeg"],
   },
 };
@@ -63,7 +67,7 @@ export default function DaftarGamePage() {
 
       <main className="game-hub-main">
         <div className="game-hub-overline">
-          <span /> ALTAF ARCADE <span>03 / ONLINE</span>
+          <span /> ALTAF ARCADE <span>04 / ONLINE</span>
         </div>
         <header className="game-hub-heading">
           <p>PLAY TOGETHER</p>
@@ -180,10 +184,46 @@ export default function DaftarGamePage() {
               </Link>
             </div>
           </section>
+
+          {/* ---- KARTU BARU: TEKA-TEKI DUEL ---- */}
+          <section className="game-feature">
+            <div className="game-feature-art" aria-hidden="true">
+              <div className="game-feature-scanlines" />
+              <div className="game-feature-target">
+                <HelpCircle size={88} strokeWidth={1.5} />
+              </div>
+              <span className="game-feature-number">5</span>
+              <span className="game-feature-art-label">RIDDLES / 25 DETIK</span>
+              <span className="game-feature-live">
+                <i /> LIVE ROOM
+              </span>
+            </div>
+            <div className="game-feature-copy">
+              <div className="game-feature-kicker">
+                <Radio size={14} /> PARTY GAME / 004
+              </div>
+              <h2>Teka-Teki Duel</h2>
+              <p className="game-feature-description">
+                Teka-teki muncul acak. Ketik jawabanmu paling cepat — yang benar
+                duluan skornya nambah. Adu otak & refleks!
+              </p>
+              <div className="game-feature-facts">
+                <span>
+                  <UsersRound size={16} /> 2—8 pemain
+                </span>
+                <span>
+                  <HelpCircle size={16} /> Kuis real-time
+                </span>
+              </div>
+              <Link href="/game/riddle-duel" className="game-feature-cta">
+                Adu teka-teki <ArrowUpRight size={18} />
+              </Link>
+            </div>
+          </section>
         </div>
 
         <div className="game-hub-footerline">
-          <span>03 GAME DI ARENA</span>
+          <span>04 GAME DI ARENA</span>
           <span>SEMUA ONLINE</span>
         </div>
       </main>
