@@ -77,6 +77,7 @@ export default function TriviaBlitz() {
   const [remainingMs, setRemainingMs] = useState(ANSWER_WINDOW_MS);
   const [questionBank, setQuestionBank] = useState<TriviaQuestion[]>([]);
   const [loading, setLoading] = useState(false);
+  const [notices, setNotices] = useState<string[]>([]);
 
   const scoresRef = useRef<Record<string, number>>({});
   const roundRef = useRef(0);
@@ -92,6 +93,13 @@ export default function TriviaBlitz() {
     bankRef.current = questionBank;
   }, [questionBank]);
 
+  const pushNotice = (message: string) => {
+    setNotices((current) => [...current, message].slice(-4));
+    window.setTimeout(() => {
+      setNotices((current) => current.slice(1));
+    }, 3200);
+  };
+
   // ---- Realtime channel ----
   useEffect(() => {
     if (!activeRoom || !supabase || !playerId) return;
@@ -104,10 +112,9 @@ export default function TriviaBlitz() {
     });
     channelRef.current = channel;
 
-    channel.on("presence", { event: "sync" }, () => {
-      const connectedPlayers = Object.values(
-        channel.presenceState<RoomPlayer>(),
-      )
+    const syncFromPresence = () => {
+      const state = channel.presenceState<RoomPlayer>();
+      const connectedPlayers = Object.values(state)
         .flat()
         .sort((left, right) => Number(right.isHost) - Number(left.isHost));
       setPlayers(connectedPlayers);
@@ -116,9 +123,21 @@ export default function TriviaBlitz() {
         for (const p of connectedPlayers) next[p.id] = current[p.id] ?? 0;
         return next;
       });
-    });
+      setAnsweredIds((current) => {
+        const next: Record<string, string> = {};
+        for (const p of connectedPlayers) {
+          if (current[p.id]) next[p.id] = current[p.id];
+        }
+        return next;
+      });
+    };
 
-    // RESET: dipanggil host sebelum game baru -> semua client reset state
+    channel.on("presence", { event: "sync" }, syncFromPresence);
+    channel.on("presence", { event: "join" }, syncFromPresence);
+    // Player keluar: game tetap jalan, cukup update daftar
+    channel.on("presence", { event: "leave" }, syncFromPresence);
+
+    // RESET: semua client reset saat host mulai game baru
     channel.on("broadcast", { event: "game-reset" }, () => {
       setScores({});
       setAnsweredIds({});
@@ -126,9 +145,9 @@ export default function TriviaBlitz() {
       setRevealAt(null);
       setRound(0);
       setRoundData(null);
+      setNotices([]);
     });
 
-    // Host broadcast bank soal biar guest punya backup
     channel.on("broadcast", { event: "question-bank" }, ({ payload }) => {
       const data = payload as { questions?: TriviaQuestion[] };
       if (!Array.isArray(data.questions)) return;
@@ -146,6 +165,7 @@ export default function TriviaBlitz() {
       setAnsweredIds({});
       setRevealAt(null);
       setRemainingMs(ANSWER_WINDOW_MS);
+      setNotices([]);
       setPhase("playing");
       setError("");
     });
@@ -160,9 +180,19 @@ export default function TriviaBlitz() {
       if (typeof data.id !== "string") return;
       const id = data.id;
       const answer = data.answer ?? "";
+      const name = data.name ?? "Pemain";
+
       setAnsweredIds((current) => ({ ...current, [id]: answer }));
       if (data.correct) {
         setScores((current) => ({ ...current, [id]: (current[id] ?? 0) + 1 }));
+        // Hanya tampilkan notif untuk pemain lain
+        if (id !== playerId) {
+          pushNotice(`${name} menjawab dengan benar!`);
+        }
+      } else {
+        if (id !== playerId) {
+          pushNotice(`${name} salah menebak!`);
+        }
       }
     });
 
@@ -281,6 +311,7 @@ export default function TriviaBlitz() {
     setAnsweredIds({});
     setRevealAt(null);
     setRemainingMs(ANSWER_WINDOW_MS);
+    setNotices([]);
     setPhase("playing");
 
     void channelRef.current?.send({
@@ -310,6 +341,7 @@ export default function TriviaBlitz() {
     setAnsweredIds({});
     setRevealAt(null);
     setQuestionBank([]);
+    setNotices([]);
     setIsReady(host);
     setIsHost(host);
     setActiveRoom(roomCode);
@@ -336,24 +368,21 @@ export default function TriviaBlitz() {
     )
       return;
 
-    // 1. Beritahu semua client untuk reset skor & state
     void channelRef.current?.send({
       type: "broadcast",
       event: "game-reset",
       payload: {},
     });
 
-    // 2. Reset lokal host
     setScores({});
     setAnsweredIds({});
     setMyAnswer(null);
     setRevealAt(null);
+    setNotices([]);
 
-    // 3. Fetch soal baru
     const questions = await fetchQuestions();
     if (questions.length === 0) return;
 
-    // 4. Simpan & broadcast bank soal
     setQuestionBank(questions);
     bankRef.current = questions;
     void channelRef.current?.send({
@@ -362,7 +391,6 @@ export default function TriviaBlitz() {
       payload: { questions },
     });
 
-    // 5. Mulai ronde 1
     broadcastNewRound(1);
   };
 
@@ -387,7 +415,6 @@ export default function TriviaBlitz() {
       },
     });
 
-    // Update skor lokal langsung
     setAnsweredIds((current) => ({ ...current, [playerId]: option }));
     if (isCorrect) {
       setScores((current) => ({
@@ -420,6 +447,7 @@ export default function TriviaBlitz() {
     setAnsweredIds({});
     setRevealAt(null);
     setQuestionBank([]);
+    setNotices([]);
     setError("");
   };
 
@@ -697,6 +725,16 @@ export default function TriviaBlitz() {
                     </li>
                   ))}
                 </ol>
+
+                {notices.length > 0 && (
+                  <div className="trivia-notices" role="status">
+                    {notices.map((notice, i) => (
+                      <div className="trivia-notice" key={i}>
+                        {notice}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -882,6 +920,31 @@ export default function TriviaBlitz() {
         .trivia-reveal strong {
           font-size: 20px;
           color: #86efac;
+        }
+
+        /* Notices */
+        .trivia-notices {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .trivia-notice {
+          padding: 10px 14px;
+          background: rgba(251, 191, 36, 0.08);
+          border-left: 3px solid #fbbf24;
+          border-radius: 8px;
+          font-size: 13px;
+          animation: slideIn 0.25s ease-out;
+        }
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateY(-6px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
       `}</style>
     </main>

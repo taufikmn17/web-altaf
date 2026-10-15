@@ -92,8 +92,8 @@ export default function DaftarGamePage() {
               <div className="game-feature-target">
                 <Zap size={88} strokeWidth={1.5} />
               </div>
-              <span className="game-feature-number">15</span>
-              <span className="game-feature-art-label">SECONDS / ROUND</span>
+              <span className="game-feature-number">20</span>
+              <span className="game-feature-art-label">POIN / 1V1</span>
               <span className="game-feature-live">
                 <i /> LIVE ROOM
               </span>
@@ -102,17 +102,17 @@ export default function DaftarGamePage() {
               <div className="game-feature-kicker">
                 <Radio size={14} /> PARTY GAME / 001
               </div>
-              <h2>Tap Rush</h2>
+              <h2>Tap Battle</h2>
               <p className="game-feature-description">
-                Jempol siap? Masuk ke room, tunggu teman, lalu tap secepat
-                mungkin dan hindari jebakan.
+                Tombol besar di tengah. Gantian giliran tap — siapa duluan
+                sampai 20 poin menang. Tap saat bukan giliran? Kena stun!
               </p>
               <div className="game-feature-facts">
                 <span>
-                  <UsersRound size={16} /> 2—8 pemain
+                  <UsersRound size={16} /> 2 pemain
                 </span>
                 <span>
-                  <Zap size={16} /> Real-time
+                  <Zap size={16} /> Duel tap 1v1
                 </span>
               </div>
               <Link href="/game/tap-rush" className="game-feature-cta">

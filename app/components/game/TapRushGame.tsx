@@ -2,13 +2,12 @@
 
 import {
   ArrowLeft,
-  Check,
   Copy,
   DoorOpen,
   Radio,
   Rocket,
+  Swords,
   UsersRound,
-  X,
   Zap,
 } from "lucide-react";
 import Link from "next/link";
@@ -25,21 +24,8 @@ type RoomPlayer = {
 
 type GamePhase = "lobby" | "playing" | "results";
 
-type Spawn = {
-  id: string;
-  kind: "target" | "trap";
-  x: number;
-  y: number;
-  bornAt: number;
-  lifetimeMs: number;
-};
-
-const ROUND_DURATION_MS = 30_000;
-const SPAWN_INTERVAL_MS = 900;
-const TARGET_LIFETIME_MS = 1400;
-const TRAP_LIFETIME_MS = 1800;
-const TRAP_CHANCE = 0.35;
-const MAX_ACTIVE_SPAWNS = 4;
+const SCORE_TO_WIN = 20;
+const PENALTY_MS = 700; // stun kalau tap salah giliran
 const ROOM_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 function makeRoomCode() {
@@ -51,24 +37,10 @@ function makeRoomCode() {
   ).join("");
 }
 
-function makeSpawn(): Spawn {
-  const isTrap = Math.random() < TRAP_CHANCE;
-  return {
-    id: crypto.randomUUID(),
-    kind: isTrap ? "trap" : "target",
-    x: 8 + Math.random() * 84,
-    y: 8 + Math.random() * 84,
-    bornAt: Date.now(),
-    lifetimeMs: isTrap ? TRAP_LIFETIME_MS : TARGET_LIFETIME_MS,
-  };
-}
-
 export default function TapRushGame() {
   const supabase = getSupabaseBrowserClient();
   const [playerId, setPlayerId] = useState("");
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const spawnTimerRef = useRef<number | null>(null);
-  const cleanupTimerRef = useRef<number | null>(null);
 
   const [playerName, setPlayerName] = useState("");
   const [roomInput, setRoomInput] = useState("");
@@ -76,44 +48,47 @@ export default function TapRushGame() {
   const [isHost, setIsHost] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [players, setPlayers] = useState<RoomPlayer[]>([]);
-  const [scores, setScores] = useState<Record<string, number>>({});
-  const [eliminated, setEliminated] = useState<Record<string, boolean>>({});
-  const [spawns, setSpawns] = useState<Spawn[]>([]);
   const [isReady, setIsReady] = useState(false);
   const [phase, setPhase] = useState<GamePhase>("lobby");
-  const [roundEndsAt, setRoundEndsAt] = useState<number | null>(null);
-  const [remainingMs, setRemainingMs] = useState(ROUND_DURATION_MS);
-  const [loserId, setLoserId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
 
+  const [scores, setScores] = useState<Record<string, number>>({});
+  const [turnId, setTurnId] = useState<string | null>(null);
+  const [stunnedUntil, setStunnedUntil] = useState<number>(0);
+  const [tick, setTick] = useState(0); // untuk re-render UI stun
+  const [lastEvent, setLastEvent] = useState<{
+    id: string;
+    correct: boolean;
+    at: number;
+  } | null>(null);
+  const [winnerId, setWinnerId] = useState<string | null>(null);
+
   const scoresRef = useRef<Record<string, number>>({});
-  const eliminatedRef = useRef<Record<string, boolean>>({});
-  const spawnsRef = useRef<Spawn[]>([]);
-  const phaseRef = useRef<GamePhase>("lobby");
-  const playersRef = useRef<RoomPlayer[]>([]);
+  const turnIdRef = useRef<string | null>(null);
+  const stunnedUntilRef = useRef<number>(0);
 
   useEffect(() => {
     scoresRef.current = scores;
   }, [scores]);
   useEffect(() => {
-    eliminatedRef.current = eliminated;
-  }, [eliminated]);
+    turnIdRef.current = turnId;
+  }, [turnId]);
   useEffect(() => {
-    spawnsRef.current = spawns;
-  }, [spawns]);
+    stunnedUntilRef.current = stunnedUntil;
+  }, [stunnedUntil]);
+
+  // Force re-render untuk hitung sisa stun
   useEffect(() => {
-    phaseRef.current = phase;
-  }, [phase]);
-  useEffect(() => {
-    playersRef.current = players;
-  }, [players]);
+    const t = setInterval(() => setTick((n) => n + 1), 100);
+    return () => clearInterval(t);
+  }, []);
 
   // ---- Realtime channel ----
   useEffect(() => {
     if (!activeRoom || !supabase || !playerId) return;
 
-    const channel = supabase.channel(`tap-rush:${activeRoom}`, {
+    const channel = supabase.channel(`tap-battle:${activeRoom}`, {
       config: {
         broadcast: { self: false },
         presence: { key: playerId },
@@ -127,84 +102,74 @@ export default function TapRushGame() {
         .flat()
         .sort((left, right) => Number(right.isHost) - Number(left.isHost));
       setPlayers(connectedPlayers);
-      // Bersihkan skor/eliminasi player yang sudah tidak ada
       setScores((current) => {
         const next: Record<string, number> = {};
         for (const p of connectedPlayers) next[p.id] = current[p.id] ?? 0;
-        return next;
-      });
-      setEliminated((current) => {
-        const next: Record<string, boolean> = {};
-        for (const p of connectedPlayers) next[p.id] = current[p.id] ?? false;
         return next;
       });
     };
 
     channel.on("presence", { event: "sync" }, syncFromPresence);
     channel.on("presence", { event: "join" }, syncFromPresence);
-    // Player keluar: cukup update daftar player, TIDAK menghentikan game
     channel.on("presence", { event: "leave" }, syncFromPresence);
 
-    // RESET: semua client reset saat host mulai ronde baru
     channel.on("broadcast", { event: "game-reset" }, () => {
       setScores({});
-      setEliminated({});
-      setSpawns([]);
-      setLoserId(null);
-      setRemainingMs(ROUND_DURATION_MS);
-      setRoundEndsAt(null);
+      setTurnId(null);
+      setStunnedUntil(0);
+      setWinnerId(null);
+      setLastEvent(null);
       setPhase("lobby");
     });
 
     channel.on("broadcast", { event: "round-start" }, ({ payload }) => {
-      const data = payload as { endsAt?: unknown };
-      const endTime = Number(data.endsAt);
-      if (!Number.isFinite(endTime)) return;
+      const data = payload as { hostId?: string; guestId?: string };
+      if (!data.hostId || !data.guestId) return;
 
-      setScores({});
-      setEliminated({});
-      setSpawns([]);
-      setLoserId(null);
-      setRemainingMs(ROUND_DURATION_MS);
-      setRoundEndsAt(endTime);
+      setScores({ [data.hostId]: 0, [data.guestId]: 0 });
+      setTurnId(data.hostId);
+      setStunnedUntil(0);
+      setWinnerId(null);
+      setLastEvent(null);
       setPhase("playing");
       setError("");
     });
 
-    channel.on("broadcast", { event: "spawn" }, ({ payload }) => {
-      const data = payload as { spawn?: Spawn };
-      if (!data.spawn) return;
-      if (phaseRef.current !== "playing") return;
-      const incoming = data.spawn;
-      setSpawns((current) => {
-        if (current.some((s) => s.id === incoming.id)) return current;
-        return [...current, incoming].slice(-MAX_ACTIVE_SPAWNS * 2);
-      });
-    });
-
-    channel.on("broadcast", { event: "spawn-removed" }, ({ payload }) => {
-      const data = payload as { id?: string };
+    channel.on("broadcast", { event: "hit" }, ({ payload }) => {
+      const data = payload as {
+        id?: string;
+        newScore?: number;
+        nextTurn?: string;
+      };
       if (typeof data.id !== "string") return;
-      const removedId = data.id;
-      setSpawns((current) => current.filter((s) => s.id !== removedId));
+      if (typeof data.newScore !== "number") return;
+
+      setScores((current) => ({
+        ...current,
+        [data.id as string]: data.newScore as number,
+      }));
+      if (typeof data.nextTurn === "string") setTurnId(data.nextTurn);
+      setLastEvent({ id: data.id, correct: true, at: Date.now() });
     });
 
-    channel.on("broadcast", { event: "score" }, ({ payload }) => {
-      const data = payload as { id?: string; score?: number };
-      if (typeof data.id !== "string" || typeof data.score !== "number") return;
-      const id = data.id;
-      const score = data.score;
-      setScores((current) => ({ ...current, [id]: score }));
-    });
-
-    channel.on("broadcast", { event: "eliminated" }, ({ payload }) => {
-      const data = payload as { id?: string };
+    channel.on("broadcast", { event: "miss" }, ({ payload }) => {
+      const data = payload as { id?: string; penaltyMs?: number };
       if (typeof data.id !== "string") return;
-      const eliminatedId = data.id;
-      setEliminated((current) => ({ ...current, [eliminatedId]: true }));
-      setLoserId(eliminatedId);
-      setRoundEndsAt(null);
-      setSpawns([]);
+      const penalty = data.penaltyMs ?? PENALTY_MS;
+
+      // Hanya client yang kena penalty yang apply stun
+      if (data.id === playerId) {
+        const until = Date.now() + penalty;
+        stunnedUntilRef.current = until;
+        setStunnedUntil(until);
+      }
+      setLastEvent({ id: data.id, correct: false, at: Date.now() });
+    });
+
+    channel.on("broadcast", { event: "game-over" }, ({ payload }) => {
+      const data = payload as { winnerId?: string };
+      if (typeof data.winnerId !== "string") return;
+      setWinnerId(data.winnerId);
       setPhase("results");
     });
 
@@ -228,7 +193,6 @@ export default function TapRushGame() {
 
   useEffect(() => {
     if (!isConnected || !activeRoom) return;
-
     void channelRef.current?.track({
       id: playerId,
       name: playerName.trim() || "Pemain",
@@ -236,63 +200,6 @@ export default function TapRushGame() {
       ready: isHost || isReady,
     });
   }, [activeRoom, isConnected, isHost, isReady, playerId, playerName]);
-
-  // ---- Countdown timer ----
-  useEffect(() => {
-    if (phase !== "playing" || roundEndsAt === null) return;
-
-    const timer = setInterval(() => {
-      const next = Math.max(0, roundEndsAt - Date.now());
-      setRemainingMs(next);
-      if (next === 0) {
-        setSpawns([]);
-        setPhase("results");
-      }
-    }, 80);
-
-    return () => clearInterval(timer);
-  }, [phase, roundEndsAt]);
-
-  // ---- Spawn & cleanup spawns ----
-  useEffect(() => {
-    if (phase !== "playing") {
-      if (spawnTimerRef.current) window.clearInterval(spawnTimerRef.current);
-      if (cleanupTimerRef.current)
-        window.clearInterval(cleanupTimerRef.current);
-      spawnTimerRef.current = null;
-      cleanupTimerRef.current = null;
-      return;
-    }
-
-    if (isHost) {
-      spawnTimerRef.current = window.setInterval(() => {
-        if (phaseRef.current !== "playing") return;
-        if (spawnsRef.current.length >= MAX_ACTIVE_SPAWNS) return;
-        const spawn = makeSpawn();
-        setSpawns((current) => [...current, spawn]);
-        void channelRef.current?.send({
-          type: "broadcast",
-          event: "spawn",
-          payload: { spawn },
-        });
-      }, SPAWN_INTERVAL_MS);
-    }
-
-    cleanupTimerRef.current = window.setInterval(() => {
-      const now = Date.now();
-      setSpawns((current) =>
-        current.filter((s) => now - s.bornAt < s.lifetimeMs),
-      );
-    }, 120);
-
-    return () => {
-      if (spawnTimerRef.current) window.clearInterval(spawnTimerRef.current);
-      if (cleanupTimerRef.current)
-        window.clearInterval(cleanupTimerRef.current);
-      spawnTimerRef.current = null;
-      cleanupTimerRef.current = null;
-    };
-  }, [phase, isHost]);
 
   // ---- Handlers ----
   const enterRoom = (roomCode: string, host: boolean) => {
@@ -307,16 +214,15 @@ export default function TapRushGame() {
       setError("Isi nama pemain dulu ya.");
       return;
     }
-
     setError("");
     setPlayerId(crypto.randomUUID());
     setPlayers([]);
     setScores({});
-    setEliminated({});
-    setSpawns([]);
-    setLoserId(null);
+    setTurnId(null);
+    setStunnedUntil(0);
+    setWinnerId(null);
+    setLastEvent(null);
     setPhase("lobby");
-    setRoundEndsAt(null);
     setIsReady(host);
     setIsHost(host);
     setActiveRoom(roomCode);
@@ -342,6 +248,9 @@ export default function TapRushGame() {
       !players.every((p) => p.isHost || p.ready)
     )
       return;
+    const hostId = playerId;
+    const guest = players.find((p) => !p.isHost);
+    if (!guest) return;
 
     void channelRef.current?.send({
       type: "broadcast",
@@ -349,56 +258,67 @@ export default function TapRushGame() {
       payload: {},
     });
 
-    setScores({});
-    setEliminated({});
-    setSpawns([]);
-    setLoserId(null);
-
-    const endsAt = Date.now() + ROUND_DURATION_MS;
-    setRemainingMs(ROUND_DURATION_MS);
-    setRoundEndsAt(endsAt);
+    setScores({ [hostId]: 0, [guest.id]: 0 });
+    setTurnId(hostId);
+    setStunnedUntil(0);
+    setWinnerId(null);
+    setLastEvent(null);
     setPhase("playing");
     void channelRef.current?.send({
       type: "broadcast",
       event: "round-start",
-      payload: { endsAt },
+      payload: { hostId, guestId: guest.id },
     });
   };
 
-  const handleSpawnTap = (spawn: Spawn) => {
+  const handleTap = () => {
     if (phase !== "playing") return;
-    if (eliminatedRef.current[playerId]) return;
+    if (!turnId) return;
+
     const now = Date.now();
-    if (now - spawn.bornAt >= spawn.lifetimeMs) return;
+    if (now < stunnedUntilRef.current) return; // masih stun
 
-    setSpawns((current) => current.filter((s) => s.id !== spawn.id));
-    void channelRef.current?.send({
-      type: "broadcast",
-      event: "spawn-removed",
-      payload: { id: spawn.id },
-    });
+    const isMyTurn = turnId === playerId;
 
-    if (spawn.kind === "trap") {
-      setEliminated((current) => ({ ...current, [playerId]: true }));
-      setLoserId(playerId);
-      setRoundEndsAt(null);
-      setSpawns([]);
-      setPhase("results");
+    if (!isMyTurn) {
+      // Tap saat bukan giliran -> penalty
+      const until = now + PENALTY_MS;
+      stunnedUntilRef.current = until;
+      setStunnedUntil(until);
+      setLastEvent({ id: playerId, correct: false, at: now });
       void channelRef.current?.send({
         type: "broadcast",
-        event: "eliminated",
-        payload: { id: playerId },
+        event: "miss",
+        payload: { id: playerId, penaltyMs: PENALTY_MS },
       });
       return;
     }
 
-    const nextScore = (scoresRef.current[playerId] ?? 0) + 1;
-    setScores((current) => ({ ...current, [playerId]: nextScore }));
+    // Tap saat giliran -> +1 poin, giliran pindah ke lawan
+    const opponent = players.find((p) => p.id !== playerId);
+    if (!opponent) return;
+
+    const newScore = (scoresRef.current[playerId] ?? 0) + 1;
+    setScores((current) => ({ ...current, [playerId]: newScore }));
+    setTurnId(opponent.id);
+    setLastEvent({ id: playerId, correct: true, at: now });
+
     void channelRef.current?.send({
       type: "broadcast",
-      event: "score",
-      payload: { id: playerId, score: nextScore },
+      event: "hit",
+      payload: { id: playerId, newScore, nextTurn: opponent.id },
     });
+
+    // Cek menang
+    if (newScore >= SCORE_TO_WIN) {
+      setWinnerId(playerId);
+      setPhase("results");
+      void channelRef.current?.send({
+        type: "broadcast",
+        event: "game-over",
+        payload: { winnerId: playerId },
+      });
+    }
   };
 
   const copyRoomCode = async () => {
@@ -418,40 +338,51 @@ export default function TapRushGame() {
     setIsReady(false);
     setPlayers([]);
     setScores({});
-    setEliminated({});
-    setSpawns([]);
-    setLoserId(null);
+    setTurnId(null);
+    setStunnedUntil(0);
+    setWinnerId(null);
+    setLastEvent(null);
     setPhase("lobby");
-    setRoundEndsAt(null);
     setError("");
   };
 
+  // ---- Derived ----
   const orderedPlayers = [...players].sort(
     (left, right) => (scores[right.id] ?? 0) - (scores[left.id] ?? 0),
   );
   const guestsReady = players.filter((p) => !p.isHost).every((p) => p.ready);
-  const canStart = isHost && players.length >= 2 && guestsReady && isConnected;
-  const secondsLeft = Math.ceil(remainingMs / 1000);
+  const canStart = isHost && players.length === 2 && guestsReady && isConnected;
 
-  const survivors = orderedPlayers.filter((p) => !eliminated[p.id]);
-  const winner =
-    survivors.length > 0 && players.length >= 2 ? survivors[0] : null;
-  const isDraw = !winner && players.length >= 2 && survivors.length === 0;
+  const myName = players.find((p) => p.id === playerId)?.name ?? "Kamu";
+  const opponent = players.find((p) => p.id !== playerId);
+  const opponentName = opponent?.name ?? "Lawan";
+  const isMyTurn = turnId === playerId;
+  const remainingStunMs = Math.max(0, stunnedUntil - Date.now());
+  const isStunned = remainingStunMs > 0;
+  const myScore = scores[playerId] ?? 0;
+  const opponentScore = opponent ? (scores[opponent.id] ?? 0) : 0;
 
-  const resultTitle = (() => {
-    if (!winner) {
-      return isDraw ? "Seri! Semua gugur." : "Ronde selesai.";
-    }
-    if (winner.id === playerId) return "Kamu menang! 🏆";
-    return `${winner.name} menang!`;
-  })();
+  const winnerName = winnerId
+    ? (players.find((p) => p.id === winnerId)?.name ?? "Pemain")
+    : "";
 
-  const loserName =
-    loserId && loserId !== winner?.id
-      ? (players.find((p) => p.id === loserId)?.name ?? null)
-      : null;
+  // Warna tombol: giliranmu (hijau), giliran lawan (abu), stun (merah)
+  const buttonClass = isStunned
+    ? "is-stunned"
+    : isMyTurn
+      ? "is-my-turn"
+      : "is-waiting";
 
-  const iAmLoser = loserId === playerId;
+  const buttonLabel = isStunned
+    ? `STUN! ${(remainingStunMs / 1000).toFixed(1)}s`
+    : isMyTurn
+      ? "TAP!"
+      : "TUNGGU GILIRAN";
+
+  const recentEvent =
+    lastEvent && Date.now() - lastEvent.at < 900 ? lastEvent : null;
+  const eventIsMe = recentEvent?.id === playerId;
+  void tick; // prevent unused warning
 
   return (
     <main className="tap-rush-shell">
@@ -460,31 +391,34 @@ export default function TapRushGame() {
           <ArrowLeft size={18} aria-hidden="true" />
           <span>Semua game</span>
         </Link>
-        <span className="tap-rush-season">ONLINE PARTY / 01</span>
+        <span className="tap-rush-season">ONLINE DUEL / 01</span>
       </div>
 
       <section className="tap-rush-layout">
         <header className="tap-rush-heading">
           <div className="tap-rush-kicker">
-            <Zap size={14} /> REALTIME ROOM GAME
+            <Swords size={14} /> REALTIME TAP BATTLE
           </div>
           <h1>
-            Tap Rush<span>!</span>
+            Tap Battle<span>!</span>
           </h1>
-          <p>Tap target, hindari jebakan. Sekali kena — langsung kalah!</p>
+          <p>
+            Tap tombol saat giliranmu. Yang cepat & tidak salah tap, dia menang!
+          </p>
         </header>
 
         {!activeRoom ? (
           <section className="tap-rush-lobby">
             <div className="tap-rush-intro">
               <div className="tap-rush-orb" aria-hidden="true">
-                <Rocket size={30} />
+                <Swords size={30} />
               </div>
               <div>
-                <h2>Bikin room, ajak teman</h2>
+                <h2>Bikin room, tantang satu teman</h2>
                 <p>
-                  Target muncul acak — tap dapat poin. Tapi ada jebakan yang
-                  bikin langsung gugur dan mengakhiri ronde!
+                  Tombol besar di tengah — gantian giliran tap. Siapa duluan
+                  sampai {SCORE_TO_WIN} poin menang. Tap saat bukan giliranmu =
+                  stun!
                 </p>
               </div>
             </div>
@@ -583,27 +517,23 @@ export default function TapRushGame() {
                   <h2>
                     <UsersRound size={20} /> Pemain di room
                   </h2>
-                  <span>{players.length} / 8</span>
+                  <span>{players.length} / 2</span>
                 </div>
                 <div className="tap-rush-player-list">
                   {players.length === 0 ? (
                     <div className="tap-rush-empty">Menyambungkan pemain…</div>
                   ) : (
-                    players.map((player, index) => (
-                      <div className="tap-rush-player" key={player.id}>
-                        <span className="tap-rush-player-number">
-                          0{index + 1}
-                        </span>
+                    players.map((p, i) => (
+                      <div className="tap-rush-player" key={p.id}>
+                        <span className="tap-rush-player-number">0{i + 1}</span>
                         <span className="tap-rush-player-name">
-                          {player.name}
-                          {player.id === playerId ? " (kamu)" : ""}
+                          {p.name}
+                          {p.id === playerId ? " (kamu)" : ""}
                         </span>
-                        {player.isHost ? (
+                        {p.isHost ? (
                           <span className="tap-rush-host">HOST</span>
-                        ) : player.ready ? (
-                          <span className="tap-rush-ready">
-                            <Check size={14} /> SIAP
-                          </span>
+                        ) : p.ready ? (
+                          <span className="tap-rush-ready">SIAP</span>
                         ) : (
                           <span className="tap-rush-waiting">MENUNGGU</span>
                         )}
@@ -621,10 +551,10 @@ export default function TapRushGame() {
                     >
                       <Rocket size={17} />{" "}
                       {players.length < 2
-                        ? "Menunggu teman"
+                        ? "Menunggu lawan"
                         : guestsReady
-                          ? "Mulai ronde"
-                          : "Menunggu semua siap"}
+                          ? "Mulai duel"
+                          : "Menunggu siap"}
                     </button>
                   ) : (
                     <button
@@ -633,7 +563,6 @@ export default function TapRushGame() {
                       disabled={!isConnected}
                       onClick={() => setIsReady((ready) => !ready)}
                     >
-                      <Check size={17} />{" "}
                       {isReady ? "Siap! (ubah)" : "Saya siap"}
                     </button>
                   )}
@@ -649,86 +578,77 @@ export default function TapRushGame() {
             )}
 
             {phase === "playing" && (
-              <div className="tap-rush-arena">
-                <div className="tap-rush-arena-header">
-                  <div className="tap-rush-timer" aria-live="polite">
-                    <span>WAKTU</span>
-                    <strong className={secondsLeft <= 5 ? "is-urgent" : ""}>
-                      {String(secondsLeft).padStart(2, "0")}
-                    </strong>
+              <div className="tap-battle-arena">
+                <div className="tap-battle-scoreline">
+                  <div className="tap-battle-score is-me">
+                    <span>KAMU</span>
+                    <strong>{myScore}</strong>
+                    {isMyTurn && !isStunned && (
+                      <span className="tap-battle-turn-badge">GILIRANMU</span>
+                    )}
                   </div>
-                  <div className="tap-rush-my-score">
-                    <strong>{scores[playerId] ?? 0}</strong>
-                    <span>poin kamu</span>
+                  <span className="tap-battle-vs">VS</span>
+                  <div className="tap-battle-score is-them">
+                    <span>{opponentName.toUpperCase()}</span>
+                    <strong>{opponentScore}</strong>
+                    {!isMyTurn && (
+                      <span className="tap-battle-turn-badge is-them">
+                        GILIRANNYA
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                <p className="tap-rush-arena-prompt">
-                  TAP TARGET, HINDARI JEBAKAN
+                <p className="tap-battle-target">Target: {SCORE_TO_WIN} poin</p>
+
+                <button
+                  type="button"
+                  className={`tap-battle-button ${buttonClass}`}
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    handleTap();
+                  }}
+                  disabled={isStunned}
+                >
+                  {buttonLabel}
+                </button>
+
+                <p className="tap-battle-hint">
+                  {isMyTurn && !isStunned
+                    ? "Tap sekarang, jangan sampai salah giliran!"
+                    : isStunned
+                      ? "Kamu kena stun karena tap saat bukan giliran."
+                      : "Tunggu giliranmu — jangan tap dulu."}
                 </p>
 
-                <div className="tap-rush-playfield">
-                  {spawns.map((spawn) => {
-                    const age = Date.now() - spawn.bornAt;
-                    if (age >= spawn.lifetimeMs) return null;
-                    const lifeRatio = 1 - age / spawn.lifetimeMs;
-                    const isTarget = spawn.kind === "target";
-                    return (
-                      <button
-                        key={spawn.id}
-                        type="button"
-                        className={`tap-rush-spawn ${isTarget ? "is-target" : "is-trap"}`}
-                        style={{
-                          left: `${spawn.x}%`,
-                          top: `${spawn.y}%`,
-                          opacity: 0.4 + lifeRatio * 0.6,
-                          transform: `translate(-50%, -50%) scale(${0.85 + lifeRatio * 0.15})`,
-                        }}
-                        onPointerDown={(e) => {
-                          e.preventDefault();
-                          handleSpawnTap(spawn);
-                        }}
-                        aria-label={isTarget ? "Target" : "Jebakan"}
-                      >
-                        {isTarget ? (
-                          <Zap size={22} fill="currentColor" />
-                        ) : (
-                          <X size={22} />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="tap-rush-alive-list">
-                  {players.map((p) => (
-                    <span key={p.id} className="tap-rush-alive-chip">
-                      {p.name}
-                      {p.id === playerId ? " (kamu)" : ""} · {scores[p.id] ?? 0}{" "}
-                      poin
-                    </span>
-                  ))}
-                </div>
+                {recentEvent && (
+                  <p
+                    className={`tap-battle-event ${recentEvent.correct ? "is-hit" : "is-miss"}`}
+                  >
+                    {eventIsMe
+                      ? recentEvent.correct
+                        ? "+1 poin! 🎯"
+                        : "❌ Tap saat bukan giliran — stun!"
+                      : recentEvent.correct
+                        ? "Lawan dapat poin!"
+                        : "Lawan salah tap, kena stun!"}
+                  </p>
+                )}
               </div>
             )}
 
             {phase === "results" && (
               <div className="tap-rush-results">
                 <div className="tap-rush-finish-mark">FINISH</div>
-                <h2>{resultTitle}</h2>
-                {loserName && (
-                  <p className="tap-rush-arena-prompt">
-                    {iAmLoser
-                      ? "Kamu kena jebakan!"
-                      : `${loserName} kena jebakan!`}
-                  </p>
-                )}
+                <h2>
+                  {winnerId === playerId
+                    ? "Kamu menang! 🏆"
+                    : `${winnerName} menang!`}
+                </h2>
                 <ol className="tap-rush-scoreboard">
                   {orderedPlayers.map((player, index) => (
                     <li
-                      className={
-                        winner && player.id === winner.id ? "is-winner" : ""
-                      }
+                      className={index === 0 ? "is-winner" : ""}
                       key={player.id}
                     >
                       <span className="tap-rush-rank">
@@ -737,7 +657,6 @@ export default function TapRushGame() {
                       <span className="tap-rush-player-name">
                         {player.name}
                         {player.id === playerId ? " (kamu)" : ""}
-                        {eliminated[player.id] ? " · GUGUR" : ""}
                       </span>
                       <strong>{scores[player.id] ?? 0}</strong>
                     </li>
@@ -778,88 +697,168 @@ export default function TapRushGame() {
         )}
 
         <footer className="tap-rush-footnote">
-          <span>NO DOWNLOAD</span>
-          <span>ROOM CODE PARTY</span>
+          <span>TAP 1V1</span>
+          <span>{SCORE_TO_WIN} POIN</span>
           <span>SUDDEN DEATH</span>
         </footer>
       </section>
 
       <style jsx>{`
-        .tap-rush-arena-header {
+        .tap-battle-arena {
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+          align-items: center;
+        }
+        .tap-battle-scoreline {
           display: flex;
           justify-content: space-between;
           align-items: center;
           gap: 12px;
+          width: 100%;
+          padding: 12px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 14px;
         }
-        .tap-rush-my-score {
+        .tap-battle-score {
           display: flex;
           flex-direction: column;
-          align-items: flex-end;
+          align-items: center;
           gap: 2px;
+          flex: 1;
+          font-size: 11px;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          opacity: 0.9;
         }
-        .tap-rush-playfield {
-          position: relative;
+        .tap-battle-score strong {
+          font-size: 28px;
+          color: #fbbf24;
+          line-height: 1;
+        }
+        .tap-battle-score.is-them strong {
+          color: #f97316;
+        }
+        .tap-battle-vs {
+          font-size: 12px;
+          opacity: 0.4;
+          letter-spacing: 0.15em;
+        }
+        .tap-battle-turn-badge {
+          margin-top: 4px;
+          padding: 2px 8px;
+          font-size: 10px;
+          letter-spacing: 0.1em;
+          border-radius: 999px;
+          background: rgba(34, 197, 94, 0.2);
+          color: #86efac;
+          border: 1px solid rgba(34, 197, 94, 0.5);
+          animation: pulse 1.2s ease-in-out infinite;
+        }
+        .tap-battle-turn-badge.is-them {
+          background: rgba(249, 115, 22, 0.2);
+          color: #fdba74;
+          border-color: rgba(249, 115, 22, 0.5);
+        }
+        @keyframes pulse {
+          50% {
+            opacity: 0.5;
+          }
+        }
+        .tap-battle-target {
+          font-size: 12px;
+          opacity: 0.55;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+        .tap-battle-button {
           width: 100%;
           aspect-ratio: 1 / 1;
-          border-radius: 16px;
-          background:
-            radial-gradient(
-              circle at 50% 50%,
-              rgba(251, 191, 36, 0.08),
-              transparent 70%
-            ),
-            #050912;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          overflow: hidden;
-          touch-action: none;
-          user-select: none;
-          -webkit-user-select: none;
-        }
-        .tap-rush-spawn {
-          position: absolute;
-          width: 56px;
-          height: 56px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border: 2px solid;
+          max-width: 360px;
+          border-radius: 24px;
+          border: 3px solid;
+          font-size: 28px;
+          font-weight: 800;
+          letter-spacing: 0.15em;
           cursor: pointer;
-          transition:
-            transform 80ms ease-out,
-            opacity 80ms linear;
           -webkit-tap-highlight-color: transparent;
           touch-action: manipulation;
+          transition:
+            transform 80ms ease-out,
+            background 120ms ease,
+            border-color 120ms ease;
           padding: 0;
         }
-        .tap-rush-spawn.is-target {
-          background: rgba(251, 191, 36, 0.18);
-          border-color: #fbbf24;
-          color: #fbbf24;
-          box-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
+        .tap-battle-button.is-my-turn {
+          background:
+            radial-gradient(
+              circle at 50% 30%,
+              rgba(34, 197, 94, 0.4),
+              rgba(34, 197, 94, 0.15)
+            ),
+            #061a0c;
+          border-color: #22c55e;
+          color: #86efac;
+          box-shadow: 0 0 40px rgba(34, 197, 94, 0.5);
+          animation: pulseGreen 1s ease-in-out infinite;
         }
-        .tap-rush-spawn.is-trap {
-          background: rgba(239, 68, 68, 0.22);
+        @keyframes pulseGreen {
+          50% {
+            box-shadow: 0 0 60px rgba(34, 197, 94, 0.8);
+          }
+        }
+        .tap-battle-button.is-my-turn:active {
+          transform: scale(0.96);
+        }
+        .tap-battle-button.is-waiting {
+          background: rgba(255, 255, 255, 0.03);
+          border-color: rgba(255, 255, 255, 0.15);
+          color: rgba(255, 255, 255, 0.4);
+          cursor: default;
+        }
+        .tap-battle-button.is-stunned {
+          background: rgba(239, 68, 68, 0.15);
           border-color: #ef4444;
-          color: #ef4444;
-          box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+          color: #fca5a5;
+          cursor: not-allowed;
+          animation: shake 0.3s;
         }
-        .tap-rush-spawn:active {
-          transform: translate(-50%, -50%) scale(0.9) !important;
+        @keyframes shake {
+          25% {
+            transform: translateX(-4px);
+          }
+          75% {
+            transform: translateX(4px);
+          }
         }
-        .tap-rush-alive-list {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 6px;
-        }
-        .tap-rush-alive-chip {
-          padding: 4px 10px;
-          font-size: 11px;
+        .tap-battle-hint {
+          font-size: 12px;
+          opacity: 0.65;
           letter-spacing: 0.06em;
-          border-radius: 999px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.08);
+          text-align: center;
+        }
+        .tap-battle-event {
+          font-size: 14px;
+          letter-spacing: 0.08em;
           text-transform: uppercase;
+          animation: slideIn 0.2s ease-out;
+        }
+        .tap-battle-event.is-hit {
+          color: #86efac;
+        }
+        .tap-battle-event.is-miss {
+          color: #fca5a5;
+        }
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateY(-4px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
       `}</style>
     </main>
