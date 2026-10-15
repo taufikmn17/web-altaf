@@ -3,6 +3,7 @@ import {
   Globe2,
   Grid3x3,
   Radio,
+  Shield,
   Swords,
   UsersRound,
   Zap,
@@ -15,7 +16,7 @@ import Footer from "../components/Footer";
 export const metadata: Metadata = {
   title: "Game Arcade - Altaf Story",
   description:
-    "Mainkan Tap Rush, Snake Duel, Tebak Negara, dan Sudoku Duel online bareng teman — arena game real-time dari Altaf Story.",
+    "Mainkan Tap Rush, Snake Duel, Tebak Negara, Sudoku Duel, dan Tebak Lambang Daerah online bareng teman — arena game real-time dari Altaf Story.",
   keywords: [
     "game multiplayer online",
     "game party online",
@@ -26,10 +27,14 @@ export const metadata: Metadata = {
     "sudoku online",
     "sudoku multiplayer",
     "game sudoku realtime",
+    "tebak lambang provinsi",
+    "kuis lambang daerah",
+    "game provinsi indonesia",
     "Tap Rush",
     "Snake Duel",
     "Flag Quiz",
     "Sudoku Duel",
+    "Tebak Lambang Daerah",
     "Altaf Story games",
   ],
   alternates: {
@@ -38,7 +43,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Game Arcade - Altaf Story",
     description:
-      "Tap Rush, Snake Duel, Tebak Negara & Sudoku Duel — main bareng teman secara real-time.",
+      "Tap Rush, Snake Duel, Tebak Negara, Sudoku Duel & Tebak Lambang Daerah — main bareng teman secara real-time.",
     url: "/game",
     siteName: "Altaf Story",
     locale: "id_ID",
@@ -56,7 +61,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Game Arcade - Altaf Story",
     description:
-      "Tap Rush, Snake Duel, Tebak Negara & Sudoku Duel — main bareng teman secara real-time.",
+      "Tap Rush, Snake Duel, Tebak Negara, Sudoku Duel & Tebak Lambang Daerah — main bareng teman secara real-time.",
     images: ["/assets/img/hero.jpeg"],
   },
 };
@@ -68,7 +73,7 @@ export default function DaftarGamePage() {
 
       <main className="game-hub-main">
         <div className="game-hub-overline">
-          <span /> ALTAF ARCADE <span>04 / ONLINE</span>
+          <span /> ALTAF ARCADE <span>05 / ONLINE</span>
         </div>
         <header className="game-hub-heading">
           <p>PLAY TOGETHER</p>
@@ -186,7 +191,6 @@ export default function DaftarGamePage() {
             </div>
           </section>
 
-          {/* ---- KARTU BARU: SUDOKU DUEL ---- */}
           <section className="game-feature">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
@@ -221,10 +225,48 @@ export default function DaftarGamePage() {
               </Link>
             </div>
           </section>
+
+          {/* ---- KARTU BARU: TEBAK LAMBANG DAERAH ---- */}
+          <section className="game-feature">
+            <div className="game-feature-art" aria-hidden="true">
+              <div className="game-feature-scanlines" />
+              <div className="game-feature-target">
+                <Shield size={88} strokeWidth={1.5} />
+              </div>
+              <span className="game-feature-number">38</span>
+              <span className="game-feature-art-label">
+                PROVINSI / 20 DETIK
+              </span>
+              <span className="game-feature-live">
+                <i /> LIVE ROOM
+              </span>
+            </div>
+            <div className="game-feature-copy">
+              <div className="game-feature-kicker">
+                <Radio size={14} /> PARTY GAME / 005
+              </div>
+              <h2>Tebak Lambang Daerah</h2>
+              <p className="game-feature-description">
+                Lambang provinsi Indonesia muncul — tebak namanya paling cepat.
+                Adu pengetahuan daerah!
+              </p>
+              <div className="game-feature-facts">
+                <span>
+                  <UsersRound size={16} /> 2—8 pemain
+                </span>
+                <span>
+                  <Shield size={16} /> Kuis real-time
+                </span>
+              </div>
+              <Link href="/game/province-quiz" className="game-feature-cta">
+                Mulai kuis <ArrowUpRight size={18} />
+              </Link>
+            </div>
+          </section>
         </div>
 
         <div className="game-hub-footerline">
-          <span>04 GAME DI ARENA</span>
+          <span>05 GAME DI ARENA</span>
           <span>SEMUA ONLINE</span>
         </div>
       </main>
