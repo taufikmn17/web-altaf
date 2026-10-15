@@ -1,7 +1,7 @@
 import {
   ArrowUpRight,
   Globe2,
-  HelpCircle,
+  Grid3x3,
   Radio,
   Swords,
   UsersRound,
@@ -15,7 +15,7 @@ import Footer from "../components/Footer";
 export const metadata: Metadata = {
   title: "Game Arcade - Altaf Story",
   description:
-    "Mainkan Tap Rush, Snake Duel, Tebak Negara, dan Teka-Teki Duel online bareng teman — arena game real-time dari Altaf Story.",
+    "Mainkan Tap Rush, Snake Duel, Tebak Negara, dan Sudoku Duel online bareng teman — arena game real-time dari Altaf Story.",
   keywords: [
     "game multiplayer online",
     "game party online",
@@ -23,12 +23,13 @@ export const metadata: Metadata = {
     "snake multiplayer",
     "kuis tebak negara",
     "tebak bendera",
-    "game teka-teki online",
-    "riddle game multiplayer",
+    "sudoku online",
+    "sudoku multiplayer",
+    "game sudoku realtime",
     "Tap Rush",
     "Snake Duel",
     "Flag Quiz",
-    "Teka-Teki Duel",
+    "Sudoku Duel",
     "Altaf Story games",
   ],
   alternates: {
@@ -37,7 +38,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Game Arcade - Altaf Story",
     description:
-      "Tap Rush, Snake Duel, Tebak Negara & Teka-Teki Duel — main bareng teman secara real-time.",
+      "Tap Rush, Snake Duel, Tebak Negara & Sudoku Duel — main bareng teman secara real-time.",
     url: "/game",
     siteName: "Altaf Story",
     locale: "id_ID",
@@ -55,7 +56,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Game Arcade - Altaf Story",
     description:
-      "Tap Rush, Snake Duel, Tebak Negara & Teka-Teki Duel — main bareng teman secara real-time.",
+      "Tap Rush, Snake Duel, Tebak Negara & Sudoku Duel — main bareng teman secara real-time.",
     images: ["/assets/img/hero.jpeg"],
   },
 };
@@ -185,15 +186,15 @@ export default function DaftarGamePage() {
             </div>
           </section>
 
-          {/* ---- KARTU BARU: TEKA-TEKI DUEL ---- */}
+          {/* ---- KARTU BARU: SUDOKU DUEL ---- */}
           <section className="game-feature">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
               <div className="game-feature-target">
-                <HelpCircle size={88} strokeWidth={1.5} />
+                <Grid3x3 size={88} strokeWidth={1.5} />
               </div>
-              <span className="game-feature-number">5</span>
-              <span className="game-feature-art-label">RIDDLES / 25 DETIK</span>
+              <span className="game-feature-number">9×9</span>
+              <span className="game-feature-art-label">SUDOKU / PUZZLE</span>
               <span className="game-feature-live">
                 <i /> LIVE ROOM
               </span>
@@ -202,21 +203,21 @@ export default function DaftarGamePage() {
               <div className="game-feature-kicker">
                 <Radio size={14} /> PARTY GAME / 004
               </div>
-              <h2>Teka-Teki Duel</h2>
+              <h2>Sudoku Duel</h2>
               <p className="game-feature-description">
-                Teka-teki muncul acak. Ketik jawabanmu paling cepat — yang benar
-                duluan skornya nambah. Adu otak & refleks!
+                Puzzle sama, siapa cepat & benar mengisi, dia menang. Adu logika
+                & ketenangan bareng teman.
               </p>
               <div className="game-feature-facts">
                 <span>
                   <UsersRound size={16} /> 2—8 pemain
                 </span>
                 <span>
-                  <HelpCircle size={16} /> Kuis real-time
+                  <Grid3x3 size={16} /> Real-time
                 </span>
               </div>
-              <Link href="/game/riddle-duel" className="game-feature-cta">
-                Adu teka-teki <ArrowUpRight size={18} />
+              <Link href="/game/sudoku-duel" className="game-feature-cta">
+                Main sudoku <ArrowUpRight size={18} />
               </Link>
             </div>
           </section>
