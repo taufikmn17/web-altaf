@@ -79,7 +79,6 @@ export default function TriviaBlitz() {
   const [remainingMs, setRemainingMs] = useState(ANSWER_WINDOW_MS);
   const [questionBank, setQuestionBank] = useState<TriviaQuestion[]>([]);
   const [loading, setLoading] = useState(false);
-  const [notices, setNotices] = useState<string[]>([]);
 
   const scoresRef = useRef<Record<string, number>>({});
   const roundRef = useRef(0);
@@ -94,13 +93,6 @@ export default function TriviaBlitz() {
   useEffect(() => {
     bankRef.current = questionBank;
   }, [questionBank]);
-
-  const pushNotice = (message: string) => {
-    setNotices((current) => [...current, message].slice(-4));
-    window.setTimeout(() => {
-      setNotices((current) => current.slice(1));
-    }, 3200);
-  };
 
   // ---- Realtime channel ----
   useEffect(() => {
@@ -146,7 +138,6 @@ export default function TriviaBlitz() {
       setRevealAt(null);
       setRound(0);
       setRoundData(null);
-      setNotices([]);
     });
 
     channel.on("broadcast", { event: "question-bank" }, ({ payload }) => {
@@ -166,7 +157,6 @@ export default function TriviaBlitz() {
       setAnsweredIds({});
       setRevealAt(null);
       setRemainingMs(ANSWER_WINDOW_MS);
-      setNotices([]);
       setPhase("playing");
       setError("");
     });
@@ -181,18 +171,10 @@ export default function TriviaBlitz() {
       if (typeof data.id !== "string") return;
       const id = data.id;
       const answer = data.answer ?? "";
-      const name = data.name ?? "Pemain";
 
       setAnsweredIds((current) => ({ ...current, [id]: answer }));
       if (data.correct) {
         setScores((current) => ({ ...current, [id]: (current[id] ?? 0) + 1 }));
-        if (id !== playerId) {
-          pushNotice(`${name} menjawab dengan benar!`);
-        }
-      } else {
-        if (id !== playerId) {
-          pushNotice(`${name} salah menebak!`);
-        }
       }
     });
 
@@ -311,7 +293,6 @@ export default function TriviaBlitz() {
     setAnsweredIds({});
     setRevealAt(null);
     setRemainingMs(ANSWER_WINDOW_MS);
-    setNotices([]);
     setPhase("playing");
 
     void channelRef.current?.send({
@@ -394,7 +375,6 @@ export default function TriviaBlitz() {
       setAnsweredIds({});
       setRevealAt(null);
       setQuestionBank([]);
-      setNotices([]);
       setIsReady(host);
       setIsHost(host);
       setActiveRoom(roomCode);
@@ -437,7 +417,6 @@ export default function TriviaBlitz() {
     setAnsweredIds({});
     setMyAnswer(null);
     setRevealAt(null);
-    setNotices([]);
 
     const questions = await fetchQuestions();
     if (questions.length === 0) return;
@@ -506,7 +485,6 @@ export default function TriviaBlitz() {
     setAnsweredIds({});
     setRevealAt(null);
     setQuestionBank([]);
-    setNotices([]);
     setError("");
   };
 
@@ -794,16 +772,6 @@ export default function TriviaBlitz() {
                     </li>
                   ))}
                 </ol>
-
-                {notices.length > 0 && (
-                  <div className="trivia-notices" role="status">
-                    {notices.map((notice, i) => (
-                      <div className="trivia-notice" key={i}>
-                        {notice}
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             )}
 
@@ -989,30 +957,6 @@ export default function TriviaBlitz() {
         .trivia-reveal strong {
           font-size: 20px;
           color: #86efac;
-        }
-
-        .trivia-notices {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-        .trivia-notice {
-          padding: 10px 14px;
-          background: rgba(251, 191, 36, 0.08);
-          border-left: 3px solid #fbbf24;
-          border-radius: 8px;
-          font-size: 13px;
-          animation: slideIn 0.25s ease-out;
-        }
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateY(-6px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
         }
       `}</style>
     </main>

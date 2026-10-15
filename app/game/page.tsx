@@ -1,5 +1,6 @@
 import {
   ArrowUpRight,
+  Flag,
   Globe2,
   Grid3x3,
   HelpCircle,
@@ -16,7 +17,7 @@ import Footer from "../components/Footer";
 export const metadata: Metadata = {
   title: "Game Arcade - Altaf Story",
   description:
-    "Mainkan Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, dan Trivia Blitz online bareng teman — arena game real-time dari Altaf Story.",
+    "Mainkan Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz, dan Trivia Indonesia online bareng teman — arena game real-time dari Altaf Story.",
   keywords: [
     "game multiplayer online",
     "game party online",
@@ -35,11 +36,17 @@ export const metadata: Metadata = {
     "kuis trivia online",
     "trivia multiplayer",
     "game kuis realtime",
+    "kuis indonesia",
+    "trivia indonesia",
+    "kuis pengetahuan umum",
+    "kuis sejarah indonesia",
+    "kuis budaya indonesia",
     "Two Sides",
     "Snake Duel",
     "Flag Quiz",
     "Sudoku Duel",
     "Trivia Blitz",
+    "Trivia Indonesia",
     "Altaf Story games",
   ],
   alternates: {
@@ -48,7 +55,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Game Arcade - Altaf Story",
     description:
-      "Two Sides, Snake Duel, Tebak Negara, Sudoku Duel & Trivia Blitz — main bareng teman secara real-time.",
+      "Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz & Trivia Indonesia — main bareng teman secara real-time.",
     url: "/game",
     siteName: "Altaf Story",
     locale: "id_ID",
@@ -66,7 +73,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Game Arcade - Altaf Story",
     description:
-      "Two Sides, Snake Duel, Tebak Negara, Sudoku Duel & Trivia Blitz — main bareng teman secara real-time.",
+      "Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz & Trivia Indonesia — main bareng teman secara real-time.",
     images: ["/assets/img/hero.jpeg"],
   },
 };
@@ -78,7 +85,7 @@ export default function DaftarGamePage() {
 
       <main className="game-hub-main">
         <div className="game-hub-overline">
-          <span /> ALTAF ARCADE <span>05 / ONLINE</span>
+          <span /> ALTAF ARCADE <span>06 / ONLINE</span>
         </div>
         <header className="game-hub-heading">
           <p>PLAY TOGETHER</p>
@@ -265,10 +272,46 @@ export default function DaftarGamePage() {
               </Link>
             </div>
           </section>
+
+          {/* ---- KARTU BARU: TRIVIA INDONESIA ---- */}
+          <section className="game-feature">
+            <div className="game-feature-art" aria-hidden="true">
+              <div className="game-feature-scanlines" />
+              <div className="game-feature-target">
+                <Flag size={88} strokeWidth={1.5} />
+              </div>
+              <span className="game-feature-number">7</span>
+              <span className="game-feature-art-label">SOAL / 15 DETIK</span>
+              <span className="game-feature-live">
+                <i /> LIVE ROOM
+              </span>
+            </div>
+            <div className="game-feature-copy">
+              <div className="game-feature-kicker">
+                <Radio size={14} /> PARTY GAME / 006
+              </div>
+              <h2>Trivia Indonesia</h2>
+              <p className="game-feature-description">
+                Uji wawasan tentang Indonesia — sejarah, budaya, geografi,
+                bahasa, dan olahraga. Adu cepat & tepat bareng teman!
+              </p>
+              <div className="game-feature-facts">
+                <span>
+                  <UsersRound size={16} /> 2—4 pemain
+                </span>
+                <span>
+                  <Flag size={16} /> 100 soal lokal
+                </span>
+              </div>
+              <Link href="/game/trivia-indonesia" className="game-feature-cta">
+                Main trivia <ArrowUpRight size={18} />
+              </Link>
+            </div>
+          </section>
         </div>
 
         <div className="game-hub-footerline">
-          <span>05 GAME DI ARENA</span>
+          <span>06 GAME DI ARENA</span>
           <span>SEMUA ONLINE</span>
         </div>
       </main>
