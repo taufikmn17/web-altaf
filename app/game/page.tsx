@@ -446,7 +446,7 @@ export default function DaftarGamePage() {
             </div>
           </section>
 
-          {/* ---- 010: FREE TO GAME ---- */}
+          {/* ---- 010: FREE TO GAME (POSISI WAJIB PALING BAWAH)---- */}
           <section className="game-feature is-external">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />

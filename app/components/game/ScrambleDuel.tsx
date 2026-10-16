@@ -5,16 +5,14 @@ import {
   Check,
   Copy,
   DoorOpen,
-  Lightbulb,
+  Puzzle,
   Radio,
   Rocket,
   Send,
-  Shuffle,
   UsersRound,
-  X,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getSupabaseBrowserClient } from "@/app/lib/supabase-browser";
 
@@ -26,13 +24,23 @@ type RoomPlayer = {
 };
 
 type GamePhase = "lobby" | "playing" | "results";
+type RoundRole = "setter" | "guesser";
 
-type RoundPhase = "input" | "guess" | "reveal";
+type RoundState = {
+  round: number;
+  setterId: string;
+  guesserId: string;
+  scrambled: string;
+  answerLength: number;
+  endsAt: number;
+  startedAt: number;
+};
 
-const TOTAL_ROUNDS = 5;
-const GUESS_TIME_MS = 30_000;
-const REVEAL_DURATION_MS = 4000;
 const ROOM_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const TOTAL_ROUNDS = 5;
+const ROUND_TIME_MS = 45_000;
+const MIN_WORD_LEN = 3;
+const MAX_WORD_LEN = 16;
 
 function makeRoomCode() {
   const values = new Uint32Array(6);
@@ -44,39 +52,22 @@ function makeRoomCode() {
 }
 
 function scrambleWord(word: string): string {
-  const letters = word.toUpperCase().split("");
-  // Fisher-Yates shuffle sampai beda dengan aslinya
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    for (let i = letters.length - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [letters[i], letters[j]] = [letters[j], letters[i]];
-    }
-    const result = letters.join("");
-    if (result !== word.toUpperCase()) return result;
+  const chars = word.split("");
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [chars[i], chars[j]] = [chars[j], chars[i]];
   }
-  return letters.join("");
-}
-
-function normalizeGuess(value: string): string {
-  return value.toUpperCase().replace(/[^A-Z]/g, "");
-}
-
-function validateInputWord(value: string): string | null {
-  const trimmed = value.trim();
-  if (!trimmed) return "Isi kata dulu";
-  if (/\s/.test(trimmed)) return "Tidak boleh pakai spasi";
-  if (!/^[a-zA-Z]+$/.test(trimmed)) return "Hanya huruf A-Z";
-  if (trimmed.length < 3) return "Minimal 3 huruf";
-  if (trimmed.length > 15) return "Maksimal 15 huruf";
-  return null;
+  const result = chars.join("");
+  if (result === word && word.length > 1) {
+    return scrambleWord(word);
+  }
+  return result;
 }
 
 export default function ScrambleDuel() {
   const supabase = getSupabaseBrowserClient();
   const [playerId, setPlayerId] = useState("");
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const timerRef = useRef<number | null>(null);
-  const revealTimerRef = useRef<number | null>(null);
 
   const [playerName, setPlayerName] = useState("");
   const [roomInput, setRoomInput] = useState("");
@@ -91,39 +82,77 @@ export default function ScrambleDuel() {
   const [joiningRoom, setJoiningRoom] = useState(false);
 
   const [round, setRound] = useState(0);
-  const [roundPhase, setRoundPhase] = useState<RoundPhase>("input");
-  const [inputWord, setInputWord] = useState("");
-  const [scrambledWord, setScrambledWord] = useState("");
-  const [originalWord, setOriginalWord] = useState("");
-  const [guesserInput, setGuesserInput] = useState("");
-  const [scores, setScores] = useState<Record<string, number>>({});
-  const [inputPlayerId, setInputPlayerId] = useState<string | null>(null);
-  const [remainingMs, setRemainingMs] = useState(GUESS_TIME_MS);
-  const [lastResult, setLastResult] = useState<{
-    guess: string;
-    correct: boolean;
-    answer: string;
+  const [roundState, setRoundState] = useState<RoundState | null>(null);
+  const [myScore, setMyScore] = useState(0);
+  const [peerScore, setPeerScore] = useState(0);
+  const [remainingMs, setRemainingMs] = useState(ROUND_TIME_MS);
+
+  const [wordInput, setWordInput] = useState("");
+  const [guessInput, setGuessInput] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState<{
+    type: "correct" | "wrong";
+    text: string;
   } | null>(null);
+  const [awaitingResult, setAwaitingResult] = useState(false);
+  const [roundLocked, setRoundLocked] = useState(false);
+
   const [winnerId, setWinnerId] = useState<string | null>(null);
   const [winnerName, setWinnerName] = useState("");
 
-  const scoresRef = useRef<Record<string, number>>({});
-  const inputPlayerIdRef = useRef<string | null>(null);
-  const phaseRef = useRef<GamePhase>("lobby");
-  const roundRef = useRef(0);
+  // Refs agar nilai terbaru selalu tersedia di dalam event handler Supabase
+  const isHostRef = useRef(false);
+  const playerIdRef = useRef("");
+  const playersRef = useRef<RoomPlayer[]>([]);
+  const roundStateRef = useRef<RoundState | null>(null);
+  const myScoreRef = useRef(0);
+  const peerScoreRef = useRef(0);
+  const answerRef = useRef("");
+  const roundLockedRef = useRef(false);
+  const myNameRef = useRef("Pemain");
 
   useEffect(() => {
-    scoresRef.current = scores;
-  }, [scores]);
+    isHostRef.current = isHost;
+  }, [isHost]);
   useEffect(() => {
-    inputPlayerIdRef.current = inputPlayerId;
-  }, [inputPlayerId]);
+    playerIdRef.current = playerId;
+  }, [playerId]);
   useEffect(() => {
-    phaseRef.current = phase;
-  }, [phase]);
+    playersRef.current = players;
+  }, [players]);
   useEffect(() => {
-    roundRef.current = round;
-  }, [round]);
+    roundStateRef.current = roundState;
+  }, [roundState]);
+  useEffect(() => {
+    myScoreRef.current = myScore;
+  }, [myScore]);
+  useEffect(() => {
+    peerScoreRef.current = peerScore;
+  }, [peerScore]);
+  useEffect(() => {
+    roundLockedRef.current = roundLocked;
+  }, [roundLocked]);
+
+  const myRole: RoundRole | null = useMemo(() => {
+    if (!roundState || !playerId) return null;
+    if (roundState.setterId === playerId) return "setter";
+    if (roundState.guesserId === playerId) return "guesser";
+    return null;
+  }, [roundState, playerId]);
+
+  const peer = useMemo(
+    () => players.find((p) => p.id !== playerId) ?? null,
+    [players, playerId],
+  );
+
+  const myName = useMemo(
+    () => players.find((p) => p.id === playerId)?.name ?? "Pemain",
+    [players, playerId],
+  );
+
+  useEffect(() => {
+    myNameRef.current = myName;
+  }, [myName]);
 
   // ---- Realtime channel ----
   useEffect(() => {
@@ -150,81 +179,133 @@ export default function ScrambleDuel() {
     channel.on("presence", { event: "join" }, syncFromPresence);
     channel.on("presence", { event: "leave" }, syncFromPresence);
 
-    // Round start
+    channel.on("broadcast", { event: "game-reset" }, () => {
+      setRound(0);
+      setRoundState(null);
+      setMyScore(0);
+      setPeerScore(0);
+      setWinnerId(null);
+      setWinnerName("");
+      setWordInput("");
+      setGuessInput("");
+      setFeedback(null);
+      setAwaitingResult(false);
+      setRoundLocked(false);
+      answerRef.current = "";
+      setPhase("lobby");
+    });
+
+    // Setter broadcast kata asli + acak ke guesser
     channel.on("broadcast", { event: "round-start" }, ({ payload }) => {
       const data = payload as {
-        round?: number;
-        inputPlayerId?: string;
+        round: number;
+        setterId: string;
+        guesserId: string;
+        scrambled: string;
+        answerLength: number;
+        endsAt: number;
+        startedAt: number;
       };
-      if (
-        typeof data.round !== "number" ||
-        typeof data.inputPlayerId !== "string"
-      )
-        return;
+      if (!data || typeof data.endsAt !== "number") return;
+
+      const newState: RoundState = {
+        round: data.round,
+        setterId: data.setterId,
+        guesserId: data.guesserId,
+        scrambled: data.scrambled,
+        answerLength: data.answerLength,
+        endsAt: data.endsAt,
+        startedAt: data.startedAt,
+      };
 
       setRound(data.round);
-      setInputPlayerId(data.inputPlayerId);
-      setInputWord("");
-      setScrambledWord("");
-      setOriginalWord("");
-      setGuesserInput("");
-      setLastResult(null);
-      setRoundPhase("input");
-      setRemainingMs(GUESS_TIME_MS);
+      setRoundState(newState);
+      setGuessInput("");
+      setFeedback(null);
+      setAwaitingResult(false);
+      setRoundLocked(false);
+      setRemainingMs(Math.max(0, data.endsAt - Date.now()));
       setPhase("playing");
       setError("");
     });
 
-    // Kata sudah di-submit oleh input player → broadcast scrambled ke guesser
-    channel.on("broadcast", { event: "word-submitted" }, ({ payload }) => {
-      const data = payload as {
-        scrambled?: string;
-        original?: string;
-        endsAt?: number;
-      };
-      if (!data.scrambled || !data.original) return;
-      setScrambledWord(data.scrambled);
-      setOriginalWord(data.original);
-      setRoundPhase("guess");
-      setRemainingMs(
-        typeof data.endsAt === "number"
-          ? Math.max(0, data.endsAt - Date.now())
-          : GUESS_TIME_MS,
-      );
-    });
+    // Guesser kirim jawaban → setter verifikasi → broadcast round-result
+    channel.on(
+      "broadcast",
+      { event: "guess-submitted" },
+      ({ payload }: { payload: { guess: string; guesserId: string } }) => {
+        if (!payload) return;
+        const currentRound = roundStateRef.current;
+        if (!currentRound) return;
 
-    // Reveal hasil
-    channel.on("broadcast", { event: "round-end" }, ({ payload }) => {
-      const data = payload as {
-        guess?: string;
-        correct?: boolean;
-        answer?: string;
-        scores?: Record<string, number>;
-        round?: number;
-      };
-      if (typeof data.correct !== "boolean") return;
-      setLastResult({
-        guess: data.guess ?? "",
-        correct: data.correct,
-        answer: data.answer ?? "",
-      });
-      if (data.scores) setScores(data.scores);
-      setRoundPhase("reveal");
-      setRemainingMs(0);
-    });
+        // Hanya setter yang memverifikasi
+        if (currentRound.setterId !== playerIdRef.current) return;
 
-    // Game over
-    channel.on("broadcast", { event: "game-over" }, ({ payload }) => {
-      const data = payload as {
-        winnerId?: string | null;
-        winnerName?: string;
-      };
-      setWinnerId(data.winnerId ?? null);
-      setWinnerName(data.winnerName ?? "");
-      setPhase("results");
-      if (timerRef.current) window.clearInterval(timerRef.current);
-      if (revealTimerRef.current) window.clearTimeout(revealTimerRef.current);
-    });
+        const correct =
+          payload.guess.trim().toUpperCase() ===
+          answerRef.current.toUpperCase();
+
+        void channel.send({
+          type: "broadcast",
+          event: "round-result",
+          payload: {
+            guesserId: payload.guesserId,
+            correct,
+            guess: payload.guess,
+            answer: answerRef.current,
+          },
+        });
+      },
+    );
+
+    // Semua pemain terima hasil ronde
+    channel.on(
+      "broadcast",
+      { event: "round-result" },
+      ({
+        payload,
+      }: {
+        payload: {
+          guesserId: string;
+          correct: boolean;
+          guess: string;
+          answer: string;
+        };
+      }) => {
+        if (!payload) return;
+
+        setFeedback({
+          type: payload.correct ? "correct" : "wrong",
+          text: payload.correct
+            ? `Benar! Jawaban: ${payload.answer}`
+            : `Salah. Jawaban: ${payload.answer}`,
+        });
+        setAwaitingResult(false);
+        setRoundLocked(true);
+
+        if (payload.correct) {
+          if (payload.guesserId === playerIdRef.current) {
+            setMyScore((s) => s + 1);
+          } else {
+            setPeerScore((s) => s + 1);
+          }
+        }
+      },
+    );
+
+    channel.on(
+      "broadcast",
+      { event: "game-over" },
+      ({
+        payload,
+      }: {
+        payload: { winnerId?: string | null; winnerName?: string };
+      }) => {
+        setWinnerId(payload?.winnerId ?? null);
+        setWinnerName(payload?.winnerName ?? "");
+        setPhase("results");
+      },
+    );
 
     channel.subscribe((status) => {
       if (status === "SUBSCRIBED") {
@@ -240,6 +321,7 @@ export default function ScrambleDuel() {
       channelRef.current = null;
       void supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeRoom, playerId, supabase]);
 
   useEffect(() => {
@@ -252,167 +334,187 @@ export default function ScrambleDuel() {
     });
   }, [activeRoom, isConnected, isHost, isReady, playerId, playerName]);
 
-  // ---- Timer untuk fase guess ----
+  // ---- Timer countdown ----
   useEffect(() => {
-    if (phase !== "playing" || roundPhase !== "guess") return;
-    if (!scrambledWord) return;
-
-    const start = Date.now();
-    timerRef.current = window.setInterval(() => {
-      const elapsed = Date.now() - start;
-      const left = Math.max(0, GUESS_TIME_MS - elapsed);
-      setRemainingMs(left);
-      if (left === 0) {
-        // Timeout → host yang trigger round-end
-        if (isHost) {
-          endRound("", false);
-        }
-      }
+    if (phase !== "playing" || !roundState) return;
+    const timer = setInterval(() => {
+      const next = Math.max(0, roundState.endsAt - Date.now());
+      setRemainingMs(next);
     }, 100);
+    return () => clearInterval(timer);
+  }, [phase, roundState]);
 
-    return () => {
-      if (timerRef.current) window.clearInterval(timerRef.current);
-    };
+  // ---- HOST: auto advance ronde saat waktu habis / sudah ada hasil ----
+  useEffect(() => {
+    if (!isHost) return;
+    if (phase !== "playing" || !roundState) return;
+
+    const msToEnd = Math.max(0, roundState.endsAt - Date.now());
+    const timer = setTimeout(
+      () => {
+        advanceRound();
+      },
+      roundLocked ? 2200 : msToEnd + 200,
+    );
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, roundPhase, scrambledWord, isHost]);
+  }, [isHost, phase, roundState, roundLocked]);
 
-  // ---- Handlers ----
-  const submitWord = () => {
-    if (phase !== "playing" || roundPhase !== "input") return;
-    if (inputPlayerId !== playerId) return;
-
-    const err = validateInputWord(inputWord);
-    if (err) {
-      setError(err);
-      return;
-    }
-    setError("");
-
-    const word = inputWord.trim().toUpperCase();
-    const scrambled = scrambleWord(word);
-
-    // Update lokal
-    setScrambledWord(scrambled);
-    setOriginalWord(word);
-    setRoundPhase("guess");
-    setRemainingMs(GUESS_TIME_MS);
-
-    const endsAt = Date.now() + GUESS_TIME_MS;
+  // ---- Broadcast helpers ----
+  const broadcastRoundStart = (state: RoundState) => {
     void channelRef.current?.send({
       type: "broadcast",
-      event: "word-submitted",
-      payload: { scrambled, original: word, endsAt },
+      event: "round-start",
+      payload: state,
     });
   };
 
-  const submitGuess = () => {
-    if (phase !== "playing" || roundPhase !== "guess") return;
-    if (!scrambledWord) return;
-    if (inputPlayerId === playerId) return; // input player tidak boleh nebak
+  // ---- HOST: mulai ronde ----
+  const startRound = (roundNumber: number) => {
+    if (!isHostRef.current) return;
+    const guest = playersRef.current.find((p) => !p.isHost);
+    if (!guest) return;
 
-    const guess = normalizeGuess(guesserInput);
-    const correct = guess === originalWord;
+    // Gantian: ronde ganjil host = setter, ronde genap guest = setter
+    const hostIsSetter = roundNumber % 2 === 1;
+    const setterId = hostIsSetter ? playerIdRef.current : guest.id;
+    const guesserId = hostIsSetter ? guest.id : playerIdRef.current;
+
+    const now = Date.now();
+    const state: RoundState = {
+      round: roundNumber,
+      setterId,
+      guesserId,
+      scrambled: "",
+      answerLength: 0,
+      endsAt: now + ROUND_TIME_MS,
+      startedAt: now,
+    };
+
+    answerRef.current = "";
+    setRound(roundNumber);
+    setRoundState(state);
+    setWordInput("");
+    setGuessInput("");
+    setFeedback(null);
+    setAwaitingResult(false);
+    setRoundLocked(false);
+    setRemainingMs(ROUND_TIME_MS);
+    setPhase("playing");
+
+    broadcastRoundStart(state);
+  };
+
+  // ---- HOST: advance ke ronde berikutnya atau selesai ----
+  const advanceRound = () => {
+    if (!isHostRef.current) return;
+
+    const currentRound = roundStateRef.current;
+    if (!currentRound) return;
+
+    const nextRound = currentRound.round + 1;
+
+    if (nextRound > TOTAL_ROUNDS) {
+      // Game over
+      const hostScoreNow = isHostRef.current
+        ? myScoreRef.current
+        : peerScoreRef.current;
+      const guestScoreNow = isHostRef.current
+        ? peerScoreRef.current
+        : myScoreRef.current;
+
+      let winnerIdFinal: string | null = null;
+      let winnerNameFinal = "";
+
+      const guest = playersRef.current.find((p) => !p.isHost);
+      const hostPlayer = playersRef.current.find((p) => p.isHost);
+
+      if (hostScoreNow > guestScoreNow) {
+        winnerIdFinal = hostPlayer?.id ?? null;
+        winnerNameFinal = hostPlayer?.name ?? "Host";
+      } else if (guestScoreNow > hostScoreNow) {
+        winnerIdFinal = guest?.id ?? null;
+        winnerNameFinal = guest?.name ?? "Lawan";
+      }
+
+      setWinnerId(winnerIdFinal);
+      setWinnerName(winnerNameFinal);
+      setPhase("results");
+      void channelRef.current?.send({
+        type: "broadcast",
+        event: "game-over",
+        payload: { winnerId: winnerIdFinal, winnerName: winnerNameFinal },
+      });
+      return;
+    }
+
+    startRound(nextRound);
+  };
+
+  // ---- SETTER: submit kata ----
+  const handleSetterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isHostRef.current && !roundState) return;
+    if (!roundState) return;
+    if (roundState.setterId !== playerId) return;
+    if (roundState.scrambled) return; // sudah submit
+
+    const cleaned = wordInput
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z]/g, "");
+    if (cleaned.length < MIN_WORD_LEN || cleaned.length > MAX_WORD_LEN) {
+      setError(`Kata harus ${MIN_WORD_LEN}-${MAX_WORD_LEN} huruf (A-Z saja).`);
+      return;
+    }
+
+    setError("");
+    answerRef.current = cleaned;
+    const scrambled = scrambleWord(cleaned);
+
+    const newState: RoundState = {
+      ...roundState,
+      scrambled,
+      answerLength: cleaned.length,
+    };
+    setRoundState(newState);
+    broadcastRoundStart(newState);
+  };
+
+  // ---- GUESSER: submit jawaban (KINI BERFUNGSI UNTUK HOST & GUEST) ----
+  const handleGuesserSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (submitting) return;
+    if (roundLocked) return;
+    if (!roundState) return;
+    if (roundState.guesserId !== playerId) return;
+
+    const guess = guessInput
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z]/g, "");
+    if (!guess) {
+      setError("Ketik jawabanmu dulu.");
+      return;
+    }
+
+    setSubmitting(true);
+    setError("");
+    setAwaitingResult(true);
 
     void channelRef.current?.send({
       type: "broadcast",
       event: "guess-submitted",
-      payload: { guess, correct },
+      payload: { guess, guesserId: playerId },
     });
 
-    // Host yang resolve
-    if (isHost) {
-      endRound(guess, correct);
-    }
+    // Reset submitting setelah sebentar supaya tombol bisa dipakai lagi
+    setTimeout(() => setSubmitting(false), 500);
   };
 
-  const endRound = (guess: string, correct: boolean) => {
-    if (roundPhase === "reveal") return;
-    const inputPid = inputPlayerIdRef.current;
-    if (!inputPid) return;
-
-    // Guesser = lawan dari inputPlayer
-    const opponent = players.find((p) => p.id !== inputPid);
-    const guesserId = opponent?.id ?? null;
-
-    const newScores = { ...scoresRef.current };
-    if (correct && guesserId) {
-      newScores[guesserId] = (newScores[guesserId] ?? 0) + 1;
-    }
-    setScores(newScores);
-
-    setLastResult({
-      guess,
-      correct,
-      answer: originalWord,
-    });
-    setRoundPhase("reveal");
-
-    void channelRef.current?.send({
-      type: "broadcast",
-      event: "round-end",
-      payload: {
-        guess,
-        correct,
-        answer: originalWord,
-        scores: newScores,
-        round: roundRef.current,
-      },
-    });
-
-    // Auto next round setelah 4 detik
-    if (revealTimerRef.current) window.clearTimeout(revealTimerRef.current);
-    revealTimerRef.current = window.setTimeout(() => {
-      if (phaseRef.current !== "playing") return;
-      const nextRound = roundRef.current + 1;
-      if (nextRound > TOTAL_ROUNDS) {
-        // Game over
-        const sorted = players
-          .map((p) => ({ ...p, score: newScores[p.id] ?? 0 }))
-          .sort((a, b) => b.score - a.score);
-        const top = sorted[0];
-        const second = sorted[1];
-        let winnerIdFinal: string | null = null;
-        let winnerNameFinal = "";
-        if (top && second && top.score > second.score) {
-          winnerIdFinal = top.id;
-          winnerNameFinal = top.name;
-        }
-        setWinnerId(winnerIdFinal);
-        setWinnerName(winnerNameFinal);
-        setPhase("results");
-        void channelRef.current?.send({
-          type: "broadcast",
-          event: "game-over",
-          payload: { winnerId: winnerIdFinal, winnerName: winnerNameFinal },
-        });
-        return;
-      }
-
-      // Gantian input player
-      const nextInputPid =
-        inputPlayerIdRef.current === playerId
-          ? (players.find((p) => p.id !== playerId)?.id ?? playerId)
-          : playerId;
-
-      setRound(nextRound);
-      setInputPlayerId(nextInputPid);
-      setInputWord("");
-      setScrambledWord("");
-      setOriginalWord("");
-      setGuesserInput("");
-      setLastResult(null);
-      setRoundPhase("input");
-      setRemainingMs(GUESS_TIME_MS);
-
-      void channelRef.current?.send({
-        type: "broadcast",
-        event: "round-start",
-        payload: { round: nextRound, inputPlayerId: nextInputPid },
-      });
-    }, REVEAL_DURATION_MS);
-  };
-
-  // ---- Preflight ----
+  // ---- Preflight peek room ----
   const peekRoomPlayerCount = async (roomCode: string): Promise<number> => {
     if (!supabase) return 0;
     const peekKey = "peek-" + crypto.randomUUID();
@@ -479,16 +581,17 @@ export default function ScrambleDuel() {
       setPlayers([]);
       setPhase("lobby");
       setRound(0);
-      setRoundPhase("input");
-      setInputWord("");
-      setScrambledWord("");
-      setOriginalWord("");
-      setGuesserInput("");
-      setScores({});
-      setInputPlayerId(null);
-      setLastResult(null);
+      setRoundState(null);
+      setMyScore(0);
+      setPeerScore(0);
       setWinnerId(null);
       setWinnerName("");
+      setWordInput("");
+      setGuessInput("");
+      setFeedback(null);
+      setAwaitingResult(false);
+      setRoundLocked(false);
+      answerRef.current = "";
       setIsReady(host);
       setIsHost(host);
       setActiveRoom(roomCode);
@@ -520,26 +623,26 @@ export default function ScrambleDuel() {
     )
       return;
 
-    // Host jadi input player pertama
-    setRound(1);
-    setInputPlayerId(playerId);
-    setInputWord("");
-    setScrambledWord("");
-    setOriginalWord("");
-    setGuesserInput("");
-    setScores({});
-    setLastResult(null);
-    setRoundPhase("input");
-    setRemainingMs(GUESS_TIME_MS);
-    setPhase("playing");
-    setWinnerId(null);
-    setWinnerName("");
-
     void channelRef.current?.send({
       type: "broadcast",
-      event: "round-start",
-      payload: { round: 1, inputPlayerId: playerId },
+      event: "game-reset",
+      payload: {},
     });
+
+    setMyScore(0);
+    setPeerScore(0);
+    setWinnerId(null);
+    setWinnerName("");
+    setWordInput("");
+    setGuessInput("");
+    setFeedback(null);
+    setAwaitingResult(false);
+    setRoundLocked(false);
+    answerRef.current = "";
+    myScoreRef.current = 0;
+    peerScoreRef.current = 0;
+
+    startRound(1);
   };
 
   const copyRoomCode = async () => {
@@ -560,19 +663,18 @@ export default function ScrambleDuel() {
     setPlayers([]);
     setPhase("lobby");
     setRound(0);
-    setRoundPhase("input");
-    setInputWord("");
-    setScrambledWord("");
-    setOriginalWord("");
-    setGuesserInput("");
-    setScores({});
-    setInputPlayerId(null);
-    setLastResult(null);
+    setRoundState(null);
+    setMyScore(0);
+    setPeerScore(0);
     setWinnerId(null);
     setWinnerName("");
+    setWordInput("");
+    setGuessInput("");
+    setFeedback(null);
+    setAwaitingResult(false);
+    setRoundLocked(false);
+    answerRef.current = "";
     setError("");
-    if (timerRef.current) window.clearInterval(timerRef.current);
-    if (revealTimerRef.current) window.clearTimeout(revealTimerRef.current);
   };
 
   const guestsReady = players.filter((p) => !p.isHost).every((p) => p.ready);
@@ -584,12 +686,10 @@ export default function ScrambleDuel() {
     !joiningRoom;
   const secondsLeft = Math.ceil(remainingMs / 1000);
 
-  const isMyTurnToInput = inputPlayerId === playerId;
-  const isMyTurnToGuess = inputPlayerId !== null && inputPlayerId !== playerId;
-
-  const myScore = scores[playerId] ?? 0;
-  const opponent = players.find((p) => p.id !== playerId);
-  const opponentScore = opponent ? (scores[opponent.id] ?? 0) : 0;
+  const scrambledChars = roundState?.scrambled
+    ? roundState.scrambled.split("")
+    : [];
+  const answerLen = roundState?.answerLength ?? 0;
 
   return (
     <main className="tap-rush-shell">
@@ -598,13 +698,13 @@ export default function ScrambleDuel() {
           <ArrowLeft size={18} aria-hidden="true" />
           <span>Semua game</span>
         </Link>
-        <span className="tap-rush-season">ONLINE DUEL / 11</span>
+        <span className="tap-rush-season">ONLINE DUEL / 10</span>
       </div>
 
       <section className="tap-rush-layout">
         <header className="tap-rush-heading">
           <div className="tap-rush-kicker">
-            <Shuffle size={14} /> REALTIME WORD SCRAMBLE
+            <Puzzle size={14} /> REALTIME SCRAMBLE DUEL
           </div>
           <h1>
             Scramble Duel<span>!</span>
@@ -619,13 +719,13 @@ export default function ScrambleDuel() {
           <section className="tap-rush-lobby">
             <div className="tap-rush-intro">
               <div className="tap-rush-orb" aria-hidden="true">
-                <Shuffle size={30} />
+                <Puzzle size={30} />
               </div>
               <div>
                 <h2>Bikin room, tantang teman</h2>
                 <p>
-                  Gantian input kata → otomatis diacak → lawan menebak dalam 30
-                  detik. 5 ronde per pemain!
+                  {TOTAL_ROUNDS} ronde bergantian. Satu ronde kamu yang kasih
+                  kata, ronde berikutnya lawan. Adu cepat & tepat!
                 </p>
               </div>
             </div>
@@ -784,205 +884,195 @@ export default function ScrambleDuel() {
               </div>
             )}
 
-            {phase === "playing" && (
+            {phase === "playing" && roundState && (
               <div className="scramble-wrap">
-                {/* Header info */}
-                <div className="scramble-topbar">
-                  <span className="scramble-round">
-                    RONDE {round} / {TOTAL_ROUNDS}
-                  </span>
-                  {roundPhase === "guess" && (
-                    <span
-                      className={`scramble-timer ${secondsLeft <= 10 ? "is-urgent" : ""}`}
-                    >
-                      {String(secondsLeft).padStart(2, "0")}s
-                    </span>
-                  )}
-                  {roundPhase === "input" && (
-                    <span className="scramble-timer">INPUT</span>
-                  )}
-                  {roundPhase === "reveal" && (
-                    <span className="scramble-timer">HASIL</span>
-                  )}
-                </div>
-
-                {/* Skor */}
-                <div className="scramble-scores">
-                  <div className="scramble-score-item">
+                <div className="scramble-hud">
+                  <div className="scramble-score">
                     <span className="scramble-score-label">KAMU</span>
                     <strong>{myScore}</strong>
                   </div>
-                  <span className="scramble-vs">VS</span>
-                  <div className="scramble-score-item">
-                    <span className="scramble-score-label">
-                      {opponent?.name ?? "LAWAN"}
+                  <div className="scramble-round">
+                    <span>
+                      RONDE {round} / {TOTAL_ROUNDS}
                     </span>
-                    <strong>{opponentScore}</strong>
+                    <strong className={secondsLeft <= 10 ? "is-urgent" : ""}>
+                      {String(secondsLeft).padStart(2, "0")}s
+                    </strong>
+                  </div>
+                  <div className="scramble-score">
+                    <span className="scramble-score-label">
+                      {peer?.name?.toUpperCase() ?? "LAWAN"}
+                    </span>
+                    <strong>{peerScore}</strong>
                   </div>
                 </div>
 
-                {/* Fase INPUT */}
-                {roundPhase === "input" && (
-                  <div className="scramble-card">
-                    {isMyTurnToInput ? (
-                      <>
-                        <div className="scramble-badge is-input">
-                          GILIRANMU: INPUT KATA
-                        </div>
-                        <p className="scramble-hint">
-                          Ketik 1 kata (tanpa spasi/simbol). Hurufnya akan
-                          diacak untuk lawanmu tebak.
-                        </p>
-                        <form
-                          className="scramble-form"
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            submitWord();
-                          }}
-                        >
-                          <input
-                            className="tap-rush-input scramble-input"
-                            value={inputWord}
-                            onChange={(e) =>
-                              setInputWord(e.target.value.slice(0, 15))
-                            }
-                            placeholder="Ketik 1 kata…"
-                            maxLength={15}
-                            autoComplete="off"
-                            autoCapitalize="characters"
-                          />
-                          <button className="tap-rush-primary" type="submit">
-                            <Shuffle size={16} /> Acak & Kirim
-                          </button>
-                        </form>
-                        {error && <p className="scramble-error">{error}</p>}
-                      </>
-                    ) : (
-                      <>
-                        <div className="scramble-badge is-wait">
-                          MENUNGGU LAWAN INPUT KATA
-                        </div>
-                        <p className="scramble-hint">
-                          Lawan sedang memikirkan kata… Bersiaplah menebak!
-                        </p>
-                        <div className="scramble-loader">
-                          <span />
-                          <span />
-                          <span />
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
+                <div
+                  className={`scramble-badge ${
+                    myRole === "setter" ? "is-setter" : "is-guesser"
+                  }`}
+                >
+                  {myRole === "setter"
+                    ? "KAMU YANG KASIH KATA"
+                    : "TEBAK KATA INI!"}
+                </div>
 
-                {/* Fase GUESS */}
-                {roundPhase === "guess" && (
-                  <div className="scramble-card">
-                    {isMyTurnToGuess ? (
-                      <>
-                        <div className="scramble-badge is-guess">
-                          TEBAK KATA INI!
-                        </div>
-                        <p className="scramble-hint">
-                          Susun ulang huruf di bawah menjadi kata yang benar.
-                        </p>
-                        <div className="scramble-word">
-                          {scrambledWord.split("").map((ch, i) => (
-                            <span key={i} className="scramble-letter">
-                              {ch}
-                            </span>
-                          ))}
-                        </div>
-                        <form
-                          className="scramble-form"
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            submitGuess();
-                          }}
-                        >
-                          <input
-                            className="tap-rush-input scramble-input"
-                            value={guesserInput}
-                            onChange={(e) =>
-                              setGuesserInput(e.target.value.slice(0, 15))
-                            }
-                            placeholder="Jawabanmu…"
-                            maxLength={15}
-                            autoComplete="off"
-                            autoCapitalize="characters"
-                            autoFocus
-                          />
-                          <button className="tap-rush-primary" type="submit">
-                            <Send size={16} /> Kirim
-                          </button>
-                        </form>
-                        {error && <p className="scramble-error">{error}</p>}
-                      </>
-                    ) : (
-                      <>
-                        <div className="scramble-badge is-wait">
-                          LAWAN SEDANG MENEBAK…
-                        </div>
-                        <p className="scramble-hint">
-                          Kata yang kamu kirim: <strong>{originalWord}</strong>
-                        </p>
-                        <div className="scramble-word">
-                          {scrambledWord.split("").map((ch, i) => (
-                            <span key={i} className="scramble-letter">
-                              {ch}
-                            </span>
-                          ))}
-                        </div>
-                        <div className="scramble-loader">
-                          <span />
-                          <span />
-                          <span />
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {/* Fase REVEAL */}
-                {roundPhase === "reveal" && lastResult && (
-                  <div className="scramble-card">
-                    <div
-                      className={`scramble-badge ${lastResult.correct ? "is-correct" : "is-wrong"}`}
-                    >
-                      {lastResult.correct ? "✅ BENAR!" : "❌ SALAH"}
-                    </div>
-                    <div className="scramble-reveal">
-                      <div className="scramble-reveal-row">
-                        <span>Jawaban benar:</span>
-                        <strong className="scramble-answer">
-                          {lastResult.answer}
-                        </strong>
-                      </div>
-                      {lastResult.guess && (
-                        <div className="scramble-reveal-row">
-                          <span>Tebakan:</span>
-                          <strong
-                            className={
-                              lastResult.correct
-                                ? "scramble-answer"
-                                : "scramble-answer is-wrong"
-                            }
-                          >
-                            {lastResult.guess}
-                          </strong>
-                        </div>
-                      )}
-                    </div>
-                    <p className="scramble-hint">
-                      {lastResult.correct
-                        ? isMyTurnToGuess
-                          ? "Kamu dapat +1 poin!"
-                          : "Lawan dapat +1 poin"
-                        : isMyTurnToGuess
-                          ? "Tidak ada poin untuk kamu"
-                          : "Lawan tidak dapat poin"}
+                {myRole === "setter" && !roundState.scrambled && (
+                  <form
+                    className="scramble-setter-form"
+                    onSubmit={handleSetterSubmit}
+                  >
+                    <p className="scramble-help">
+                      Tulis satu kata rahasia. Lawan harus menebaknya dari huruf
+                      yang diacak.
                     </p>
+                    <input
+                      className="tap-rush-input scramble-word-input"
+                      value={wordInput}
+                      onChange={(e) =>
+                        setWordInput(
+                          e.target.value
+                            .toUpperCase()
+                            .replace(/[^A-Z]/g, "")
+                            .slice(0, MAX_WORD_LEN),
+                        )
+                      }
+                      placeholder="KATA RAHASIA"
+                      maxLength={MAX_WORD_LEN}
+                      autoComplete="off"
+                    />
+                    <button
+                      className="tap-rush-primary"
+                      type="submit"
+                      disabled={wordInput.trim().length < MIN_WORD_LEN}
+                    >
+                      <Send size={17} /> Acak & kirim
+                    </button>
+                    {error && (
+                      <p className="tap-rush-error" role="alert">
+                        {error}
+                      </p>
+                    )}
+                  </form>
+                )}
+
+                {myRole === "setter" && roundState.scrambled && (
+                  <div className="scramble-setter-wait">
+                    <p>
+                      Kata yang kamu kirim:{" "}
+                      <strong className="scramble-answer-reveal">
+                        {answerRef.current || wordInput.toUpperCase()}
+                      </strong>
+                    </p>
+                    <div className="scramble-letters scramble-letters-preview">
+                      {scrambledChars.map((ch, i) => (
+                        <span
+                          key={`${ch}-${i}`}
+                          className="scramble-letter is-muted"
+                        >
+                          {ch}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="scramble-waiting-text">
+                      {feedback
+                        ? "Hasil sudah keluar. Ronde berikutnya…"
+                        : "Menunggu lawan menebak…"}
+                    </p>
+                    {feedback && (
+                      <p
+                        className={`scramble-feedback ${
+                          feedback.type === "correct"
+                            ? "is-correct"
+                            : "is-wrong"
+                        }`}
+                        role="status"
+                      >
+                        {feedback.text}
+                      </p>
+                    )}
                   </div>
+                )}
+
+                {myRole === "guesser" && (
+                  <form
+                    className="scramble-guesser-form"
+                    onSubmit={handleGuesserSubmit}
+                  >
+                    <p className="scramble-help">
+                      Susun ulang huruf di bawah menjadi kata yang benar.
+                      {answerLen > 0 && (
+                        <>
+                          {" "}
+                          <span className="scramble-len-hint">
+                            ({answerLen} huruf)
+                          </span>
+                        </>
+                      )}
+                    </p>
+
+                    <div className="scramble-letters">
+                      {scrambledChars.map((ch, i) => (
+                        <span key={`${ch}-${i}`} className="scramble-letter">
+                          {ch}
+                        </span>
+                      ))}
+                    </div>
+
+                    <input
+                      className="tap-rush-input scramble-guess-input"
+                      value={guessInput}
+                      onChange={(e) =>
+                        setGuessInput(
+                          e.target.value
+                            .toUpperCase()
+                            .replace(/[^A-Z]/g, "")
+                            .slice(0, MAX_WORD_LEN),
+                        )
+                      }
+                      placeholder="JAWABANMU"
+                      maxLength={MAX_WORD_LEN}
+                      autoComplete="off"
+                      disabled={roundLocked}
+                    />
+
+                    <button
+                      className="tap-rush-primary scramble-submit-btn"
+                      type="submit"
+                      disabled={
+                        submitting ||
+                        roundLocked ||
+                        !guessInput.trim() ||
+                        awaitingResult
+                      }
+                    >
+                      <Send size={17} />{" "}
+                      {awaitingResult
+                        ? "Menunggu hasil…"
+                        : submitting
+                          ? "Mengirim…"
+                          : "Kirim"}
+                    </button>
+
+                    {feedback && (
+                      <p
+                        className={`scramble-feedback ${
+                          feedback.type === "correct"
+                            ? "is-correct"
+                            : "is-wrong"
+                        }`}
+                        role="status"
+                      >
+                        {feedback.text}
+                      </p>
+                    )}
+
+                    {error && (
+                      <p className="tap-rush-error" role="alert">
+                        {error}
+                      </p>
+                    )}
+                  </form>
                 )}
               </div>
             )}
@@ -997,23 +1087,16 @@ export default function ScrambleDuel() {
                       ? "Kamu menang! 🏆"
                       : `${winnerName} menang!`}
                 </h2>
-                <ol className="tap-rush-scoreboard">
-                  {players
-                    .map((p) => ({ ...p, score: scores[p.id] ?? 0 }))
-                    .sort((a, b) => b.score - a.score)
-                    .map((p, i) => (
-                      <li className={i === 0 ? "is-winner" : ""} key={p.id}>
-                        <span className="tap-rush-rank">
-                          {String(i + 1).padStart(2, "0")}
-                        </span>
-                        <span className="tap-rush-player-name">
-                          {p.name}
-                          {p.id === playerId ? " (kamu)" : ""}
-                        </span>
-                        <strong>{p.score}</strong>
-                      </li>
-                    ))}
-                </ol>
+                <div className="scramble-final-scores">
+                  <div className="scramble-final-score">
+                    <span>KAMU</span>
+                    <strong>{myScore}</strong>
+                  </div>
+                  <div className="scramble-final-score">
+                    <span>{peer?.name?.toUpperCase() ?? "LAWAN"}</span>
+                    <strong>{peerScore}</strong>
+                  </div>
+                </div>
                 <div className="tap-rush-lobby-footer">
                   {isHost && (
                     <button
@@ -1040,7 +1123,8 @@ export default function ScrambleDuel() {
                 </div>
               </div>
             )}
-            {error && phase !== "playing" && (
+
+            {error && phase === "lobby" && (
               <p className="tap-rush-error" role="alert">
                 {error}
               </p>
@@ -1060,31 +1144,72 @@ export default function ScrambleDuel() {
           display: flex;
           flex-direction: column;
           gap: 14px;
+          align-items: center;
+          width: 100%;
+          max-width: 640px;
+          margin: 0 auto;
+        }
+
+        .scramble-hud {
+          display: grid;
+          grid-template-columns: 1fr auto 1fr;
+          gap: 10px;
           width: 100%;
           align-items: center;
         }
 
-        .scramble-topbar {
+        .scramble-score {
           display: flex;
-          justify-content: space-between;
           align-items: center;
-          width: 100%;
-          max-width: 520px;
-          font-size: 12px;
-          letter-spacing: 0.12em;
+          gap: 8px;
+          padding: 10px 14px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 2px solid rgba(236, 72, 153, 0.4);
+          border-radius: 10px;
+          min-width: 0;
+        }
+        .scramble-score-label {
+          font-size: 10px;
+          letter-spacing: 0.14em;
           text-transform: uppercase;
-          opacity: 0.8;
+          opacity: 0.7;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          max-width: 90px;
         }
-        .scramble-timer {
-          font-weight: 700;
-          padding: 4px 10px;
-          border-radius: 999px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+        .scramble-score strong {
+          font-family: Impact, "Arial Black", sans-serif;
+          font-size: 22px;
+          color: #fff;
+          margin-left: auto;
+          font-variant-numeric: tabular-nums;
         }
-        .scramble-timer.is-urgent {
+
+        .scramble-round {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 2px;
+          padding: 8px 14px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(236, 72, 153, 0.2);
+          border-radius: 10px;
+        }
+        .scramble-round span {
+          font-size: 9px;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          opacity: 0.65;
+        }
+        .scramble-round strong {
+          font-family: Impact, "Arial Black", sans-serif;
+          font-size: 22px;
+          color: #ec4899;
+          font-variant-numeric: tabular-nums;
+        }
+        .scramble-round strong.is-urgent {
           color: #ef4444;
-          border-color: rgba(239, 68, 68, 0.5);
           animation: pulse 0.8s infinite;
         }
         @keyframes pulse {
@@ -1093,212 +1218,195 @@ export default function ScrambleDuel() {
           }
         }
 
-        .scramble-scores {
-          display: grid;
-          grid-template-columns: 1fr auto 1fr;
+        .scramble-badge {
+          padding: 8px 18px;
+          border-radius: 999px;
+          font-size: 12px;
+          font-weight: 800;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+        }
+        .scramble-badge.is-setter {
+          background: linear-gradient(135deg, #ec4899, #f472b6);
+          color: #fff;
+          box-shadow: 0 0 20px rgba(236, 72, 153, 0.5);
+        }
+        .scramble-badge.is-guesser {
+          background: linear-gradient(135deg, #22c55e, #16a34a);
+          color: #fff;
+          box-shadow: 0 0 20px rgba(34, 197, 94, 0.5);
+        }
+
+        .scramble-setter-form,
+        .scramble-guesser-form {
+          display: flex;
+          flex-direction: column;
           gap: 12px;
-          align-items: center;
           width: 100%;
-          max-width: 520px;
-          padding: 12px 16px;
+          padding: 18px 16px;
           background: rgba(255, 255, 255, 0.03);
           border: 1px solid rgba(236, 72, 153, 0.25);
-          border-radius: 12px;
-        }
-        .scramble-score-item {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 2px;
-        }
-        .scramble-score-label {
-          font-size: 10px;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          opacity: 0.7;
-          max-width: 120px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        .scramble-score-item strong {
-          font-family: Impact, "Arial Black", sans-serif;
-          font-size: 28px;
-          color: #ec4899;
-          font-variant-numeric: tabular-nums;
-        }
-        .scramble-vs {
-          font-size: 11px;
-          opacity: 0.4;
-          letter-spacing: 0.15em;
+          border-radius: 14px;
         }
 
-        .scramble-card {
-          width: 100%;
-          max-width: 520px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 14px;
-          padding: 24px;
-          background: linear-gradient(
-            145deg,
-            rgba(32, 14, 24, 0.85),
-            rgba(18, 10, 15, 0.95)
-          );
-          border: 1px solid rgba(236, 72, 153, 0.25);
-          border-radius: 16px;
-          box-shadow: 0 20px 60px rgba(236, 72, 153, 0.15);
-        }
-
-        .scramble-badge {
-          padding: 6px 14px;
-          border-radius: 999px;
-          font-size: 11px;
-          font-weight: 800;
-          letter-spacing: 0.14em;
-          text-transform: uppercase;
-          border: 1px solid;
-        }
-        .scramble-badge.is-input {
-          background: rgba(236, 72, 153, 0.15);
-          border-color: rgba(236, 72, 153, 0.5);
-          color: #f9a8d4;
-        }
-        .scramble-badge.is-guess {
-          background: rgba(34, 197, 94, 0.15);
-          border-color: rgba(34, 197, 94, 0.5);
-          color: #86efac;
-        }
-        .scramble-badge.is-wait {
-          background: rgba(255, 255, 255, 0.05);
-          border-color: rgba(255, 255, 255, 0.15);
-          color: #c4a0b5;
-        }
-        .scramble-badge.is-correct {
-          background: rgba(34, 197, 94, 0.15);
-          border-color: rgba(34, 197, 94, 0.5);
-          color: #86efac;
-        }
-        .scramble-badge.is-wrong {
-          background: rgba(239, 68, 68, 0.15);
-          border-color: rgba(239, 68, 68, 0.5);
-          color: #fca5a5;
-        }
-
-        .scramble-hint {
-          font-size: 12px;
-          opacity: 0.7;
-          letter-spacing: 0.04em;
+        .scramble-help {
+          font-size: 13px;
+          opacity: 0.75;
           text-align: center;
-          max-width: 380px;
           line-height: 1.5;
-          margin: 0;
         }
-        .scramble-hint strong {
-          color: #fbbf24;
-          font-weight: 800;
+        .scramble-len-hint {
+          color: #22c55e;
+          font-weight: 700;
         }
 
-        .scramble-form {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-          width: 100%;
-          margin-top: 4px;
-        }
-        .scramble-input {
+        .scramble-word-input,
+        .scramble-guess-input {
           text-align: center;
           font-size: 20px;
+          letter-spacing: 0.15em;
           font-weight: 700;
-          letter-spacing: 0.12em;
-          text-transform: uppercase;
-          height: 56px;
+          padding: 14px;
+        }
+        .scramble-guess-input:disabled {
+          opacity: 0.5;
         }
 
-        .scramble-word {
+        /* ==== BARIS HURUF ACAK (HORIZONTAL + WRAP) ==== */
+        .scramble-letters {
           display: flex;
           flex-wrap: wrap;
-          gap: 6px;
           justify-content: center;
-          margin: 8px 0;
+          align-items: center;
+          gap: 6px;
+          padding: 8px 4px;
+          width: 100%;
+          max-width: 100%;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
         }
+
         .scramble-letter {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          width: 44px;
-          height: 52px;
+          width: clamp(32px, 9vw, 52px);
+          height: clamp(32px, 9vw, 52px);
           border-radius: 10px;
-          background: linear-gradient(145deg, #fce7f3, #ec4899);
-          color: #120a0f;
+          background: linear-gradient(135deg, #f472b6, #ec4899);
+          color: #fff;
           font-family: Impact, "Arial Black", sans-serif;
-          font-size: 24px;
-          box-shadow: 0 4px 0 rgba(0, 0, 0, 0.4);
+          font-size: clamp(16px, 4.5vw, 24px);
+          font-weight: 700;
+          box-shadow: 0 4px 12px rgba(236, 72, 153, 0.4);
+          flex-shrink: 0;
+          text-transform: uppercase;
+        }
+        .scramble-letter.is-muted {
+          opacity: 0.55;
+        }
+        .scramble-letters-preview {
+          margin-top: 6px;
         }
 
-        .scramble-loader {
-          display: flex;
-          gap: 8px;
-          margin-top: 8px;
-        }
-        .scramble-loader span {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          background: #ec4899;
-          animation: scrambleDot 0.8s ease-in-out infinite alternate;
-        }
-        .scramble-loader span:nth-child(2) {
-          animation-delay: 0.15s;
-        }
-        .scramble-loader span:nth-child(3) {
-          animation-delay: 0.3s;
-        }
-        @keyframes scrambleDot {
-          to {
-            opacity: 0.3;
-            transform: translateY(-4px);
-          }
+        .scramble-submit-btn {
+          width: 100%;
+          touch-action: manipulation;
+          -webkit-tap-highlight-color: transparent;
         }
 
-        .scramble-reveal {
+        .scramble-feedback {
+          text-align: center;
+          font-size: 13px;
+          font-weight: 700;
+          padding: 10px 14px;
+          border-radius: 8px;
+        }
+        .scramble-feedback.is-correct {
+          background: rgba(34, 197, 94, 0.15);
+          color: #22c55e;
+          border: 1px solid rgba(34, 197, 94, 0.4);
+        }
+        .scramble-feedback.is-wrong {
+          background: rgba(239, 68, 68, 0.15);
+          color: #ef4444;
+          border: 1px solid rgba(239, 68, 68, 0.4);
+        }
+
+        .scramble-setter-wait {
           display: flex;
           flex-direction: column;
-          gap: 10px;
-          width: 100%;
-          padding: 14px;
-          border-radius: 10px;
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .scramble-reveal-row {
-          display: flex;
-          justify-content: space-between;
+          gap: 8px;
           align-items: center;
-          gap: 12px;
-          font-size: 13px;
+          padding: 20px 16px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(236, 72, 153, 0.25);
+          border-radius: 14px;
+          text-align: center;
+          width: 100%;
         }
-        .scramble-reveal-row span {
-          opacity: 0.7;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          font-size: 11px;
-        }
-        .scramble-answer {
+        .scramble-answer-reveal {
+          color: #fbbf24;
           font-family: Impact, "Arial Black", sans-serif;
-          font-size: 20px;
-          color: #86efac;
-          letter-spacing: 0.06em;
+          letter-spacing: 0.08em;
+          font-size: 18px;
         }
-        .scramble-answer.is-wrong {
-          color: #fca5a5;
+        .scramble-waiting-text {
+          font-size: 12px;
+          opacity: 0.6;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
         }
 
-        .scramble-error {
-          font-size: 12px;
-          color: #fca5a5;
-          margin: 0;
+        .scramble-final-scores {
+          display: flex;
+          gap: 14px;
+          justify-content: center;
+          margin: 16px 0 22px;
+          flex-wrap: wrap;
+        }
+        .scramble-final-score {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 12px 18px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 2px solid rgba(236, 72, 153, 0.5);
+          border-radius: 12px;
+        }
+        .scramble-final-score span {
+          font-size: 11px;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          opacity: 0.75;
+        }
+        .scramble-final-score strong {
+          font-family: Impact, "Arial Black", sans-serif;
+          font-size: 24px;
+          color: #ec4899;
+        }
+
+        @media (max-width: 640px) {
+          .scramble-hud {
+            gap: 6px;
+          }
+          .scramble-score {
+            padding: 8px 10px;
+          }
+          .scramble-score strong {
+            font-size: 18px;
+          }
+          .scramble-score-label {
+            max-width: 60px;
+          }
+          .scramble-round strong {
+            font-size: 20px;
+          }
+          .scramble-letter {
+            width: clamp(28px, 8vw, 42px);
+            height: clamp(28px, 8vw, 42px);
+            font-size: clamp(14px, 4vw, 20px);
+          }
         }
       `}</style>
     </main>
