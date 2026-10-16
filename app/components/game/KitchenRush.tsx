@@ -37,8 +37,9 @@ type Station = {
 };
 
 type Ingredient = "fish" | "chicken";
+type Cut = "fish-cut" | "chicken-cut";
 type Cooked = "fish-cooked" | "chicken-cooked";
-type Item = Ingredient | Cooked;
+type Item = Ingredient | Cut | Cooked;
 
 type OrderType = "dine-in" | "take-away";
 
@@ -69,7 +70,6 @@ const ROOM_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 const COLORS = ["#ec4899", "#fbbf24", "#22d3ee", "#a3e635"];
 
-// Layout: baris 1 (bahan + potong + masak), baris 5 (antar)
 const STATIONS: Station[] = [
   { id: "fish1", kind: "fish", x: 1, y: 1, label: "Ambil Ikan" },
   { id: "fish2", kind: "fish", x: 2, y: 1, label: "Ambil Ikan" },
@@ -95,6 +95,8 @@ const STATION_EMOJI: Record<StationKind, string> = {
 const ITEM_EMOJI: Record<Item, string> = {
   fish: "🐟",
   chicken: "🐔",
+  "fish-cut": "🔪🐟",
+  "chicken-cut": "🔪🐔",
   "fish-cooked": "🍣",
   "chicken-cooked": "🍗",
 };
@@ -138,8 +140,22 @@ function findStation(x: number, y: number): Station | undefined {
   return STATIONS.find((s) => s.x === x && s.y === y);
 }
 
-function isCooked(item: Item): item is Cooked {
+// Type guards yang terima Item | null biar tidak error TS
+function isCooked(item: Item | null): item is Cooked {
   return item === "fish-cooked" || item === "chicken-cooked";
+}
+
+function isCut(item: Item | null): item is Cut {
+  return item === "fish-cut" || item === "chicken-cut";
+}
+
+function isRaw(item: Item | null): item is Ingredient {
+  return item === "fish" || item === "chicken";
+}
+
+function getItemEmoji(item: Item | null): string {
+  if (!item) return "—";
+  return ITEM_EMOJI[item];
 }
 
 function getNextStep(
@@ -152,14 +168,17 @@ function getNextStep(
     }
     const ing = activeOrder.ingredient;
     return {
-      instruction: `Ambil ${ing === "fish" ? "ikan 🐟" : "ayam 🐔"} dari station`,
+      instruction: `Ambil ${ing === "fish" ? "ikan 🐟" : "ayam 🐔"}`,
       emoji: ing === "fish" ? "🐟" : "🐔",
     };
   }
-  if (holding === "fish" || holding === "chicken") {
-    return { instruction: "Bawa ke 🔪 papan potong", emoji: "🔪" };
+  if (isRaw(holding)) {
+    return { instruction: "Potong dulu di 🔪", emoji: "🔪" };
   }
-  if (holding === "fish-cooked" || holding === "chicken-cooked") {
+  if (isCut(holding)) {
+    return { instruction: "Masak di 🔥 kompor", emoji: "🔥" };
+  }
+  if (isCooked(holding)) {
     if (!activeOrder) {
       return { instruction: "Tunggu pesanan…", emoji: "⏳" };
     }
@@ -368,7 +387,6 @@ export default function KitchenRush() {
     });
   }, [activeRoom, isConnected, isHost, isReady, playerId, playerName]);
 
-  // ---- Keyboard ----
   useEffect(() => {
     if (phase !== "playing") return;
     const handler = (event: KeyboardEvent) => {
@@ -398,7 +416,6 @@ export default function KitchenRush() {
     });
   };
 
-  // ---- Game loop ----
   useEffect(() => {
     if (phase !== "playing") return;
     if (!myPos) return;
@@ -448,7 +465,6 @@ export default function KitchenRush() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, myPos, playerId, peers]);
 
-  // ---- Auto pickup/interact ----
   useEffect(() => {
     if (phase !== "playing") return;
     if (!myPos) return;
@@ -500,57 +516,62 @@ export default function KitchenRush() {
   const handleInteraction = (station: Station) => {
     const holding = myHoldingRef.current;
 
-    // FISH: ambil ikan
+    // FISH: ambil ikan (selalu reset ke ikan mentah)
     if (station.kind === "fish") {
-      if (!holding) {
-        setMyHolding("fish");
-        myHoldingRef.current = "fish";
-        broadcastMyState(myPosRef.current!, "fish");
-        showNotice("🐟 Ikan diambil! Bawa ke 🔪");
+      if (holding) {
+        showNotice("♻️ Bahan lama dibuang, ambil ikan baru");
       }
+      setMyHolding("fish");
+      myHoldingRef.current = "fish";
+      broadcastMyState(myPosRef.current!, "fish");
+      showNotice("🐟 Ikan mentah diambil! Potong dulu di 🔪");
       return;
     }
 
-    // CHICKEN: ambil ayam
+    // CHICKEN: ambil ayam (selalu reset ke ayam mentah)
     if (station.kind === "chicken") {
-      if (!holding) {
-        setMyHolding("chicken");
-        myHoldingRef.current = "chicken";
-        broadcastMyState(myPosRef.current!, "chicken");
-        showNotice("🐔 Ayam diambil! Bawa ke 🔪");
+      if (holding) {
+        showNotice("♻️ Bahan lama dibuang, ambil ayam baru");
       }
+      setMyHolding("chicken");
+      myHoldingRef.current = "chicken";
+      broadcastMyState(myPosRef.current!, "chicken");
+      showNotice("🐔 Ayam mentah diambil! Potong dulu di 🔪");
       return;
     }
 
-    // CUT: potong bahan
+    // CUT: HANYA bisa potong bahan MENTAH
     if (station.kind === "cut") {
-      if (holding === "fish" || holding === "chicken") {
-        const ingredient = holding;
+      if (isRaw(holding)) {
+        const ingredient: Ingredient = holding;
+        const cutItem: Item =
+          ingredient === "fish" ? "fish-cut" : "chicken-cut";
+
         setMyHolding(null);
         myHoldingRef.current = null;
         broadcastMyState(myPosRef.current!, null);
 
-        // Setelah potong, langsung otomatis "siap masak" (item tetap sama)
-        startCookingProcess(station.id, ingredient, CUT_TIME_MS, () => {
-          setMyHolding(ingredient);
-          myHoldingRef.current = ingredient;
-          broadcastMyState(myPosRef.current!, ingredient);
+        startCookingProcess(station.id, cutItem, CUT_TIME_MS, () => {
+          setMyHolding(cutItem);
+          myHoldingRef.current = cutItem;
+          broadcastMyState(myPosRef.current!, cutItem);
           showNotice(
-            `${ingredient === "fish" ? "🐟 Ikan" : "🐔 Ayam"} dipotong! Bawa ke 🔥`,
+            `${ingredient === "fish" ? "🐟 Ikan" : "🐔 Ayam"} dipotong! Masak di 🔥`,
           );
         });
+      } else if (isCut(holding) || isCooked(holding)) {
+        showNotice("❌ Ini sudah dipotong/masak!");
       } else if (holding) {
         showNotice("❌ Hanya bisa potong ikan/ayam mentah");
       }
       return;
     }
 
-    // STOVE: masak bahan yang sudah dipotong
+    // STOVE: HANYA bisa masak bahan yang SUDAH DIPOTONG
     if (station.kind === "stove") {
-      if (holding === "fish" || holding === "chicken") {
-        const ingredient = holding;
-        const cooked: Cooked =
-          ingredient === "fish" ? "fish-cooked" : "chicken-cooked";
+      if (isCut(holding)) {
+        const isFish = holding === "fish-cut";
+        const cooked: Cooked = isFish ? "fish-cooked" : "chicken-cooked";
 
         setMyHolding(null);
         myHoldingRef.current = null;
@@ -561,18 +582,22 @@ export default function KitchenRush() {
           myHoldingRef.current = cooked;
           broadcastMyState(myPosRef.current!, cooked);
           showNotice(
-            `${ingredient === "fish" ? "🍣 Ikan" : "🍗 Ayam"} matang! Antar ke pesanan`,
+            `${isFish ? "🍣 Ikan" : "🍗 Ayam"} matang! Antar sesuai pesanan`,
           );
         });
+      } else if (isRaw(holding)) {
+        showNotice("❌ Potong dulu di 🔪 sebelum dimasak!");
+      } else if (isCooked(holding)) {
+        showNotice("❌ Ini sudah matang!");
       } else if (holding) {
-        showNotice("❌ Butuh bahan mentah yang sudah dipotong");
+        showNotice("❌ Butuh bahan yang sudah dipotong");
       }
       return;
     }
 
-    // PLATE: Dine In
+    // PLATE: Dine In (HANYA terima makanan matang)
     if (station.kind === "plate") {
-      if (holding && isCooked(holding)) {
+      if (isCooked(holding)) {
         const dineInOrder = orders.find(
           (o) =>
             o.type === "dine-in" &&
@@ -603,15 +628,19 @@ export default function KitchenRush() {
         myHoldingRef.current = null;
         broadcastMyState(myPosRef.current!, null);
         showNotice(`🍽️ +${dineInOrder.reward} Dine In!`);
+      } else if (isRaw(holding)) {
+        showNotice("❌ Bahan mentah! Potong & masak dulu");
+      } else if (isCut(holding)) {
+        showNotice("❌ Masak dulu di 🔥 sebelum diantar");
       } else if (holding) {
         showNotice("❌ Butuh makanan matang 🍣/🍗");
       }
       return;
     }
 
-    // BOX: Take Away
+    // BOX: Take Away (HANYA terima makanan matang)
     if (station.kind === "box") {
-      if (holding && isCooked(holding)) {
+      if (isCooked(holding)) {
         const takeAwayOrder = orders.find(
           (o) =>
             o.type === "take-away" &&
@@ -642,6 +671,10 @@ export default function KitchenRush() {
         myHoldingRef.current = null;
         broadcastMyState(myPosRef.current!, null);
         showNotice(`📦 +${takeAwayOrder.reward} Take Away!`);
+      } else if (isRaw(holding)) {
+        showNotice("❌ Bahan mentah! Potong & masak dulu");
+      } else if (isCut(holding)) {
+        showNotice("❌ Masak dulu di 🔥 sebelum diantar");
       } else if (holding) {
         showNotice("❌ Butuh makanan matang 🍣/🍗");
       }
@@ -649,7 +682,6 @@ export default function KitchenRush() {
     }
   };
 
-  // ---- Host: spawn order tiap 8 detik ----
   useEffect(() => {
     if (!isHost) return;
     if (phase !== "playing") return;
@@ -682,7 +714,6 @@ export default function KitchenRush() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isHost, phase]);
 
-  // ---- Host: cleanup expired orders ----
   useEffect(() => {
     if (!isHost) return;
     if (phase !== "playing") return;
@@ -704,7 +735,6 @@ export default function KitchenRush() {
     return () => clearInterval(timer);
   }, [isHost, phase]);
 
-  // ---- Timer ronde ----
   useEffect(() => {
     if (phase !== "playing" || roundEndsAt === null) return;
 
@@ -723,7 +753,6 @@ export default function KitchenRush() {
     return () => clearInterval(timer);
   }, [phase, roundEndsAt, isHost]);
 
-  // ---- Touch handler ----
   const handleTouchStart = (e: React.TouchEvent) => {
     const t = e.touches[0];
     touchStartRef.current = { x: t.clientX, y: t.clientY };
@@ -744,7 +773,6 @@ export default function KitchenRush() {
     }
   };
 
-  // ---- Preflight ----
   const peekRoomPlayerCount = async (roomCode: string): Promise<number> => {
     if (!supabase) return 0;
     const peekKey = "peek-" + crypto.randomUUID();
@@ -942,10 +970,7 @@ export default function KitchenRush() {
           <h1>
             Kitchen Rush<span>!</span>
           </h1>
-          <p>
-            Ambil ikan/ayam → potong → masak → antar. Dine In ke 🍽️, Take Away
-            ke 📦.
-          </p>
+          <p>Ambil → Potong → Masak → Antar. Dine In ke 🍽️, Take Away ke 📦.</p>
         </header>
 
         {!activeRoom ? (
@@ -1119,7 +1144,6 @@ export default function KitchenRush() {
 
             {phase === "playing" && myPos && (
               <div className="kitchen-wrap">
-                {/* HUD */}
                 <div className="kitchen-hud">
                   <div className="kitchen-hud-item">
                     <span>WAKTU</span>
@@ -1137,7 +1161,6 @@ export default function KitchenRush() {
                   </div>
                 </div>
 
-                {/* Orders */}
                 <div className="kitchen-orders">
                   {orders.length === 0 ? (
                     <div className="kitchen-orders-empty">
@@ -1178,7 +1201,6 @@ export default function KitchenRush() {
                   )}
                 </div>
 
-                {/* Panduan step */}
                 <div className="kitchen-guide">
                   <span className="kitchen-guide-icon">{nextStep.emoji}</span>
                   <div className="kitchen-guide-text">
@@ -1189,11 +1211,10 @@ export default function KitchenRush() {
                   </div>
                   <div className="kitchen-guide-holding">
                     <span className="kitchen-guide-label">DI TANGAN</span>
-                    <strong>{myHolding ? ITEM_EMOJI[myHolding] : "—"}</strong>
+                    <strong>{getItemEmoji(myHolding)}</strong>
                   </div>
                 </div>
 
-                {/* Arena */}
                 <div
                   className="kitchen-arena"
                   onTouchStart={handleTouchStart}
@@ -1256,7 +1277,7 @@ export default function KitchenRush() {
                         </div>
                         {p.holding && (
                           <span className="kitchen-player-holding">
-                            {ITEM_EMOJI[p.holding]}
+                            {getItemEmoji(p.holding)}
                           </span>
                         )}
                         <span className="kitchen-player-name">{p.name}</span>
@@ -1273,7 +1294,7 @@ export default function KitchenRush() {
                       <div className="kitchen-player-body is-me">🧑‍🍳</div>
                       {myHolding && (
                         <span className="kitchen-player-holding">
-                          {ITEM_EMOJI[myHolding]}
+                          {getItemEmoji(myHolding)}
                         </span>
                       )}
                       <span className="kitchen-player-name">Kamu</span>
@@ -1285,7 +1306,6 @@ export default function KitchenRush() {
                   )}
                 </div>
 
-                {/* D-pad */}
                 <div className="kitchen-dpad" role="group" aria-label="Kontrol">
                   <button
                     type="button"
@@ -1398,7 +1418,6 @@ export default function KitchenRush() {
           width: 100%;
         }
 
-        /* HUD */
         .kitchen-hud {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
@@ -1438,7 +1457,6 @@ export default function KitchenRush() {
           }
         }
 
-        /* Orders */
         .kitchen-orders {
           display: flex;
           gap: 8px;
@@ -1511,7 +1529,6 @@ export default function KitchenRush() {
           margin-left: 4px;
         }
 
-        /* Panduan */
         .kitchen-guide {
           display: flex;
           align-items: center;
@@ -1559,7 +1576,6 @@ export default function KitchenRush() {
           font-size: 22px;
         }
 
-        /* Arena */
         .kitchen-arena {
           width: 100%;
           max-width: 640px;
@@ -1590,7 +1606,6 @@ export default function KitchenRush() {
           box-shadow: 0 20px 60px rgba(236, 72, 153, 0.2);
         }
 
-        /* Station */
         .kitchen-station {
           display: flex;
           flex-direction: column;
@@ -1671,7 +1686,6 @@ export default function KitchenRush() {
           transition: width 100ms linear;
         }
 
-        /* Player */
         .kitchen-player {
           display: flex;
           flex-direction: column;
@@ -1734,7 +1748,6 @@ export default function KitchenRush() {
           white-space: nowrap;
         }
 
-        /* Big notice */
         .kitchen-big-notice {
           position: absolute;
           top: 20px;
@@ -1763,7 +1776,6 @@ export default function KitchenRush() {
           }
         }
 
-        /* D-pad */
         .kitchen-dpad {
           display: grid;
           grid-template-columns: repeat(3, 56px);
