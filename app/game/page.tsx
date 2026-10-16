@@ -409,7 +409,7 @@ export default function DaftarGamePage() {
             </div>
           </section>
 
-          {/* ---- 009: SCRAMBLE DUEL (GAME BARU) ---- */}
+          {/* ---- 009: SCRAMBLE DUEL ---- */}
           <section className="game-feature">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
@@ -446,7 +446,7 @@ export default function DaftarGamePage() {
             </div>
           </section>
 
-          {/* ---- 010: FREE TO GAME (POSISI WAJIB PALING BAWAH)---- */}
+          {/* ---- 010: FREE TO GAME ---- */}
           <section className="game-feature is-external">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />

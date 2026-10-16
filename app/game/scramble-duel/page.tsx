@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import ScrambleDuel from "@/app/components/game/ScrambleDuel";
+import ScrambleDuelGame from "@/app/components/game/ScrambleDuel";
 
 export const metadata: Metadata = {
   title: "Scramble Duel - Game Tebak Kata 2 Pemain - Altaf Story",
@@ -45,5 +45,5 @@ export const metadata: Metadata = {
 };
 
 export default function ScrambleDuelPage() {
-  return <ScrambleDuel />;
+  return <ScrambleDuelGame />; // ← BERUBAH
 }
