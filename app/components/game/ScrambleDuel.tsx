@@ -51,7 +51,8 @@ const MIN_WORD_LEN = 3;
 const MAX_WORD_LEN = 7;
 const NEXT_SESSION_DELAY_MS = 1_800;
 const AUTO_START_DELAY_MS = 1_200;
-const WATCHDOG_INTERVAL_MS = 500;
+const WATCHDOG_INTERVAL_MS = 400;
+const GUESSER_BACKUP_DELAY_MS = 900;
 
 // =============================================================
 // HELPERS
@@ -155,8 +156,8 @@ export default function ScrambleDuelGame() {
   const autoStartTimeoutRef = useRef<number | null>(null);
   const playerOrderRef = useRef<string[]>([]);
   const hasStartedRef = useRef(false);
-  // Watchdog ref agar tidak spam kirim
   const timeoutFiredRef = useRef(false);
+  const advanceFiredRef = useRef(false);
 
   useEffect(() => {
     playerIdRef.current = playerId;
@@ -216,6 +217,7 @@ export default function ScrambleDuelGame() {
     attemptsLeftRef.current = MAX_ATTEMPTS;
     answerRef.current = "";
     timeoutFiredRef.current = false;
+    advanceFiredRef.current = false;
   };
 
   const clearTimers = () => {
@@ -227,6 +229,79 @@ export default function ScrambleDuelGame() {
       window.clearTimeout(autoStartTimeoutRef.current);
       autoStartTimeoutRef.current = null;
     }
+  };
+
+  // =============================================================
+  // START SESSION
+  // =============================================================
+  const startSession = (sessionNumber: number) => {
+    const order = playerOrderRef.current;
+    if (order.length !== 2) return;
+
+    const state = buildSession(sessionNumber, order[0], order[1]);
+    clearTimers();
+    resetSessionLocal();
+    setSessionState(state);
+    sessionStateRef.current = state;
+    setRemainingMs(INPUT_TIME_MS);
+    setPhase("playing");
+
+    void channelRef.current?.send({
+      type: "broadcast",
+      event: "session-start",
+      payload: state,
+    });
+  };
+
+  // =============================================================
+  // ADVANCE SESSION
+  // =============================================================
+  const advanceSession = () => {
+    if (advanceFiredRef.current) return;
+    advanceFiredRef.current = true;
+
+    const current = sessionStateRef.current;
+    if (!current) return;
+
+    const next = current.session + 1;
+
+    if (next > TOTAL_SESSIONS) {
+      // Game over
+      const order = playerOrderRef.current;
+      const aId = order[0];
+      const bId = order[1];
+
+      const iAmA = aId === playerIdRef.current;
+      const aScore = iAmA ? myScoreRef.current : peerScoreRef.current;
+      const bScore = iAmA ? peerScoreRef.current : myScoreRef.current;
+
+      let finalWinnerId: string | null = null;
+      let finalWinnerName = "";
+
+      const aPlayer = playersRef.current.find((p) => p.id === aId);
+      const bPlayer = playersRef.current.find((p) => p.id === bId);
+
+      if (aScore > bScore) {
+        finalWinnerId = aId;
+        finalWinnerName = aPlayer?.name ?? "Pemain A";
+      } else if (bScore > aScore) {
+        finalWinnerId = bId;
+        finalWinnerName = bPlayer?.name ?? "Pemain B";
+      }
+
+      setWinnerId(finalWinnerId);
+      setWinnerName(finalWinnerName);
+      setPhase("results");
+
+      void channelRef.current?.send({
+        type: "broadcast",
+        event: "game-over",
+        payload: { winnerId: finalWinnerId, winnerName: finalWinnerName },
+      });
+      return;
+    }
+
+    startSession(next);
   };
 
   // =============================================================
@@ -341,6 +416,7 @@ export default function ScrambleDuelGame() {
       setAttemptsLeft(MAX_ATTEMPTS);
       attemptsLeftRef.current = MAX_ATTEMPTS;
       timeoutFiredRef.current = false;
+      advanceFiredRef.current = false;
       setRemainingMs(Math.max(0, data.guessEndsAt - Date.now()));
     });
 
@@ -463,7 +539,6 @@ export default function ScrambleDuelGame() {
         }
       }
 
-      // Setter yang advance ke sesi berikutnya
       const current = sessionStateRef.current;
       if (current && current.setterId === playerIdRef.current) {
         if (advanceTimeoutRef.current) {
@@ -591,7 +666,7 @@ export default function ScrambleDuelGame() {
   }, [phase, players, playerId]);
 
   // =============================================================
-  // TIMER COUNTDOWN
+  // TIMER — SELALU JALAN (tanpa freeze)
   // =============================================================
   useEffect(() => {
     if (phase !== "playing") return;
@@ -602,28 +677,24 @@ export default function ScrambleDuelGame() {
         ? sessionState.inputEndsAt
         : sessionState.guessEndsAt;
 
+    // Kalau target 0 (belum ada stage), jangan hitung
+    if (!target) return;
+
     const tick = () => {
       const left = Math.max(0, target - Date.now());
       setRemainingMs(left);
-      // Freeze di 0 saat locked / submitted
-      if (sessionLocked || mySubmitted) {
-        setRemainingMs((prev) => Math.max(0, prev));
-      }
     };
     tick();
     const timer = setInterval(tick, 100);
     return () => clearInterval(timer);
-  }, [phase, sessionState, sessionLocked, mySubmitted]);
+  }, [phase, sessionState]);
 
   // =============================================================
-  // WATCHDOG (SETTER saja) — pakai setInterval biar tidak stuck
+  // WATCHDOG — kedua pemain, setter prioritas, guesser backup
   // =============================================================
   useEffect(() => {
     if (phase !== "playing") return;
     if (!sessionState) return;
-
-    const setterId = sessionState.setterId;
-    if (setterId !== playerId) return;
 
     const interval = setInterval(() => {
       if (sessionLockedRef.current) return;
@@ -631,109 +702,70 @@ export default function ScrambleDuelGame() {
 
       const current = sessionStateRef.current;
       if (!current) return;
-      if (current.setterId !== playerIdRef.current) return;
       if (current.stage !== sessionState.stage) return;
 
       const target =
         current.stage === "input" ? current.inputEndsAt : current.guessEndsAt;
-      const now = Date.now();
-      if (now < target) return;
+      if (!target) return;
+      if (Date.now() < target) return;
 
-      // Sudah lewat waktu → trigger
-      timeoutFiredRef.current = true;
+      const isSetterMe = current.setterId === playerIdRef.current;
 
-      if (current.stage === "input") {
-        void channelRef.current?.send({
-          type: "broadcast",
-          event: "session-skipped",
-          payload: { setterId: current.setterId },
-        });
+      if (isSetterMe) {
+        timeoutFiredRef.current = true;
+        if (current.stage === "input") {
+          void channelRef.current?.send({
+            type: "broadcast",
+            event: "session-skipped",
+            payload: { setterId: current.setterId },
+          });
+        } else {
+          void channelRef.current?.send({
+            type: "broadcast",
+            event: "session-result",
+            payload: {
+              guesserId: current.guesserId,
+              correct: false,
+              answer: answerRef.current,
+              timeout: true,
+            },
+          });
+        }
       } else {
-        void channelRef.current?.send({
-          type: "broadcast",
-          event: "session-result",
-          payload: {
-            guesserId: current.guesserId,
-            correct: false,
-            answer: answerRef.current,
-            timeout: true,
-          },
-        });
+        timeoutFiredRef.current = true;
+        window.setTimeout(() => {
+          if (sessionLockedRef.current) return;
+          const latest = sessionStateRef.current;
+          if (!latest) return;
+          const latestTarget =
+            latest.stage === "input" ? latest.inputEndsAt : latest.guessEndsAt;
+          if (!latestTarget) return;
+          if (Date.now() < latestTarget + GUESSER_BACKUP_DELAY_MS) return;
+
+          if (latest.stage === "input") {
+            void channelRef.current?.send({
+              type: "broadcast",
+              event: "session-skipped",
+              payload: { setterId: latest.setterId },
+            });
+          } else {
+            void channelRef.current?.send({
+              type: "broadcast",
+              event: "session-result",
+              payload: {
+                guesserId: latest.guesserId,
+                correct: false,
+                answer: answerRef.current,
+                timeout: true,
+              },
+            });
+          }
+        }, GUESSER_BACKUP_DELAY_MS);
       }
     }, WATCHDOG_INTERVAL_MS);
 
     return () => clearInterval(interval);
-  }, [phase, sessionState, playerId]);
-
-  // =============================================================
-  // START SESSION
-  // =============================================================
-  const startSession = (sessionNumber: number) => {
-    const order = playerOrderRef.current;
-    if (order.length !== 2) return;
-
-    const state = buildSession(sessionNumber, order[0], order[1]);
-    clearTimers();
-    resetSessionLocal();
-    setSessionState(state);
-    sessionStateRef.current = state;
-    setRemainingMs(INPUT_TIME_MS);
-    setPhase("playing");
-
-    void channelRef.current?.send({
-      type: "broadcast",
-      event: "session-start",
-      payload: state,
-    });
-  };
-
-  // =============================================================
-  // ADVANCE SESSION
-  // =============================================================
-  const advanceSession = () => {
-    const current = sessionStateRef.current;
-    if (!current) return;
-    if (current.setterId !== playerIdRef.current) return;
-
-    const next = current.session + 1;
-
-    if (next > TOTAL_SESSIONS) {
-      const order = playerOrderRef.current;
-      const aId = order[0];
-      const bId = order[1];
-
-      const iAmA = aId === playerIdRef.current;
-      const aScore = iAmA ? myScoreRef.current : peerScoreRef.current;
-      const bScore = iAmA ? peerScoreRef.current : myScoreRef.current;
-
-      let finalWinnerId: string | null = null;
-      let finalWinnerName = "";
-
-      const aPlayer = playersRef.current.find((p) => p.id === aId);
-      const bPlayer = playersRef.current.find((p) => p.id === bId);
-
-      if (aScore > bScore) {
-        finalWinnerId = aId;
-        finalWinnerName = aPlayer?.name ?? "Pemain A";
-      } else if (bScore > aScore) {
-        finalWinnerId = bId;
-        finalWinnerName = bPlayer?.name ?? "Pemain B";
-      }
-
-      setWinnerId(finalWinnerId);
-      setWinnerName(finalWinnerName);
-      setPhase("results");
-
-      void channelRef.current?.send({
-        type: "broadcast",
-        event: "game-over",
-        payload: { winnerId: finalWinnerId, winnerName: finalWinnerName },
-      });
-      return;
-    }
-
-    startSession(next);
-  };
+  }, [phase, sessionState]);
 
   // =============================================================
   // SETTER SUBMIT
@@ -772,6 +804,7 @@ export default function ScrambleDuelGame() {
     setAttemptsLeft(MAX_ATTEMPTS);
     attemptsLeftRef.current = MAX_ATTEMPTS;
     timeoutFiredRef.current = false;
+    advanceFiredRef.current = false;
 
     void channelRef.current?.send({
       type: "broadcast",
@@ -819,15 +852,13 @@ export default function ScrambleDuelGame() {
       payload: { guess, guesserId: playerId, attemptNumber },
     });
 
-    // Unfreeze kalau dalam 2 detik tidak ada feedback
-    // (kemungkinan setter lambat / koneksi bermasalah)
-    setTimeout(() => {
+    // Unfreeze input setelah 1 detik supaya bisa coba lagi (kalau masih ada kesempatan)
+    window.setTimeout(() => {
       if (sessionLockedRef.current) return;
       if (sessionStateRef.current?.stage !== "guess") return;
-      // Unfreeze supaya bisa coba lagi
       setMySubmitted(false);
       mySubmittedRef.current = false;
-    }, 2000);
+    }, 1000);
   };
 
   // =============================================================
@@ -1337,7 +1368,7 @@ export default function ScrambleDuelGame() {
                       placeholder="JAWABANMU"
                       maxLength={MAX_WORD_LEN}
                       autoComplete="off"
-                      disabled={sessionLocked || mySubmitted}
+                      disabled={sessionLocked}
                     />
 
                     <button
@@ -1346,10 +1377,10 @@ export default function ScrambleDuelGame() {
                       disabled={submitDisabled}
                     >
                       <Send size={17} />{" "}
-                      {mySubmitted
-                        ? "Menunggu hasil…"
-                        : sessionLocked
-                          ? "Sesi selesai"
+                      {sessionLocked
+                        ? "Sesi selesai"
+                        : mySubmitted
+                          ? "Mengirim…"
                           : "Kirim"}
                     </button>
 
