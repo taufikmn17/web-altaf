@@ -2,6 +2,7 @@
 
 import {
   ArrowLeft,
+  Check,
   Copy,
   DoorOpen,
   Puzzle,
@@ -21,7 +22,8 @@ import { getSupabaseBrowserClient } from "@/app/lib/supabase-browser";
 type RoomPlayer = {
   id: string;
   name: string;
-  joinedAt: number;
+  isHost: boolean;
+  ready: boolean;
 };
 
 type GamePhase = "lobby" | "playing" | "results";
@@ -50,9 +52,13 @@ const MAX_ATTEMPTS = 3;
 const MIN_WORD_LEN = 3;
 const MAX_WORD_LEN = 7;
 const NEXT_SESSION_DELAY_MS = 1_800;
-const AUTO_START_DELAY_MS = 1_200;
 const WATCHDOG_INTERVAL_MS = 400;
 const GUESSER_BACKUP_DELAY_MS = 900;
+const MAX_PLAYERS = 2;
+
+// Warna selaras tema arcade amber/orange (sama seperti Snake Duel)
+const P1_COLOR = "#fbbf24"; // amber — host
+const P2_COLOR = "#f97316"; // orange — guest
 
 // =============================================================
 // HELPERS
@@ -116,8 +122,10 @@ export default function ScrambleDuelGame() {
 
   const [activeRoom, setActiveRoom] = useState("");
   const [roomInput, setRoomInput] = useState("");
+  const [isHost, setIsHost] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [players, setPlayers] = useState<RoomPlayer[]>([]);
+  const [isReady, setIsReady] = useState(false);
   const [joiningRoom, setJoiningRoom] = useState(false);
 
   const [phase, setPhase] = useState<GamePhase>("lobby");
@@ -153,9 +161,7 @@ export default function ScrambleDuelGame() {
   const myScoreRef = useRef(0);
   const peerScoreRef = useRef(0);
   const advanceTimeoutRef = useRef<number | null>(null);
-  const autoStartTimeoutRef = useRef<number | null>(null);
   const playerOrderRef = useRef<string[]>([]);
-  const hasStartedRef = useRef(false);
   const timeoutFiredRef = useRef(false);
   const advanceFiredRef = useRef(false);
 
@@ -204,6 +210,9 @@ export default function ScrambleDuelGame() {
     : [];
   const answerLen = sessionState?.answerLength ?? 0;
 
+  const myColor = isHost ? P1_COLOR : P2_COLOR;
+  const peerColor = isHost ? P2_COLOR : P1_COLOR;
+
   // ---------- Reset helpers ----------
   const resetSessionLocal = () => {
     setWordInput("");
@@ -224,10 +233,6 @@ export default function ScrambleDuelGame() {
     if (advanceTimeoutRef.current) {
       window.clearTimeout(advanceTimeoutRef.current);
       advanceTimeoutRef.current = null;
-    }
-    if (autoStartTimeoutRef.current) {
-      window.clearTimeout(autoStartTimeoutRef.current);
-      autoStartTimeoutRef.current = null;
     }
   };
 
@@ -266,7 +271,6 @@ export default function ScrambleDuelGame() {
     const next = current.session + 1;
 
     if (next > TOTAL_SESSIONS) {
-      // Game over
       const order = playerOrderRef.current;
       const aId = order[0];
       const bId = order[1];
@@ -312,10 +316,7 @@ export default function ScrambleDuelGame() {
 
     const channel = supabase.channel(`scramble-duel:${activeRoom}`, {
       config: {
-        // Echo broadcasts to the sender as well. The setter is the session
-        // coordinator and must receive its own session-result/session-skipped
-        // events to advance the game; without this, neither client advances.
-        broadcast: { self: true },
+        broadcast: { self: false },
         presence: { key: playerId },
       },
     });
@@ -326,9 +327,14 @@ export default function ScrambleDuelGame() {
       const connected = Object.values(state)
         .flat()
         .filter((p) => p.id && !p.id.startsWith("peek-"))
-        .sort((a, b) => (a.joinedAt ?? 0) - (b.joinedAt ?? 0));
+        .sort((a, b) => Number(b.isHost) - Number(a.isHost));
       setPlayers(connected);
-      playerOrderRef.current = connected.map((p) => p.id);
+      // Player A = yang isHost, Player B = guest
+      // Urut supaya host selalu pertama
+      const ordered = connected
+        .slice()
+        .sort((a, b) => Number(b.isHost) - Number(a.isHost));
+      playerOrderRef.current = ordered.map((p) => p.id);
     };
 
     channel.on("presence", { event: "sync" }, syncFromPresence);
@@ -338,7 +344,6 @@ export default function ScrambleDuelGame() {
     channel.on("broadcast", { event: "game-start" }, ({ payload }) => {
       const data = payload as { starterId: string; session: SessionState };
       if (!data || !data.session) return;
-      hasStartedRef.current = true;
       clearTimers();
       resetSessionLocal();
       setSessionState(data.session);
@@ -365,7 +370,6 @@ export default function ScrambleDuelGame() {
       setWinnerId(null);
       setWinnerName("");
       setPhase("lobby");
-      hasStartedRef.current = false;
     });
 
     channel.on(
@@ -611,62 +615,16 @@ export default function ScrambleDuelGame() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeRoom, playerId, supabase]);
 
+  // ---- Track presence ----
   useEffect(() => {
     if (!isConnected || !activeRoom) return;
     void channelRef.current?.track({
       id: playerId,
       name: playerName.trim() || "Pemain",
-      joinedAt: Date.now(),
+      isHost,
+      ready: isHost || isReady,
     });
-  }, [activeRoom, isConnected, playerId, playerName]);
-
-  // =============================================================
-  // AUTO-START
-  // =============================================================
-  useEffect(() => {
-    if (phase !== "lobby") return;
-    if (hasStartedRef.current) return;
-    if (players.length !== 2) return;
-
-    const order = playerOrderRef.current;
-    if (order.length !== 2) return;
-    if (order[0] !== playerId) return;
-
-    if (autoStartTimeoutRef.current) return;
-    autoStartTimeoutRef.current = window.setTimeout(() => {
-      autoStartTimeoutRef.current = null;
-      if (hasStartedRef.current) return;
-      if (playersRef.current.length !== 2) return;
-
-      hasStartedRef.current = true;
-      const firstSession = buildSession(1, order[0], order[1]);
-      resetSessionLocal();
-      setSessionState(firstSession);
-      sessionStateRef.current = firstSession;
-      setRemainingMs(INPUT_TIME_MS);
-      setMyScore(0);
-      setPeerScore(0);
-      myScoreRef.current = 0;
-      peerScoreRef.current = 0;
-      setWinnerId(null);
-      setWinnerName("");
-      setPhase("playing");
-
-      void channelRef.current?.send({
-        type: "broadcast",
-        event: "game-start",
-        payload: { starterId: playerId, session: firstSession },
-      });
-    }, AUTO_START_DELAY_MS);
-
-    return () => {
-      if (autoStartTimeoutRef.current) {
-        window.clearTimeout(autoStartTimeoutRef.current);
-        autoStartTimeoutRef.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, players, playerId]);
+  }, [activeRoom, isConnected, isHost, isReady, playerId, playerName]);
 
   // =============================================================
   // TIMER — SELALU JALAN (tanpa freeze)
@@ -679,8 +637,6 @@ export default function ScrambleDuelGame() {
       sessionState.stage === "input"
         ? sessionState.inputEndsAt
         : sessionState.guessEndsAt;
-
-    // Kalau target 0 (belum ada stage), jangan hitung
     if (!target) return;
 
     const tick = () => {
@@ -863,7 +819,6 @@ export default function ScrambleDuelGame() {
       payload: { guess, guesserId: playerId, attemptNumber },
     });
 
-    // Unfreeze input setelah 1 detik supaya bisa coba lagi (kalau masih ada kesempatan)
     window.setTimeout(() => {
       if (sessionLockedRef.current) return;
       if (sessionStateRef.current?.stage !== "guess") return;
@@ -873,14 +828,46 @@ export default function ScrambleDuelGame() {
   };
 
   // =============================================================
-  // PLAY AGAIN
+  // START GAME (HOST)
+  // =============================================================
+  const handleStartGame = () => {
+    if (!isHost) return;
+    if (players.length !== 2) return;
+    if (!players.every((p) => p.isHost || p.ready)) return;
+
+    const order = playerOrderRef.current;
+    if (order.length !== 2) return;
+
+    const firstSession = buildSession(1, order[0], order[1]);
+    clearTimers();
+    resetSessionLocal();
+    setSessionState(firstSession);
+    sessionStateRef.current = firstSession;
+    setRemainingMs(INPUT_TIME_MS);
+    setMyScore(0);
+    setPeerScore(0);
+    myScoreRef.current = 0;
+    peerScoreRef.current = 0;
+    setWinnerId(null);
+    setWinnerName("");
+    setPhase("playing");
+
+    void channelRef.current?.send({
+      type: "broadcast",
+      event: "game-start",
+      payload: { starterId: playerId, session: firstSession },
+    });
+  };
+
+  // =============================================================
+  // PLAY AGAIN (HOST)
   // =============================================================
   const handlePlayAgain = () => {
+    if (!isHost) return;
     const order = playerOrderRef.current;
     if (order.length !== 2) return;
 
     clearTimers();
-    hasStartedRef.current = false;
 
     void channelRef.current?.send({
       type: "broadcast",
@@ -898,25 +885,6 @@ export default function ScrambleDuelGame() {
     setWinnerId(null);
     setWinnerName("");
     setPhase("lobby");
-
-    if (order[0] === playerId) {
-      setTimeout(() => {
-        if (hasStartedRef.current) return;
-        hasStartedRef.current = true;
-        const firstSession = buildSession(1, order[0], order[1]);
-        resetSessionLocal();
-        setSessionState(firstSession);
-        sessionStateRef.current = firstSession;
-        setRemainingMs(INPUT_TIME_MS);
-        setPhase("playing");
-
-        void channelRef.current?.send({
-          type: "broadcast",
-          event: "game-start",
-          payload: { starterId: playerId, session: firstSession },
-        });
-      }, AUTO_START_DELAY_MS);
-    }
   };
 
   // =============================================================
@@ -961,7 +929,7 @@ export default function ScrambleDuelGame() {
     return count;
   };
 
-  const enterRoom = async (roomCode: string) => {
+  const enterRoom = async (roomCode: string, host: boolean) => {
     if (!supabase) {
       setError("Supabase belum dikonfigurasi.");
       return;
@@ -975,17 +943,19 @@ export default function ScrambleDuelGame() {
     setJoiningRoom(true);
 
     try {
-      const count = await peekRoomPlayerCount(roomCode);
-      if (count >= 2) {
-        setError("Room sudah penuh (maks 2 pemain).");
-        setJoiningRoom(false);
-        return;
+      // Guest: cek dulu apakah room sudah penuh
+      if (!host) {
+        const count = await peekRoomPlayerCount(roomCode);
+        if (count >= MAX_PLAYERS) {
+          setError(`Room sudah penuh (maks ${MAX_PLAYERS} pemain).`);
+          setJoiningRoom(false);
+          return;
+        }
       }
 
       setPlayerId(crypto.randomUUID());
       setPlayers([]);
       playerOrderRef.current = [];
-      hasStartedRef.current = false;
       setPhase("lobby");
       setSessionState(null);
       sessionStateRef.current = null;
@@ -994,6 +964,8 @@ export default function ScrambleDuelGame() {
       setWinnerId(null);
       setWinnerName("");
       resetSessionLocal();
+      setIsReady(host); // host otomatis ready
+      setIsHost(host);
       setActiveRoom(roomCode);
     } catch {
       setError("Gagal masuk room. Coba lagi.");
@@ -1012,7 +984,7 @@ export default function ScrambleDuelGame() {
       setError("Kode room terdiri dari 6 karakter.");
       return;
     }
-    void enterRoom(code);
+    void enterRoom(code, false);
   };
 
   const copyRoomCode = async () => {
@@ -1029,6 +1001,8 @@ export default function ScrambleDuelGame() {
     clearTimers();
     setActiveRoom("");
     setIsConnected(false);
+    setIsHost(false);
+    setIsReady(false);
     setPlayers([]);
     setPhase("lobby");
     setSessionState(null);
@@ -1041,11 +1015,23 @@ export default function ScrambleDuelGame() {
     setError("");
   };
 
+  // ---- Derived untuk lobby ----
+  const guestsReady = players.filter((p) => !p.isHost).every((p) => p.ready);
+  const canStart =
+    isHost &&
+    players.length === MAX_PLAYERS &&
+    guestsReady &&
+    isConnected &&
+    !joiningRoom;
+
   const submitDisabled =
     mySubmitted ||
     sessionLocked ||
     secondsLeft <= 0 ||
     guessInput.trim().length === 0;
+
+  const myName = players.find((p) => p.id === playerId)?.name ?? "Kamu";
+  const peerName = peer?.name ?? "Lawan";
 
   // =============================================================
   // RENDER
@@ -1057,7 +1043,7 @@ export default function ScrambleDuelGame() {
           <ArrowLeft size={18} aria-hidden="true" />
           <span>Semua game</span>
         </Link>
-        <span className="tap-rush-season">ONLINE DUEL / 10</span>
+        <span className="tap-rush-season">ONLINE DUEL / 09</span>
       </div>
 
       <section className="tap-rush-layout">
@@ -1075,6 +1061,7 @@ export default function ScrambleDuelGame() {
         </header>
 
         {!activeRoom ? (
+          // ================== LOBBY AWAL ==================
           <section className="tap-rush-lobby">
             <div className="tap-rush-intro">
               <div className="tap-rush-orb" aria-hidden="true">
@@ -1083,8 +1070,9 @@ export default function ScrambleDuelGame() {
               <div>
                 <h2>Bikin room, tantang teman</h2>
                 <p>
-                  Setiap pemain dapat 3x jadi setter & 3x jadi guesser. Benar =
-                  +1 poin. Total 6 sesi!
+                  Host buat room, teman masuk dengan kode. Setiap pemain dapat
+                  3x jadi setter & 3x jadi guesser. Benar = +1 poin. Total 6
+                  sesi!
                 </p>
               </div>
             </div>
@@ -1107,7 +1095,7 @@ export default function ScrambleDuelGame() {
                 className="tap-rush-primary"
                 type="button"
                 disabled={!supabase || joiningRoom}
-                onClick={() => void enterRoom(makeRoomCode())}
+                onClick={() => void enterRoom(makeRoomCode(), true)}
               >
                 <Rocket size={17} /> Buat room
               </button>
@@ -1151,6 +1139,7 @@ export default function ScrambleDuelGame() {
             )}
           </section>
         ) : (
+          // ================== ROOM ==================
           <section className="tap-rush-room">
             <div className="tap-rush-roombar">
               <div>
@@ -1182,7 +1171,9 @@ export default function ScrambleDuelGame() {
                   <h2>
                     <UsersRound size={20} /> Pemain di room
                   </h2>
-                  <span>{players.length} / 2</span>
+                  <span>
+                    {players.length} / {MAX_PLAYERS}
+                  </span>
                 </div>
                 <div className="tap-rush-player-list">
                   {players.length === 0 ? (
@@ -1191,20 +1182,57 @@ export default function ScrambleDuelGame() {
                     players.map((p, i) => (
                       <div className="tap-rush-player" key={p.id}>
                         <span className="tap-rush-player-number">0{i + 1}</span>
+                        <span
+                          className="tap-rush-player-color-dot"
+                          style={{
+                            background: p.isHost ? P1_COLOR : P2_COLOR,
+                          }}
+                        />
                         <span className="tap-rush-player-name">
                           {p.name}
                           {p.id === playerId ? " (kamu)" : ""}
                         </span>
+                        {p.isHost ? (
+                          <span className="tap-rush-host">HOST</span>
+                        ) : p.ready ? (
+                          <span className="tap-rush-ready">
+                            <Check size={14} /> SIAP
+                          </span>
+                        ) : (
+                          <span className="tap-rush-waiting">MENUNGGU</span>
+                        )}
                       </div>
                     ))
                   )}
                 </div>
                 <div className="tap-rush-lobby-footer">
-                  <p className="tap-rush-waiting-host">
-                    {players.length < 2
-                      ? "Menunggu 1 pemain lagi…"
-                      : "Game akan segera dimulai…"}
-                  </p>
+                  {isHost ? (
+                    <button
+                      className="tap-rush-primary"
+                      type="button"
+                      disabled={!canStart}
+                      onClick={handleStartGame}
+                    >
+                      <Rocket size={17} />{" "}
+                      {players.length < MAX_PLAYERS
+                        ? "Menunggu teman"
+                        : guestsReady
+                          ? "Mulai duel"
+                          : "Menunggu siap"}
+                    </button>
+                  ) : (
+                    <button
+                      className={`tap-rush-primary ${
+                        isReady ? "is-ready" : ""
+                      }`}
+                      type="button"
+                      disabled={!isConnected}
+                      onClick={() => setIsReady((r) => !r)}
+                    >
+                      <Check size={17} />{" "}
+                      {isReady ? "Siap! (ubah)" : "Saya siap"}
+                    </button>
+                  )}
                   <button
                     className="tap-rush-leave"
                     type="button"
@@ -1219,7 +1247,14 @@ export default function ScrambleDuelGame() {
             {phase === "playing" && sessionState && (
               <div className="scramble-wrap">
                 <div className="scramble-hud">
-                  <div className="scramble-score">
+                  <div
+                    className="scramble-score"
+                    style={{ borderColor: myColor }}
+                  >
+                    <span
+                      className="scramble-score-dot"
+                      style={{ background: myColor }}
+                    />
                     <span className="scramble-score-label">KAMU</span>
                     <strong>{myScore}</strong>
                   </div>
@@ -1231,9 +1266,16 @@ export default function ScrambleDuelGame() {
                       {String(secondsLeft).padStart(2, "0")}s
                     </strong>
                   </div>
-                  <div className="scramble-score">
+                  <div
+                    className="scramble-score"
+                    style={{ borderColor: peerColor }}
+                  >
+                    <span
+                      className="scramble-score-dot"
+                      style={{ background: peerColor }}
+                    />
                     <span className="scramble-score-label">
-                      {peer?.name?.toUpperCase() ?? "LAWAN"}
+                      {peerName.toUpperCase()}
                     </span>
                     <strong>{peerScore}</strong>
                   </div>
@@ -1436,23 +1478,44 @@ export default function ScrambleDuelGame() {
                       : `${winnerName} menang!`}
                 </h2>
                 <div className="scramble-final-scores">
-                  <div className="scramble-final-score">
+                  <div
+                    className="scramble-final-score"
+                    style={{ borderColor: myColor }}
+                  >
+                    <span
+                      className="scramble-score-dot"
+                      style={{ background: myColor }}
+                    />
                     <span>KAMU</span>
                     <strong>{myScore}</strong>
                   </div>
-                  <div className="scramble-final-score">
-                    <span>{peer?.name?.toUpperCase() ?? "LAWAN"}</span>
+                  <div
+                    className="scramble-final-score"
+                    style={{ borderColor: peerColor }}
+                  >
+                    <span
+                      className="scramble-score-dot"
+                      style={{ background: peerColor }}
+                    />
+                    <span>{peerName.toUpperCase()}</span>
                     <strong>{peerScore}</strong>
                   </div>
                 </div>
                 <div className="tap-rush-lobby-footer">
-                  <button
-                    className="tap-rush-primary"
-                    type="button"
-                    onClick={handlePlayAgain}
-                  >
-                    <Rocket size={17} /> Main lagi
-                  </button>
+                  {isHost && (
+                    <button
+                      className="tap-rush-primary"
+                      type="button"
+                      onClick={handlePlayAgain}
+                    >
+                      <Rocket size={17} /> Main lagi
+                    </button>
+                  )}
+                  {!isHost && (
+                    <span className="tap-rush-waiting-host">
+                      Host yang memulai ronde berikutnya
+                    </span>
+                  )}
                   <button
                     className="tap-rush-leave"
                     type="button"
@@ -1502,9 +1565,16 @@ export default function ScrambleDuelGame() {
           gap: 8px;
           padding: 10px 14px;
           background: rgba(255, 255, 255, 0.03);
-          border: 2px solid rgba(236, 72, 153, 0.4);
+          border: 2px solid;
           border-radius: 10px;
           min-width: 0;
+        }
+        .scramble-score-dot {
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          flex-shrink: 0;
+          box-shadow: 0 0 10px currentColor;
         }
         .scramble-score-label {
           font-size: 10px;
@@ -1530,7 +1600,7 @@ export default function ScrambleDuelGame() {
           gap: 2px;
           padding: 8px 14px;
           background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(236, 72, 153, 0.2);
+          border: 1px solid rgba(251, 191, 36, 0.25);
           border-radius: 10px;
         }
         .scramble-round span {
@@ -1542,7 +1612,7 @@ export default function ScrambleDuelGame() {
         .scramble-round strong {
           font-family: Impact, "Arial Black", sans-serif;
           font-size: 22px;
-          color: #ec4899;
+          color: ${P1_COLOR};
           font-variant-numeric: tabular-nums;
         }
         .scramble-round strong.is-urgent {
@@ -1563,14 +1633,14 @@ export default function ScrambleDuelGame() {
           text-transform: uppercase;
         }
         .scramble-badge.is-setter {
-          background: linear-gradient(135deg, #ec4899, #f472b6);
-          color: #fff;
-          box-shadow: 0 0 20px rgba(236, 72, 153, 0.5);
+          background: linear-gradient(135deg, ${P1_COLOR}, #f59e0b);
+          color: #0a0f1a;
+          box-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
         }
         .scramble-badge.is-guesser {
-          background: linear-gradient(135deg, #22c55e, #16a34a);
+          background: linear-gradient(135deg, ${P2_COLOR}, #ea580c);
           color: #fff;
-          box-shadow: 0 0 20px rgba(34, 197, 94, 0.5);
+          box-shadow: 0 0 20px rgba(249, 115, 22, 0.5);
         }
         .scramble-setter-form,
         .scramble-guesser-form {
@@ -1580,7 +1650,7 @@ export default function ScrambleDuelGame() {
           width: 100%;
           padding: 18px 16px;
           background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(236, 72, 153, 0.25);
+          border: 1px solid rgba(251, 191, 36, 0.25);
           border-radius: 14px;
         }
         .scramble-help {
@@ -1590,7 +1660,7 @@ export default function ScrambleDuelGame() {
           line-height: 1.5;
         }
         .scramble-len-hint {
-          color: #22c55e;
+          color: ${P1_COLOR};
           font-weight: 700;
         }
         .scramble-word-input,
@@ -1622,12 +1692,12 @@ export default function ScrambleDuelGame() {
           width: clamp(36px, 10vw, 56px);
           height: clamp(36px, 10vw, 56px);
           border-radius: 10px;
-          background: linear-gradient(135deg, #f472b6, #ec4899);
-          color: #fff;
+          background: linear-gradient(135deg, ${P1_COLOR}, ${P2_COLOR});
+          color: #0a0f1a;
           font-family: Impact, "Arial Black", sans-serif;
           font-size: clamp(18px, 5vw, 26px);
           font-weight: 700;
-          box-shadow: 0 4px 12px rgba(236, 72, 153, 0.4);
+          box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4);
           flex-shrink: 0;
           text-transform: uppercase;
         }
@@ -1645,7 +1715,7 @@ export default function ScrambleDuelGame() {
           opacity: 0.75;
         }
         .scramble-attempts strong {
-          color: #fbbf24;
+          color: ${P1_COLOR};
           font-size: 14px;
         }
         .scramble-submit-btn {
@@ -1672,7 +1742,7 @@ export default function ScrambleDuelGame() {
         }
         .scramble-feedback.is-timeout {
           background: rgba(251, 191, 36, 0.15);
-          color: #fbbf24;
+          color: ${P1_COLOR};
           border: 1px solid rgba(251, 191, 36, 0.4);
         }
         .scramble-feedback.is-info {
@@ -1687,13 +1757,13 @@ export default function ScrambleDuelGame() {
           align-items: center;
           padding: 20px 16px;
           background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(236, 72, 153, 0.25);
+          border: 1px solid rgba(251, 191, 36, 0.25);
           border-radius: 14px;
           text-align: center;
           width: 100%;
         }
         .scramble-answer-reveal {
-          color: #fbbf24;
+          color: ${P1_COLOR};
           font-family: Impact, "Arial Black", sans-serif;
           letter-spacing: 0.08em;
           font-size: 18px;
@@ -1710,8 +1780,8 @@ export default function ScrambleDuelGame() {
           align-items: center;
           gap: 12px;
           padding: 36px 20px;
-          background: rgba(34, 197, 94, 0.06);
-          border: 1px solid rgba(34, 197, 94, 0.25);
+          background: rgba(251, 191, 36, 0.06);
+          border: 1px solid rgba(251, 191, 36, 0.25);
           border-radius: 14px;
           text-align: center;
           width: 100%;
@@ -1731,7 +1801,7 @@ export default function ScrambleDuelGame() {
         .scramble-waiting-opponent h3 {
           font-size: 18px;
           font-weight: 800;
-          color: #22c55e;
+          color: ${P1_COLOR};
         }
         .scramble-waiting-opponent p {
           font-size: 13px;
@@ -1748,7 +1818,7 @@ export default function ScrambleDuelGame() {
           width: 8px;
           height: 8px;
           border-radius: 50%;
-          background: #22c55e;
+          background: ${P1_COLOR};
           animation: bounceDot 1.4s infinite ease-in-out;
         }
         .scramble-waiting-dots span:nth-child(2) {
@@ -1782,7 +1852,7 @@ export default function ScrambleDuelGame() {
           gap: 8px;
           padding: 12px 18px;
           background: rgba(255, 255, 255, 0.03);
-          border: 2px solid rgba(236, 72, 153, 0.5);
+          border: 2px solid;
           border-radius: 12px;
         }
         .scramble-final-score span {
@@ -1794,7 +1864,13 @@ export default function ScrambleDuelGame() {
         .scramble-final-score strong {
           font-family: Impact, "Arial Black", sans-serif;
           font-size: 24px;
-          color: #ec4899;
+          color: #fff;
+        }
+        .tap-rush-player-color-dot {
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          flex-shrink: 0;
         }
         @media (max-width: 640px) {
           .scramble-hud {
