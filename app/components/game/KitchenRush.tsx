@@ -595,7 +595,7 @@ export default function KitchenRush() {
       return;
     }
 
-    // PLATE: Dine In (HANYA terima makanan matang)
+    // PLATE: Dine In (HANYA terima makanan matangg)
     if (station.kind === "plate") {
       if (isCooked(holding)) {
         const dineInOrder = orders.find(

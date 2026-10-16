@@ -22,6 +22,7 @@ type RoomPlayer = {
   id: string;
   name: string;
   joinedAt: number;
+  ready?: boolean;
 };
 
 type GamePhase = "lobby" | "playing" | "results";
@@ -44,13 +45,12 @@ type SessionState = {
 // =============================================================
 const ROOM_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const TOTAL_SESSIONS = 6;
-const INPUT_TIME_MS = 15_000;
-const GUESS_TIME_MS = 15_000;
+const INPUT_TIME_MS = 30_000;
+const GUESS_TIME_MS = 30_000;
 const MAX_ATTEMPTS = 3;
 const MIN_WORD_LEN = 3;
-const MAX_WORD_LEN = 7;
+const MAX_WORD_LEN = 10;
 const NEXT_SESSION_DELAY_MS = 1_800;
-const AUTO_START_DELAY_MS = 1_200;
 const WATCHDOG_INTERVAL_MS = 400;
 const GUESSER_BACKUP_DELAY_MS = 900;
 
@@ -118,6 +118,7 @@ export default function ScrambleDuelGame() {
   const [roomInput, setRoomInput] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const [players, setPlayers] = useState<RoomPlayer[]>([]);
+  const [isReady, setIsReady] = useState(false);
   const [joiningRoom, setJoiningRoom] = useState(false);
 
   const [phase, setPhase] = useState<GamePhase>("lobby");
@@ -364,6 +365,7 @@ export default function ScrambleDuelGame() {
       peerScoreRef.current = 0;
       setWinnerId(null);
       setWinnerName("");
+      setIsReady(false);
       setPhase("lobby");
       hasStartedRef.current = false;
     });
@@ -616,57 +618,58 @@ export default function ScrambleDuelGame() {
     void channelRef.current?.track({
       id: playerId,
       name: playerName.trim() || "Pemain",
-      joinedAt: Date.now(),
+      joinedAt: playerOrderRef.current.includes(playerId)
+        ? (playersRef.current.find((p) => p.id === playerId)?.joinedAt ??
+          Date.now())
+        : Date.now(),
+      ready: isReady,
     });
-  }, [activeRoom, isConnected, playerId, playerName]);
+  }, [activeRoom, isConnected, isReady, playerId, playerName]);
 
   // =============================================================
-  // AUTO-START
+  // HOST-ONLY START
   // =============================================================
-  useEffect(() => {
-    if (phase !== "lobby") return;
-    if (hasStartedRef.current) return;
-    if (players.length !== 2) return;
+  const isHost = players.length > 0 && players[0]?.id === playerId;
+  const guest = players.find((p) => p.id !== playerId);
+  const canStart =
+    isHost &&
+    players.length === 2 &&
+    Boolean(guest?.ready) &&
+    isConnected &&
+    !joiningRoom &&
+    phase === "lobby";
 
+  const handleStartGame = () => {
     const order = playerOrderRef.current;
-    if (order.length !== 2) return;
-    if (order[0] !== playerId) return;
-
-    if (autoStartTimeoutRef.current) return;
-    autoStartTimeoutRef.current = window.setTimeout(() => {
-      autoStartTimeoutRef.current = null;
-      if (hasStartedRef.current) return;
-      if (playersRef.current.length !== 2) return;
-
-      hasStartedRef.current = true;
-      const firstSession = buildSession(1, order[0], order[1]);
-      resetSessionLocal();
-      setSessionState(firstSession);
-      sessionStateRef.current = firstSession;
-      setRemainingMs(INPUT_TIME_MS);
-      setMyScore(0);
-      setPeerScore(0);
-      myScoreRef.current = 0;
-      peerScoreRef.current = 0;
-      setWinnerId(null);
-      setWinnerName("");
-      setPhase("playing");
-
-      void channelRef.current?.send({
-        type: "broadcast",
-        event: "game-start",
-        payload: { starterId: playerId, session: firstSession },
-      });
-    }, AUTO_START_DELAY_MS);
-
-    return () => {
-      if (autoStartTimeoutRef.current) {
-        window.clearTimeout(autoStartTimeoutRef.current);
-        autoStartTimeoutRef.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, players, playerId]);
+    if (!isHost || phase !== "lobby" || hasStartedRef.current) return;
+    if (order.length !== 2 || playersRef.current.length !== 2) {
+      setError("Tunggu sampai 2 pemain bergabung.");
+      return;
+    }
+    const guest = playersRef.current.find((p) => p.id !== playerId);
+    if (!guest?.ready) {
+      setError("Tunggu sampai pemain lain menekan tombol Siap.");
+      return;
+    }
+    hasStartedRef.current = true;
+    const firstSession = buildSession(1, order[0], order[1]);
+    resetSessionLocal();
+    setSessionState(firstSession);
+    sessionStateRef.current = firstSession;
+    setRemainingMs(INPUT_TIME_MS);
+    setMyScore(0);
+    setPeerScore(0);
+    myScoreRef.current = 0;
+    peerScoreRef.current = 0;
+    setWinnerId(null);
+    setWinnerName("");
+    setPhase("playing");
+    void channelRef.current?.send({
+      type: "broadcast",
+      event: "game-start",
+      payload: { starterId: playerId, session: firstSession },
+    });
+  };
 
   // =============================================================
   // TIMER — SELALU JALAN (tanpa freeze)
@@ -876,18 +879,14 @@ export default function ScrambleDuelGame() {
   // PLAY AGAIN
   // =============================================================
   const handlePlayAgain = () => {
-    const order = playerOrderRef.current;
-    if (order.length !== 2) return;
-
+    if (!isHost) return;
     clearTimers();
     hasStartedRef.current = false;
-
     void channelRef.current?.send({
       type: "broadcast",
       event: "game-reset",
       payload: {},
     });
-
     resetSessionLocal();
     setSessionState(null);
     sessionStateRef.current = null;
@@ -898,25 +897,6 @@ export default function ScrambleDuelGame() {
     setWinnerId(null);
     setWinnerName("");
     setPhase("lobby");
-
-    if (order[0] === playerId) {
-      setTimeout(() => {
-        if (hasStartedRef.current) return;
-        hasStartedRef.current = true;
-        const firstSession = buildSession(1, order[0], order[1]);
-        resetSessionLocal();
-        setSessionState(firstSession);
-        sessionStateRef.current = firstSession;
-        setRemainingMs(INPUT_TIME_MS);
-        setPhase("playing");
-
-        void channelRef.current?.send({
-          type: "broadcast",
-          event: "game-start",
-          payload: { starterId: playerId, session: firstSession },
-        });
-      }, AUTO_START_DELAY_MS);
-    }
   };
 
   // =============================================================
@@ -984,6 +964,7 @@ export default function ScrambleDuelGame() {
 
       setPlayerId(crypto.randomUUID());
       setPlayers([]);
+      setIsReady(false);
       playerOrderRef.current = [];
       hasStartedRef.current = false;
       setPhase("lobby");
@@ -1030,6 +1011,7 @@ export default function ScrambleDuelGame() {
     setActiveRoom("");
     setIsConnected(false);
     setPlayers([]);
+    setIsReady(false);
     setPhase("lobby");
     setSessionState(null);
     sessionStateRef.current = null;
@@ -1195,6 +1177,13 @@ export default function ScrambleDuelGame() {
                           {p.name}
                           {p.id === playerId ? " (kamu)" : ""}
                         </span>
+                        {p.id === playerId && isHost ? (
+                          <span className="tap-rush-host">HOST</span>
+                        ) : p.ready ? (
+                          <span className="tap-rush-ready">✓ SIAP</span>
+                        ) : (
+                          <span className="tap-rush-waiting">MENUNGGU</span>
+                        )}
                       </div>
                     ))
                   )}
@@ -1203,8 +1192,34 @@ export default function ScrambleDuelGame() {
                   <p className="tap-rush-waiting-host">
                     {players.length < 2
                       ? "Menunggu 1 pemain lagi…"
-                      : "Game akan segera dimulai…"}
+                      : isHost
+                        ? guest?.ready
+                          ? "Pemain siap. Kamu bisa mulai game kapan saja."
+                          : "Menunggu pemain lain menekan tombol Siap."
+                        : isReady
+                          ? "Kamu sudah siap. Tunggu host memulai game."
+                          : "Room sudah siap. Tekan Siap saat kamu ingin bermain."}
                   </p>
+                  {isHost ? (
+                    <button
+                      className="tap-rush-primary"
+                      type="button"
+                      disabled={!canStart}
+                      onClick={handleStartGame}
+                    >
+                      <Rocket size={17} /> Mulai game
+                    </button>
+                  ) : (
+                    <button
+                      className={`tap-rush-primary ${isReady ? "is-ready" : ""}`}
+                      type="button"
+                      disabled={!isConnected || players.length !== 2}
+                      onClick={() => setIsReady((ready) => !ready)}
+                    >
+                      <UsersRound size={17} />{" "}
+                      {isReady ? "Siap! (ubah)" : "Saya siap"}
+                    </button>
+                  )}
                   <button
                     className="tap-rush-leave"
                     type="button"
@@ -1446,13 +1461,19 @@ export default function ScrambleDuelGame() {
                   </div>
                 </div>
                 <div className="tap-rush-lobby-footer">
-                  <button
-                    className="tap-rush-primary"
-                    type="button"
-                    onClick={handlePlayAgain}
-                  >
-                    <Rocket size={17} /> Main lagi
-                  </button>
+                  {isHost ? (
+                    <button
+                      className="tap-rush-primary"
+                      type="button"
+                      onClick={handlePlayAgain}
+                    >
+                      <Rocket size={17} /> Main lagi
+                    </button>
+                  ) : (
+                    <p className="scramble-waiting-text">
+                      Menunggu host memulai permainan baru…
+                    </p>
+                  )}
                   <button
                     className="tap-rush-leave"
                     type="button"
@@ -1480,6 +1501,29 @@ export default function ScrambleDuelGame() {
       </section>
 
       <style jsx>{`
+        .tap-rush-host,
+        .tap-rush-ready,
+        .tap-rush-waiting {
+          margin-left: auto;
+          font-size: 10px;
+          font-weight: 800;
+          letter-spacing: 0.08em;
+          white-space: nowrap;
+        }
+        .tap-rush-host {
+          color: #fbbf24;
+        }
+        .tap-rush-ready {
+          color: #86efac;
+        }
+        .tap-rush-waiting {
+          color: rgba(255, 255, 255, 0.45);
+        }
+        .tap-rush-primary.is-ready {
+          border-color: rgba(134, 239, 172, 0.55);
+          background: rgba(34, 197, 94, 0.14);
+          color: #86efac;
+        }
         .scramble-wrap {
           display: flex;
           flex-direction: column;
@@ -1606,26 +1650,28 @@ export default function ScrambleDuelGame() {
         }
         .scramble-letters {
           display: flex;
-          flex-wrap: wrap;
+          flex-wrap: nowrap;
           justify-content: center;
           align-items: center;
           gap: 6px;
           padding: 8px 4px;
           width: 100%;
           max-width: 100%;
-          overflow-x: auto;
+          overflow-x: hidden;
+          gap: clamp(2px, 1vw, 6px);
         }
         .scramble-letter {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          width: clamp(36px, 10vw, 56px);
-          height: clamp(36px, 10vw, 56px);
+          width: clamp(20px, calc((100vw - 72px) / 10), 56px);
+          height: clamp(26px, calc((100vw - 72px) / 10), 56px);
+          min-width: 0;
           border-radius: 10px;
           background: linear-gradient(135deg, #f472b6, #ec4899);
           color: #fff;
           font-family: Impact, "Arial Black", sans-serif;
-          font-size: clamp(18px, 5vw, 26px);
+          font-size: clamp(12px, calc((100vw - 150px) / 10), 26px);
           font-weight: 700;
           box-shadow: 0 4px 12px rgba(236, 72, 153, 0.4);
           flex-shrink: 0;
