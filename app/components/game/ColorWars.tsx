@@ -35,8 +35,8 @@ type PlayerState = {
   score: number;
 };
 
-const COLS = 20;
-const ROWS = 20;
+const COLS = 15;
+const ROWS = 15;
 const TICK_MS = 90;
 const ROUND_TIME_MS = 60_000;
 const ROOM_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -44,10 +44,9 @@ const ROOM_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const P1_COLOR = "#ec4899"; // pink
 const P2_COLOR = "#22d3ee"; // cyan
 
-// 3 power-up types
 type PowerUp = {
   id: string;
-  type: "double" | "speed" | "bomb";
+  type: "double" | "speed";
   x: number;
   y: number;
   spawnedAt: number;
@@ -55,8 +54,8 @@ type PowerUp = {
 };
 
 const START_POSITIONS: Vec[] = [
-  { x: 3, y: 10 },
-  { x: 16, y: 10 },
+  { x: 2, y: 7 },
+  { x: 12, y: 7 },
 ];
 
 function makeRoomCode() {
@@ -87,7 +86,6 @@ function directionFromKey(key: string): Vec | null {
   }
 }
 
-// Helper: buat grid kosong
 function makeEmptyGrid(): (string | null)[][] {
   return Array.from({ length: ROWS }, () =>
     Array.from({ length: COLS }, () => null),
@@ -112,7 +110,6 @@ export default function ColorWars() {
   const [copied, setCopied] = useState(false);
   const [joiningRoom, setJoiningRoom] = useState(false);
 
-  // Game state
   const [myPos, setMyPos] = useState<Vec | null>(null);
   const [peer, setPeer] = useState<PlayerState | null>(null);
   const [grid, setGrid] = useState<(string | null)[][]>(() => makeEmptyGrid());
@@ -134,6 +131,7 @@ export default function ColorWars() {
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const phaseRef = useRef<GamePhase>("lobby");
   const activePowerRef = useRef<"double" | "speed" | null>(null);
+  const myScoreRef = useRef(0);
 
   useEffect(() => {
     myPosRef.current = myPos;
@@ -147,6 +145,9 @@ export default function ColorWars() {
   useEffect(() => {
     activePowerRef.current = activePower;
   }, [activePower]);
+  useEffect(() => {
+    myScoreRef.current = myScore;
+  }, [myScore]);
 
   const pushDir = (dir: Vec) => {
     const q = dirQueueRef.current;
@@ -204,7 +205,7 @@ export default function ColorWars() {
       if (typeof data.endsAt !== "number" || !data.startPositions) return;
 
       const myStart = data.startPositions[playerId];
-      setMyPos(myStart ?? { x: 10, y: 10 });
+      setMyPos(myStart ?? { x: 7, y: 7 });
       setPeer(null);
       setGrid(makeEmptyGrid());
       setPowerUps([]);
@@ -224,6 +225,7 @@ export default function ColorWars() {
       const data = payload as PlayerState;
       if (!data.id || data.id === playerId) return;
       setPeer(data);
+      setPeerScore(data.score);
     });
 
     channel.on("broadcast", { event: "grid-update" }, ({ payload }) => {
@@ -327,7 +329,7 @@ export default function ColorWars() {
     });
   };
 
-  // ---- Game loop ----
+  // ---- Game loop dengan brush 3x3 ----
   useEffect(() => {
     if (phase !== "playing") return;
     if (!myPos) return;
@@ -356,31 +358,38 @@ export default function ColorWars() {
       if (dir) {
         const next = { x: pos.x + dir.x, y: pos.y + dir.y };
 
-        // Warnai kotak saat masuk
+        // Warnai AREA 3x3 di sekitar posisi baru
         const changes: { x: number; y: number; color: string | null }[] = [];
         const gridNow = gridRef.current;
-        const currentOwner = gridNow[next.y]?.[next.x] ?? null;
 
-        // Kalau kotak kosong atau milik lawan → warnai dengan warnaku
-        if (currentOwner !== myColor) {
-          changes.push({ x: next.x, y: next.y, color: myColor });
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const gx = next.x + dx;
+            const gy = next.y + dy;
+            if (gx < 0 || gy < 0 || gx >= COLS || gy >= ROWS) continue;
+            const currentOwner = gridNow[gy]?.[gx] ?? null;
+            if (currentOwner !== myColor) {
+              changes.push({ x: gx, y: gy, color: myColor });
+            }
+          }
+        }
+
+        if (changes.length > 0) {
           setGrid((current) => {
             const g = current.map((row) => [...row]);
-            g[next.y][next.x] = myColor;
+            for (const c of changes) {
+              g[c.y][c.x] = c.color;
+            }
             return g;
           });
 
-          // Update skor
           setMyScore((current) => {
             const bonus = activePowerRef.current === "double" ? 2 : 1;
-            const next = current + bonus;
-            broadcastState(next_pos(), next);
-            return next;
+            const newScore = current + changes.length * bonus;
+            broadcastState(next, newScore);
+            return newScore;
           });
-        }
 
-        // Broadcast grid changes
-        if (changes.length > 0) {
           void channelRef.current?.send({
             type: "broadcast",
             event: "grid-update",
@@ -414,13 +423,12 @@ export default function ColorWars() {
         }
       }
 
-      // Kirim state
-      if (pos) broadcastState(pos, myScore);
+      // Broadcast state
+      if (pos) broadcastState(pos, myScoreRef.current);
 
       // Cek timer
       const now = Date.now();
       if (roundEndsAt && now >= roundEndsAt && isHost) {
-        // Hitung siapa menang berdasarkan grid
         const g = gridRef.current;
         let myCount = 0;
         let peerCount = 0;
@@ -430,16 +438,17 @@ export default function ColorWars() {
             else if (g[y][x] === P2_COLOR) peerCount++;
           }
         }
-        const myFinal = isHost ? myCount : peerCount;
-        const peerFinal = isHost ? peerCount : myCount;
+        // Host = P1 (pink), Guest = P2 (cyan)
+        const hostCount = myCount;
+        const guestCount = peerCount;
 
         let winnerIdFinal: string | null = null;
         let winnerNameFinal = "";
-        if (myFinal > peerFinal) {
-          winnerIdFinal = playerId;
+        if (hostCount > guestCount) {
+          winnerIdFinal = playerId; // host menang
           winnerNameFinal =
             players.find((p) => p.id === playerId)?.name ?? "Kamu";
-        } else if (peerFinal > myFinal) {
+        } else if (guestCount > hostCount) {
           const other = players.find((p) => p.id !== playerId);
           winnerIdFinal = other?.id ?? null;
           winnerNameFinal = other?.name ?? "Lawan";
@@ -456,13 +465,9 @@ export default function ColorWars() {
         return;
       }
 
-      // Kecepatan loop: normal 90ms, speed 55ms
       const tickMs = activePowerRef.current === "speed" ? 55 : TICK_MS;
       loopRef.current = window.setTimeout(tick, tickMs);
     };
-
-    // Helper untuk dapat posisi terakhir (mengakali closure)
-    const next_pos = () => myPosRef.current ?? { x: 0, y: 0 };
 
     loopRef.current = window.setTimeout(tick, TICK_MS);
 
@@ -471,7 +476,7 @@ export default function ColorWars() {
       if (loopRef.current) window.clearTimeout(loopRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, myPos, playerId, roundEndsAt, isHost, myScore, powerUps, players]);
+  }, [phase, myPos, playerId, roundEndsAt, isHost, powerUps, players]);
 
   // ---- Host: spawn power-up tiap 8 detik ----
   useEffect(() => {
@@ -507,10 +512,7 @@ export default function ColorWars() {
     if (phase !== "playing") return;
     const timer = setInterval(() => {
       const now = Date.now();
-      setPowerUps((current) => {
-        const filtered = current.filter((p) => p.expiresAt > now);
-        return filtered;
-      });
+      setPowerUps((current) => current.filter((p) => p.expiresAt > now));
     }, 500);
     return () => clearInterval(timer);
   }, [phase]);
@@ -741,8 +743,7 @@ export default function ColorWars() {
     isConnected &&
     !joiningRoom;
   const secondsLeft = Math.ceil(remainingMs / 1000);
-
-  const peerScoreFinal = isHost ? peerScore : (peer?.score ?? 0);
+  const peerScoreFinal = peerScore;
 
   return (
     <main className="tap-rush-shell">
@@ -763,8 +764,8 @@ export default function ColorWars() {
             Color Wars<span>!</span>
           </h1>
           <p>
-            Rebut wilayah dengan warna! Siapa paling banyak kuasai grid saat
-            waktu habis, dia menang.
+            Rebut wilayah dengan warna! Warnai area 3×3 setiap langkah — kuasai
+            grid lebih banyak dari lawan.
           </p>
         </header>
 
@@ -777,8 +778,8 @@ export default function ColorWars() {
               <div>
                 <h2>Bikin room, tantang teman</h2>
                 <p>
-                  Gerak bebas di grid 20×20, tap untuk warnai kotak dengan
-                  warnamu. Rebut wilayah lawan!
+                  Gerak bebas di grid 15×15, setiap langkah warnai area 3×3.
+                  Rebut wilayah lawan sebelum waktu habis!
                 </p>
               </div>
             </div>
@@ -945,7 +946,6 @@ export default function ColorWars() {
 
             {phase === "playing" && myPos && (
               <div className="color-wars-wrap">
-                {/* HUD */}
                 <div className="color-wars-hud">
                   <div
                     className="color-wars-score"
@@ -981,7 +981,6 @@ export default function ColorWars() {
                   </div>
                 </div>
 
-                {/* Active power badge */}
                 {activePower && (
                   <div className="color-wars-power-badge">
                     {activePower === "double"
@@ -990,7 +989,6 @@ export default function ColorWars() {
                   </div>
                 )}
 
-                {/* Arena */}
                 <div
                   className="color-wars-arena"
                   onTouchStart={handleTouchStart}
@@ -1004,22 +1002,17 @@ export default function ColorWars() {
                     }}
                   >
                     {grid.map((row, y) =>
-                      row.map((cell, x) => {
-                        const isMeHere = myPos.x === x && myPos.y === y;
-                        const isPeerHere = peer && peer.x === x && peer.y === y;
-                        return (
-                          <div
-                            key={`${x}-${y}`}
-                            className="color-wars-cell"
-                            style={{
-                              background: cell ?? "rgba(255,255,255,0.02)",
-                            }}
-                          />
-                        );
-                      }),
+                      row.map((cell, x) => (
+                        <div
+                          key={`${x}-${y}`}
+                          className="color-wars-cell"
+                          style={{
+                            background: cell ?? "rgba(255,255,255,0.02)",
+                          }}
+                        />
+                      )),
                     )}
 
-                    {/* Power-ups layer */}
                     {powerUps.map((p) => (
                       <div
                         key={p.id}
@@ -1033,7 +1026,6 @@ export default function ColorWars() {
                       </div>
                     ))}
 
-                    {/* Peer */}
                     {peer && (
                       <div
                         className="color-wars-player"
@@ -1047,7 +1039,6 @@ export default function ColorWars() {
                       </div>
                     )}
 
-                    {/* Me */}
                     <div
                       className="color-wars-player is-me"
                       style={{
@@ -1061,7 +1052,6 @@ export default function ColorWars() {
                   </div>
                 </div>
 
-                {/* D-pad */}
                 <div
                   className="color-wars-dpad"
                   role="group"
@@ -1192,7 +1182,7 @@ export default function ColorWars() {
         <footer className="tap-rush-footnote">
           <span>2 PEMAIN</span>
           <span>60 DETIK / RONDE</span>
-          <span>REBUT WILAYAH</span>
+          <span>BRUSH 3×3</span>
         </footer>
       </section>
 
