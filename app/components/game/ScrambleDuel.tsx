@@ -1602,9 +1602,9 @@ export default function ScrambleDuelGame() {
           box-shadow: 0 0 20px rgba(236, 72, 153, 0.5);
         }
         .scramble-badge.is-guesser {
-          background: linear-gradient(135deg, #22c55e, #16a34a);
+          background: linear-gradient(135deg, #ec4899, #f472b6);
           color: #fff;
-          box-shadow: 0 0 20px rgba(34, 197, 94, 0.5);
+          box-shadow: 0 0 20px rgba(236, 72, 153, 0.5);
         }
         .scramble-setter-form,
         .scramble-guesser-form {
@@ -1739,8 +1739,8 @@ export default function ScrambleDuelGame() {
           align-items: center;
           gap: 12px;
           padding: 36px 20px;
-          background: rgba(34, 197, 94, 0.06);
-          border: 1px solid rgba(34, 197, 94, 0.25);
+          background: rgba(236, 72, 153, 0.06);
+          border: 1px solid rgba(236, 72, 153, 0.25);
           border-radius: 14px;
           text-align: center;
           width: 100%;
@@ -1760,7 +1760,7 @@ export default function ScrambleDuelGame() {
         .scramble-waiting-opponent h3 {
           font-size: 18px;
           font-weight: 800;
-          color: #22c55e;
+          color: #f472b6;
         }
         .scramble-waiting-opponent p {
           font-size: 13px;
@@ -1777,7 +1777,7 @@ export default function ScrambleDuelGame() {
           width: 8px;
           height: 8px;
           border-radius: 50%;
-          background: #22c55e;
+          background: #ec4899;
           animation: bounceDot 1.4s infinite ease-in-out;
         }
         .scramble-waiting-dots span:nth-child(2) {
