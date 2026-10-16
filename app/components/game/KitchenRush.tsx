@@ -1581,7 +1581,6 @@ export default function KitchenRush() {
           max-width: 640px;
           aspect-ratio: 4 / 3;
           position: relative;
-          perspective: 1400px;
           touch-action: none;
           user-select: none;
           -webkit-user-select: none;
@@ -1590,20 +1589,48 @@ export default function KitchenRush() {
           position: absolute;
           inset: 0;
           display: grid;
-          gap: 2px;
+          gap: 0;
           padding: 8px;
+          background: #1a0e16;
+          border: 2px solid rgba(236, 72, 153, 0.45);
+          border-radius: 16px;
+          box-shadow:
+            inset 0 0 40px rgba(0, 0, 0, 0.55),
+            0 10px 40px rgba(236, 72, 153, 0.18);
+          overflow: hidden;
+        }
+        /* Lantai kotak-kotak + dinding (baris 1) + meja counter (baris 2) */
+        .kitchen-grid::before {
+          content: "";
+          position: absolute;
+          inset: 8px;
+          border-radius: 8px;
+          pointer-events: none;
           background:
-            radial-gradient(
-              circle at 50% 30%,
-              rgba(251, 191, 36, 0.05),
-              transparent 60%
-            ),
-            #1a0e16;
-          border: 1px solid rgba(236, 72, 153, 0.25);
-          border-radius: 12px;
-          transform: rotateX(35deg) rotateZ(-12deg) scale(0.98);
-          transform-style: preserve-3d;
-          box-shadow: 0 20px 60px rgba(236, 72, 153, 0.2);
+            /* dinding / backsplash */
+            repeating-linear-gradient(
+                90deg,
+                rgba(255, 255, 255, 0.05) 0 1px,
+                transparent 1px 20px
+              )
+              0 0 / 100% 14.2857% no-repeat,
+            linear-gradient(180deg, #3a1a2e, #2a1322) 0 0 / 100% 14.2857%
+              no-repeat,
+            /* meja counter tempat stasiun */
+            linear-gradient(
+                180deg,
+                rgba(251, 191, 36, 0.16),
+                rgba(251, 191, 36, 0.06)
+              )
+              0 16.6667% / 100% 14.2857% no-repeat,
+            /* lantai kotak-kotak */
+            conic-gradient(
+                rgba(236, 72, 153, 0.07) 25%,
+                transparent 0 50%,
+                rgba(236, 72, 153, 0.07) 0 75%,
+                transparent 0
+              )
+              0 0 / 20% 28.5714%;
         }
 
         .kitchen-station {
@@ -1612,13 +1639,18 @@ export default function KitchenRush() {
           align-items: center;
           justify-content: center;
           gap: 1px;
-          border-radius: 8px;
+          border-radius: 10px;
           position: relative;
-          background: rgba(255, 255, 255, 0.04);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          transform: translateZ(6px);
-          transition: all 150ms ease;
-          box-shadow: 0 4px 0 rgba(0, 0, 0, 0.4);
+          z-index: 1;
+          margin: 2px;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          transition:
+            background 150ms ease,
+            border-color 150ms ease;
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.12),
+            0 3px 0 rgba(0, 0, 0, 0.35);
           padding: 2px;
           overflow: hidden;
         }
@@ -1639,12 +1671,12 @@ export default function KitchenRush() {
           border-color: rgba(249, 115, 22, 0.55);
         }
         .kitchen-station-plate {
-          background: rgba(34, 197, 94, 0.15);
-          border-color: rgba(34, 197, 94, 0.5);
+          background: rgba(236, 72, 153, 0.22);
+          border-color: rgba(244, 114, 182, 0.7);
         }
         .kitchen-station-box {
-          background: rgba(251, 191, 36, 0.15);
-          border-color: rgba(251, 191, 36, 0.5);
+          background: rgba(251, 191, 36, 0.2);
+          border-color: rgba(251, 191, 36, 0.7);
         }
         .kitchen-station.is-cooking {
           animation: cookShake 0.4s infinite;
@@ -1652,10 +1684,10 @@ export default function KitchenRush() {
         @keyframes cookShake {
           0%,
           100% {
-            transform: translateZ(6px) translateX(0);
+            transform: translateX(0);
           }
           50% {
-            transform: translateZ(6px) translateX(2px);
+            transform: translateX(2px);
           }
         }
         .kitchen-station-emoji {
@@ -1693,11 +1725,10 @@ export default function KitchenRush() {
           justify-content: center;
           gap: 2px;
           position: relative;
-          transform: translateZ(14px) translateY(-8px);
+          z-index: 2;
           pointer-events: none;
         }
         .kitchen-player.is-me {
-          transform: translateZ(20px) translateY(-10px);
           z-index: 5;
         }
         .kitchen-player-body {
@@ -1737,7 +1768,7 @@ export default function KitchenRush() {
         }
         .kitchen-player-name {
           position: absolute;
-          bottom: -14px;
+          bottom: -2px;
           font-size: 8px;
           letter-spacing: 0.06em;
           text-transform: uppercase;
@@ -1825,9 +1856,6 @@ export default function KitchenRush() {
         @media (max-width: 640px) {
           .kitchen-arena {
             aspect-ratio: 5 / 4;
-          }
-          .kitchen-grid {
-            transform: rotateX(30deg) rotateZ(-10deg) scale(0.98);
           }
           .kitchen-station-label {
             display: none;
