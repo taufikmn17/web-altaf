@@ -348,34 +348,41 @@ export default function FreeToGame() {
           border-radius: 16px;
         }
 
-        /* Search */
+        /* Search — icon DI DALAM input, pakai flexbox */
         .ftg-search-wrap {
           position: relative;
           width: 100%;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          height: 48px;
+          padding: 0 16px;
+          background: rgba(18, 10, 15, 0.72);
+          border: 1px solid rgba(236, 72, 153, 0.28);
+          border-radius: 10px;
+          transition:
+            border-color 160ms ease,
+            box-shadow 160ms ease;
+        }
+        .ftg-search-wrap:focus-within {
+          border-color: #ec4899;
+          box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.15);
         }
         .ftg-search-icon {
-          position: absolute;
-          left: 16px;
-          top: 50%;
-          transform: translateY(-50%);
           color: #ec4899;
+          flex-shrink: 0;
           pointer-events: none;
         }
         .ftg-search {
-          width: 100%;
-          padding: 14px 16px 14px 44px;
-          background: rgba(18, 10, 15, 0.72);
-          border: 1px solid rgba(236, 72, 153, 0.24);
-          border-radius: 10px;
+          flex: 1;
+          height: 100%;
+          background: transparent;
+          border: none;
+          outline: none;
           color: #fdf8f6;
           font-family: inherit;
           font-size: 15px;
-          outline: none;
-          transition: all 150ms ease;
-        }
-        .ftg-search:focus {
-          border-color: #ec4899;
-          box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.15);
+          padding: 0;
         }
         .ftg-search::placeholder {
           color: #9d7a8c;
