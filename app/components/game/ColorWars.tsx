@@ -127,7 +127,7 @@ export default function ColorWars() {
   const [winnerName, setWinnerName] = useState("");
 
   const myPosRef = useRef<Vec | null>(null);
-  const gridRef = useRef<(string | null)[][]>([]);
+  const gridRef = useRef<(string | null)[][]>(makeEmptyGrid());
   const dirQueueRef = useRef<Vec[]>([]);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const phaseRef = useRef<GamePhase>("lobby");
@@ -138,9 +138,6 @@ export default function ColorWars() {
   useEffect(() => {
     myPosRef.current = myPos;
   }, [myPos]);
-  useEffect(() => {
-    gridRef.current = grid;
-  }, [grid]);
   useEffect(() => {
     phaseRef.current = phase;
   }, [phase]);
@@ -161,6 +158,15 @@ export default function ColorWars() {
   };
 
   const myColor = isHost ? P1_COLOR : P2_COLOR;
+
+  // Helper: update grid state + gridRef sinkron
+  const updateGrid = (
+    updater: (current: (string | null)[][]) => (string | null)[][],
+  ) => {
+    const next = updater(gridRef.current);
+    gridRef.current = next;
+    setGrid(next);
+  };
 
   // ---- Realtime channel ----
   useEffect(() => {
@@ -188,9 +194,11 @@ export default function ColorWars() {
     channel.on("presence", { event: "leave" }, syncFromPresence);
 
     channel.on("broadcast", { event: "game-reset" }, () => {
+      const empty = makeEmptyGrid();
+      gridRef.current = empty;
+      setGrid(empty);
       setMyPos(null);
       setPeer(null);
-      setGrid(makeEmptyGrid());
       setPowerUps([]);
       setRoundEndsAt(null);
       setMyScore(0);
@@ -209,10 +217,13 @@ export default function ColorWars() {
       };
       if (typeof data.endsAt !== "number" || !data.startPositions) return;
 
-      const myStart = data.startPositions[playerId];
-      setMyPos(myStart ?? { x: 7, y: 7 });
+      const myStart = data.startPositions[playerId] ?? { x: 7, y: 7 };
+      const empty = makeEmptyGrid();
+      gridRef.current = empty;
+      setGrid(empty);
+      setMyPos(myStart);
+      myPosRef.current = myStart;
       setPeer(null);
-      setGrid(makeEmptyGrid());
       setPowerUps([]);
       setRoundEndsAt(data.endsAt);
       setRemainingMs(ROUND_TIME_MS);
@@ -238,7 +249,7 @@ export default function ColorWars() {
         changes?: { x: number; y: number; color: string | null }[];
       };
       if (!Array.isArray(data.changes)) return;
-      setGrid((current) => {
+      updateGrid((current) => {
         const next = current.map((row) => [...row]);
         for (const c of data.changes!) {
           if (c.y >= 0 && c.y < ROWS && c.x >= 0 && c.x < COLS) {
@@ -293,6 +304,7 @@ export default function ColorWars() {
       channelRef.current = null;
       void supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeRoom, playerId, supabase]);
 
   useEffect(() => {
@@ -334,7 +346,7 @@ export default function ColorWars() {
     });
   };
 
-  // ---- Game loop: warnai 1 kotak per gerak, sinkron pakai flushSync ----
+  // ---- Game loop ----
   useEffect(() => {
     if (phase !== "playing") return;
     if (!myPos) return;
@@ -369,10 +381,8 @@ export default function ColorWars() {
         if (currentOwner !== myColor) {
           const change = { x: next.x, y: next.y, color: myColor };
 
-          // flushSync: update grid + posisi bersamaan dalam 1 frame render,
-          // biar karakter dan kotak yang diwarnai selalu sinkron
           flushSync(() => {
-            setGrid((current) => {
+            updateGrid((current) => {
               const g = current.map((row) => [...row]);
               g[next.y][next.x] = myColor;
               return g;
@@ -395,7 +405,6 @@ export default function ColorWars() {
             payload: { changes: [change] },
           });
         } else {
-          // Kotak sudah warna kita → cukup update posisi
           setMyPos(next);
           myPosRef.current = next;
         }
@@ -621,12 +630,14 @@ export default function ColorWars() {
         }
       }
 
+      const empty = makeEmptyGrid();
+      gridRef.current = empty;
+      setGrid(empty);
       setPlayerId(crypto.randomUUID());
       setPlayers([]);
       setPhase("lobby");
       setMyPos(null);
       setPeer(null);
-      setGrid(makeEmptyGrid());
       setPowerUps([]);
       setRoundEndsAt(null);
       setMyScore(0);
@@ -681,10 +692,13 @@ export default function ColorWars() {
       payload: {},
     });
 
+    const empty = makeEmptyGrid();
+    gridRef.current = empty;
+    setGrid(empty);
     const endsAt = Date.now() + ROUND_TIME_MS;
     setMyPos(START_POSITIONS[0]);
+    myPosRef.current = START_POSITIONS[0];
     setPeer(null);
-    setGrid(makeEmptyGrid());
     setPowerUps([]);
     setRoundEndsAt(endsAt);
     setRemainingMs(ROUND_TIME_MS);
@@ -714,6 +728,9 @@ export default function ColorWars() {
   };
 
   const leaveRoom = () => {
+    const empty = makeEmptyGrid();
+    gridRef.current = empty;
+    setGrid(empty);
     setActiveRoom("");
     setIsConnected(false);
     setIsHost(false);
@@ -722,7 +739,6 @@ export default function ColorWars() {
     setPhase("lobby");
     setMyPos(null);
     setPeer(null);
-    setGrid(makeEmptyGrid());
     setPowerUps([]);
     setRoundEndsAt(null);
     setMyScore(0);
@@ -1311,7 +1327,6 @@ export default function ColorWars() {
         .color-wars-cell {
           border-radius: 0;
           transition: background 100ms ease;
-          /* Grid line halus biar kotak kosong tetap kelihatan batasnya */
           box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.03);
         }
 
