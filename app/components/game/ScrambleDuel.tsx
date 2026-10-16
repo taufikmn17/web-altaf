@@ -1504,8 +1504,7 @@ export default function ScrambleDuelGame() {
                       disabled={players.length < 2 || !isConnected}
                       onClick={handlePlayAgain}
                     >
-                      <Rocket size={17} />{" "}
-                      {players.length < 2 ? "Lawan keluar" : "Main lagi"}
+                      <Rocket size={17} /> Main lagi
                     </button>
                   ) : (
                     <p className="scramble-waiting-text">
