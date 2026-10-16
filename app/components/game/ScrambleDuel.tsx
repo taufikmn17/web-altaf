@@ -880,24 +880,32 @@ export default function ScrambleDuelGame() {
   // PLAY AGAIN
   // =============================================================
   const handlePlayAgain = () => {
-    if (!isHost) return;
+    if (!isHost || phase !== "results") return;
+    const order = playerOrderRef.current;
+    if (order.length !== 2 || playersRef.current.length !== 2 || !isConnected) {
+      setError("Lawan sudah keluar dari room.");
+      return;
+    }
+    setError("");
     clearTimers();
-    hasStartedRef.current = false;
-    void channelRef.current?.send({
-      type: "broadcast",
-      event: "game-reset",
-      payload: {},
-    });
+    hasStartedRef.current = true;
+    const firstSession = buildSession(1, order[0], order[1]);
     resetSessionLocal();
-    setSessionState(null);
-    sessionStateRef.current = null;
+    setSessionState(firstSession);
+    sessionStateRef.current = firstSession;
+    setRemainingMs(INPUT_TIME_MS);
     setMyScore(0);
     setPeerScore(0);
     myScoreRef.current = 0;
     peerScoreRef.current = 0;
     setWinnerId(null);
     setWinnerName("");
-    setPhase("lobby");
+    setPhase("playing");
+    void channelRef.current?.send({
+      type: "broadcast",
+      event: "game-start",
+      payload: { starterId: playerId, session: firstSession },
+    });
   };
 
   // =============================================================
@@ -1468,9 +1476,11 @@ export default function ScrambleDuelGame() {
                     <button
                       className="tap-rush-primary"
                       type="button"
+                      disabled={players.length < 2 || !isConnected}
                       onClick={handlePlayAgain}
                     >
-                      <Rocket size={17} /> Main lagi
+                      <Rocket size={17} />{" "}
+                      {players.length < 2 ? "Lawan keluar" : "Main lagi"}
                     </button>
                   ) : (
                     <p className="scramble-waiting-text">
@@ -1630,11 +1640,11 @@ export default function ScrambleDuelGame() {
         }
         .scramble-letters {
           display: flex;
-          flex-wrap: wrap;
+          flex-wrap: nowrap;
           justify-content: center;
           align-items: center;
-          gap: 0 clamp(4px, 1.6vw, 10px);
-          padding: 8px 4px;
+          gap: clamp(2px, 0.8vw, 8px);
+          padding: 8px 0;
           width: 100%;
           max-width: 100%;
         }
@@ -1642,10 +1652,11 @@ export default function ScrambleDuelGame() {
           display: inline-block;
           color: #fff;
           font-family: Impact, "Arial Black", sans-serif;
-          font-size: clamp(24px, 8.5vw, 44px);
+          font-size: clamp(16px, calc((100vw - 120px) / 9.5), 40px);
           font-weight: 900;
           line-height: 1.15;
-          letter-spacing: 0.04em;
+          letter-spacing: 0;
+          flex: 0 0 auto;
           text-transform: uppercase;
           text-shadow: 0 2px 14px rgba(236, 72, 153, 0.55);
         }
