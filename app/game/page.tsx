@@ -7,6 +7,7 @@ import {
   Grid3x3,
   HelpCircle,
   Key,
+  Palette,
   PawPrint,
   Radio,
   Swords,
@@ -20,7 +21,7 @@ import Footer from "../components/Footer";
 export const metadata: Metadata = {
   title: "Game Arcade - Altaf Story",
   description:
-    "Mainkan Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz, Trivia Indonesia, Cat & Mouse, dan Kitchen Rush — plus jelajahi katalog Free to Game di Altaf Story.",
+    "Mainkan Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz, Trivia Indonesia, Cat & Mouse, Kitchen Rush, dan Color Wars — plus jelajahi katalog Free to Game di Altaf Story.",
   keywords: [
     "game multiplayer online",
     "game party online",
@@ -49,6 +50,9 @@ export const metadata: Metadata = {
     "game masak online",
     "game cooking multiplayer",
     "kitchen rush",
+    "game rebut wilayah",
+    "color wars",
+    "game warna online",
     "free to game",
     "katalog game gratis",
     "game multiplayer gratis",
@@ -60,6 +64,7 @@ export const metadata: Metadata = {
     "Trivia Indonesia",
     "Cat & Mouse",
     "Kitchen Rush",
+    "Color Wars",
     "Free to Game",
     "Altaf Story games",
   ],
@@ -69,7 +74,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Game Arcade - Altaf Story",
     description:
-      "Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz, Trivia Indonesia, Cat & Mouse, Kitchen Rush & katalog Free to Game — main bareng teman secara real-time.",
+      "Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz, Trivia Indonesia, Cat & Mouse, Kitchen Rush, Color Wars & katalog Free to Game — main bareng teman secara real-time.",
     url: "/game",
     siteName: "Altaf Story",
     locale: "id_ID",
@@ -87,7 +92,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Game Arcade - Altaf Story",
     description:
-      "Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz, Trivia Indonesia, Cat & Mouse, Kitchen Rush & katalog Free to Game — main bareng teman secara real-time.",
+      "Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz, Trivia Indonesia, Cat & Mouse, Kitchen Rush, Color Wars & katalog Free to Game — main bareng teman secara real-time.",
     images: ["/assets/img/hero.jpeg"],
   },
 };
@@ -99,7 +104,7 @@ export default function DaftarGamePage() {
 
       <main className="game-hub-main">
         <div className="game-hub-overline">
-          <span /> ALTAF ARCADE <span>09 / ONLINE</span>
+          <span /> ALTAF ARCADE <span>10 / ONLINE</span>
         </div>
         <header className="game-hub-heading">
           <p>PLAY TOGETHER</p>
@@ -357,7 +362,6 @@ export default function DaftarGamePage() {
             </div>
           </section>
 
-          {/* ---- KARTU KITCHEN RUSH ---- */}
           <section className="game-feature">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
@@ -393,6 +397,43 @@ export default function DaftarGamePage() {
             </div>
           </section>
 
+          {/* ---- KARTU COLOR WARS ---- */}
+          <section className="game-feature">
+            <div className="game-feature-art" aria-hidden="true">
+              <div className="game-feature-scanlines" />
+              <div className="game-feature-target">
+                <Palette size={88} strokeWidth={1.5} />
+              </div>
+              <span className="game-feature-number">20×20</span>
+              <span className="game-feature-art-label">REBUT WILAYAH</span>
+              <span className="game-feature-live">
+                <i /> LIVE ROOM
+              </span>
+            </div>
+            <div className="game-feature-copy">
+              <div className="game-feature-kicker">
+                <Radio size={14} /> PARTY GAME / 009
+              </div>
+              <h2>Color Wars</h2>
+              <p className="game-feature-description">
+                Rebut wilayah dengan warna! Gerak bebas di grid, warnai kotak
+                dengan warnamu, dan kuasai lebih banyak dari lawan sebelum waktu
+                habis.
+              </p>
+              <div className="game-feature-facts">
+                <span>
+                  <UsersRound size={16} /> 2 pemain
+                </span>
+                <span>
+                  <Palette size={16} /> Rebut wilayah
+                </span>
+              </div>
+              <Link href="/game/color-wars" className="game-feature-cta">
+                Tantang teman <ArrowUpRight size={18} />
+              </Link>
+            </div>
+          </section>
+
           {/* ---- KARTU FREE TO GAME (PALING BAWAH) ---- */}
           <section className="game-feature is-external">
             <div className="game-feature-art" aria-hidden="true">
@@ -408,7 +449,7 @@ export default function DaftarGamePage() {
             </div>
             <div className="game-feature-copy">
               <div className="game-feature-kicker">
-                <Radio size={14} /> KATALOG GAME / 009
+                <Radio size={14} /> KATALOG GAME / 010
               </div>
               <h2>Free to Game</h2>
               <p className="game-feature-description">
@@ -432,7 +473,7 @@ export default function DaftarGamePage() {
         </div>
 
         <div className="game-hub-footerline">
-          <span>09 GAME DI ARENA</span>
+          <span>10 GAME DI ARENA</span>
           <span>SEMUA ONLINE</span>
         </div>
       </main>
