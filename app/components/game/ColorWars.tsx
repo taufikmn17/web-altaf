@@ -333,7 +333,7 @@ export default function ColorWars() {
     });
   };
 
-  // ---- Game loop dengan brush 3x3 ----
+  // ---- Game loop: warnai HANYA 1 kotak per gerak ----
   useEffect(() => {
     if (phase !== "playing") return;
     if (!myPos) return;
@@ -362,34 +362,22 @@ export default function ColorWars() {
       if (dir) {
         const next = { x: pos.x + dir.x, y: pos.y + dir.y };
 
-        // Warnai AREA 3x3 di sekitar posisi baru
-        const changes: { x: number; y: number; color: string | null }[] = [];
+        // Warnai HANYA 1 kotak yang sedang diinjak
         const gridNow = gridRef.current;
+        const currentOwner = gridNow[next.y]?.[next.x] ?? null;
 
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
-            const gx = next.x + dx;
-            const gy = next.y + dy;
-            if (gx < 0 || gy < 0 || gx >= COLS || gy >= ROWS) continue;
-            const currentOwner = gridNow[gy]?.[gx] ?? null;
-            if (currentOwner !== myColor) {
-              changes.push({ x: gx, y: gy, color: myColor });
-            }
-          }
-        }
+        if (currentOwner !== myColor) {
+          const change = { x: next.x, y: next.y, color: myColor };
 
-        if (changes.length > 0) {
           setGrid((current) => {
             const g = current.map((row) => [...row]);
-            for (const c of changes) {
-              g[c.y][c.x] = c.color;
-            }
+            g[next.y][next.x] = myColor;
             return g;
           });
 
           setMyScore((current) => {
             const bonus = activePowerRef.current === "double" ? 2 : 1;
-            const newScore = current + changes.length * bonus;
+            const newScore = current + bonus;
             broadcastState(next, newScore);
             return newScore;
           });
@@ -397,7 +385,7 @@ export default function ColorWars() {
           void channelRef.current?.send({
             type: "broadcast",
             event: "grid-update",
-            payload: { changes },
+            payload: { changes: [change] },
           });
         }
 
@@ -767,8 +755,8 @@ export default function ColorWars() {
             Color Wars<span>!</span>
           </h1>
           <p>
-            Rebut wilayah dengan warna! Setiap langkah, warnai 3×3 area di
-            sekitarmu.
+            Rebut wilayah dengan warna! Warnai setiap kotak yang kamu lewati —
+            kuasai lebih banyak dari lawan.
           </p>
         </header>
 
@@ -781,8 +769,8 @@ export default function ColorWars() {
               <div>
                 <h2>Bikin room, tantang teman</h2>
                 <p>
-                  Gerak bebas di grid 15×15, setiap langkah warnai area 3×3.
-                  Rebut wilayah lawan sebelum waktu habis!
+                  Gerak bebas di grid 15×15, warnai setiap kotak yang kamu
+                  lewati. Rebut wilayah lawan sebelum waktu habis!
                 </p>
               </div>
             </div>
@@ -1010,7 +998,7 @@ export default function ColorWars() {
                           key={`${x}-${y}`}
                           className="color-wars-cell"
                           style={{
-                            background: cell ?? "rgba(255,255,255,0.02)",
+                            background: cell ?? "transparent",
                           }}
                         />
                       )),
@@ -1031,26 +1019,36 @@ export default function ColorWars() {
 
                     {peer && (
                       <div
-                        className="color-wars-player"
+                        className="color-wars-player-cell"
                         style={{
                           gridColumn: peer.x + 1,
                           gridRow: peer.y + 1,
-                          background: isHost ? P2_COLOR : P1_COLOR,
                         }}
                       >
-                        <span className="color-wars-player-emoji">🧑</span>
+                        <div
+                          className="color-wars-player"
+                          style={{
+                            background: isHost ? P2_COLOR : P1_COLOR,
+                          }}
+                        >
+                          <span className="color-wars-player-emoji">🧑</span>
+                        </div>
                       </div>
                     )}
 
                     <div
-                      className="color-wars-player is-me"
+                      className="color-wars-player-cell"
                       style={{
                         gridColumn: myPos.x + 1,
                         gridRow: myPos.y + 1,
-                        background: myColor,
                       }}
                     >
-                      <span className="color-wars-player-emoji">🧑</span>
+                      <div
+                        className="color-wars-player is-me"
+                        style={{ background: myColor }}
+                      >
+                        <span className="color-wars-player-emoji">🧑</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1185,7 +1183,7 @@ export default function ColorWars() {
         <footer className="tap-rush-footnote">
           <span>2 PEMAIN</span>
           <span>60 DETIK / RONDE</span>
-          <span>BRUSH 3×3</span>
+          <span>REBUT WILAYAH</span>
         </footer>
       </section>
 
@@ -1285,7 +1283,7 @@ export default function ColorWars() {
           width: 100%;
           max-width: 640px;
           aspect-ratio: 1 / 1;
-          padding: 8px;
+          padding: 6px;
           background: #0a0f1a;
           border: 1px solid rgba(236, 72, 153, 0.3);
           border-radius: 12px;
@@ -1299,11 +1297,11 @@ export default function ColorWars() {
           width: 100%;
           height: 100%;
           display: grid;
-          gap: 1px;
-          background: #0a0f1a;
+          gap: 0;
+          background: transparent;
         }
         .color-wars-cell {
-          border-radius: 2px;
+          border-radius: 0;
           transition: background 100ms ease;
         }
 
@@ -1326,18 +1324,30 @@ export default function ColorWars() {
           }
         }
 
-        .color-wars-player {
+        .color-wars-player-cell {
           z-index: 5;
           display: flex;
           align-items: center;
           justify-content: center;
+          pointer-events: none;
+          width: 100%;
+          height: 100%;
+        }
+
+        .color-wars-player {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          height: 100%;
           border-radius: 4px;
           box-shadow: 0 0 15px currentColor;
           pointer-events: none;
           animation: bob 0.6s ease-in-out infinite;
         }
         .color-wars-player.is-me {
-          border: 2px solid #fff;
+          outline: 2px solid #fff;
+          outline-offset: -2px;
           z-index: 6;
         }
         @keyframes bob {
@@ -1346,11 +1356,11 @@ export default function ColorWars() {
             transform: scale(1);
           }
           50% {
-            transform: scale(1.1);
+            transform: scale(1.08);
           }
         }
         .color-wars-player-emoji {
-          font-size: clamp(8px, 1.5vw, 12px);
+          font-size: clamp(12px, 2.4vw, 20px);
         }
 
         .color-wars-dpad {
