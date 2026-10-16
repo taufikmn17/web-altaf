@@ -312,7 +312,10 @@ export default function ScrambleDuelGame() {
 
     const channel = supabase.channel(`scramble-duel:${activeRoom}`, {
       config: {
-        broadcast: { self: false },
+        // Echo broadcasts to the sender as well. The setter is the session
+        // coordinator and must receive its own session-result/session-skipped
+        // events to advance the game; without this, neither client advances.
+        broadcast: { self: true },
         presence: { key: playerId },
       },
     });
@@ -733,10 +736,17 @@ export default function ScrambleDuelGame() {
         }
       } else {
         timeoutFiredRef.current = true;
+        const timedOutSession = current.session;
+        const timedOutStage = current.stage;
         window.setTimeout(() => {
           if (sessionLockedRef.current) return;
           const latest = sessionStateRef.current;
           if (!latest) return;
+          if (
+            latest.session !== timedOutSession ||
+            latest.stage !== timedOutStage
+          )
+            return;
           const latestTarget =
             latest.stage === "input" ? latest.inputEndsAt : latest.guessEndsAt;
           if (!latestTarget) return;
@@ -775,7 +785,7 @@ export default function ScrambleDuelGame() {
     if (!sessionState) return;
     if (sessionState.setterId !== playerId) return;
     if (sessionState.stage !== "input") return;
-    if (sessionLocked) return;
+    if (sessionLocked || Date.now() >= sessionState.inputEndsAt) return;
 
     const cleaned = cleanLetters(wordInput);
     if (cleaned.length < MIN_WORD_LEN || cleaned.length > MAX_WORD_LEN) {
@@ -833,6 +843,7 @@ export default function ScrambleDuelGame() {
     if (!sessionState) return;
     if (sessionState.guesserId !== playerId) return;
     if (sessionState.stage !== "guess") return;
+    if (Date.now() >= sessionState.guessEndsAt) return;
 
     const guess = cleanLetters(guessInput);
     if (!guess) {
@@ -1031,7 +1042,10 @@ export default function ScrambleDuelGame() {
   };
 
   const submitDisabled =
-    mySubmitted || sessionLocked || guessInput.trim().length === 0;
+    mySubmitted ||
+    sessionLocked ||
+    secondsLeft <= 0 ||
+    guessInput.trim().length === 0;
 
   // =============================================================
   // RENDER
