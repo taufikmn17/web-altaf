@@ -1,6 +1,8 @@
 import {
   ArrowUpRight,
+  ChefHat,
   Flag,
+  Gamepad2,
   Globe2,
   Grid3x3,
   HelpCircle,
@@ -18,7 +20,7 @@ import Footer from "../components/Footer";
 export const metadata: Metadata = {
   title: "Game Arcade - Altaf Story",
   description:
-    "Mainkan Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz, Trivia Indonesia, dan Cat & Mouse online bareng teman — arena game real-time dari Altaf Story.",
+    "Mainkan Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz, Trivia Indonesia, Cat & Mouse, dan Kitchen Rush — plus jelajahi katalog Free to Game di Altaf Story.",
   keywords: [
     "game multiplayer online",
     "game party online",
@@ -44,6 +46,12 @@ export const metadata: Metadata = {
     "game kejar kejaran",
     "game cat mouse",
     "game kucing tikus",
+    "game masak online",
+    "game cooking multiplayer",
+    "kitchen rush",
+    "free to game",
+    "katalog game gratis",
+    "game multiplayer gratis",
     "Two Sides",
     "Snake Duel",
     "Flag Quiz",
@@ -51,6 +59,8 @@ export const metadata: Metadata = {
     "Trivia Blitz",
     "Trivia Indonesia",
     "Cat & Mouse",
+    "Kitchen Rush",
+    "Free to Game",
     "Altaf Story games",
   ],
   alternates: {
@@ -59,7 +69,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Game Arcade - Altaf Story",
     description:
-      "Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz, Trivia Indonesia & Cat & Mouse — main bareng teman secara real-time.",
+      "Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz, Trivia Indonesia, Cat & Mouse, Kitchen Rush & katalog Free to Game — main bareng teman secara real-time.",
     url: "/game",
     siteName: "Altaf Story",
     locale: "id_ID",
@@ -77,7 +87,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Game Arcade - Altaf Story",
     description:
-      "Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz, Trivia Indonesia & Cat & Mouse — main bareng teman secara real-time.",
+      "Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz, Trivia Indonesia, Cat & Mouse, Kitchen Rush & katalog Free to Game — main bareng teman secara real-time.",
     images: ["/assets/img/hero.jpeg"],
   },
 };
@@ -89,7 +99,7 @@ export default function DaftarGamePage() {
 
       <main className="game-hub-main">
         <div className="game-hub-overline">
-          <span /> ALTAF ARCADE <span>07 / ONLINE</span>
+          <span /> ALTAF ARCADE <span>09 / ONLINE</span>
         </div>
         <header className="game-hub-heading">
           <p>PLAY TOGETHER</p>
@@ -137,7 +147,6 @@ export default function DaftarGamePage() {
             </div>
           </section>
 
-          {/* ---- KARTU CAT & MOUSE ---- */}
           <section className="game-feature">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
@@ -347,10 +356,83 @@ export default function DaftarGamePage() {
               </Link>
             </div>
           </section>
+
+          {/* ---- KARTU KITCHEN RUSH ---- */}
+          <section className="game-feature">
+            <div className="game-feature-art" aria-hidden="true">
+              <div className="game-feature-scanlines" />
+              <div className="game-feature-target">
+                <ChefHat size={88} strokeWidth={1.5} />
+              </div>
+              <span className="game-feature-number">2-4</span>
+              <span className="game-feature-art-label">CO-OP COOKING</span>
+              <span className="game-feature-live">
+                <i /> LIVE ROOM
+              </span>
+            </div>
+            <div className="game-feature-copy">
+              <div className="game-feature-kicker">
+                <Radio size={14} /> PARTY GAME / 008
+              </div>
+              <h2>Kitchen Rush</h2>
+              <p className="game-feature-description">
+                Kerja sama masak pesanan sebelum waktu habis. Ambil bahan,
+                masak, dan antar ke delivery. Makin cepat, makin tinggi skor!
+              </p>
+              <div className="game-feature-facts">
+                <span>
+                  <UsersRound size={16} /> 2—4 pemain
+                </span>
+                <span>
+                  <ChefHat size={16} /> Co-op cooking
+                </span>
+              </div>
+              <Link href="/game/kitchen-rush" className="game-feature-cta">
+                Masak bareng <ArrowUpRight size={18} />
+              </Link>
+            </div>
+          </section>
+
+          {/* ---- KARTU FREE TO GAME (PALING BAWAH) ---- */}
+          <section className="game-feature is-external">
+            <div className="game-feature-art" aria-hidden="true">
+              <div className="game-feature-scanlines" />
+              <div className="game-feature-target">
+                <Gamepad2 size={88} strokeWidth={1.5} />
+              </div>
+              <span className="game-feature-number">100+</span>
+              <span className="game-feature-art-label">GAME GRATIS</span>
+              <span className="game-feature-live">
+                <i /> KATALOG
+              </span>
+            </div>
+            <div className="game-feature-copy">
+              <div className="game-feature-kicker">
+                <Radio size={14} /> KATALOG GAME / 009
+              </div>
+              <h2>Free to Game</h2>
+              <p className="game-feature-description">
+                Jelajahi ratusan game gratis & multiplayer dari seluruh dunia.
+                Filter berdasarkan kategori, platform, dan urutkan sesuai
+                keinginan.
+              </p>
+              <div className="game-feature-facts">
+                <span>
+                  <Gamepad2 size={16} /> 100+ game
+                </span>
+                <span>
+                  <Globe2 size={16} /> Multiplayer
+                </span>
+              </div>
+              <Link href="/game/free-to-game" className="game-feature-cta">
+                Jelajahi sekarang <ArrowUpRight size={18} />
+              </Link>
+            </div>
+          </section>
         </div>
 
         <div className="game-hub-footerline">
-          <span>07 GAME DI ARENA</span>
+          <span>09 GAME DI ARENA</span>
           <span>SEMUA ONLINE</span>
         </div>
       </main>
