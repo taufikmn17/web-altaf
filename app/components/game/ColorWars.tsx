@@ -132,6 +132,7 @@ export default function ColorWars() {
   const phaseRef = useRef<GamePhase>("lobby");
   const activePowerRef = useRef<"double" | "speed" | null>(null);
   const myScoreRef = useRef(0);
+  const powerUpsRef = useRef<PowerUp[]>([]);
 
   useEffect(() => {
     myPosRef.current = myPos;
@@ -148,6 +149,9 @@ export default function ColorWars() {
   useEffect(() => {
     myScoreRef.current = myScore;
   }, [myScore]);
+  useEffect(() => {
+    powerUpsRef.current = powerUps;
+  }, [powerUps]);
 
   const pushDir = (dir: Vec) => {
     const q = dirQueueRef.current;
@@ -402,7 +406,7 @@ export default function ColorWars() {
 
         // Cek power-up pickup
         const now = Date.now();
-        const picked = powerUps.find(
+        const picked = powerUpsRef.current.find(
           (p) => p.x === next.x && p.y === next.y && p.expiresAt > now,
         );
         if (picked) {
@@ -438,14 +442,13 @@ export default function ColorWars() {
             else if (g[y][x] === P2_COLOR) peerCount++;
           }
         }
-        // Host = P1 (pink), Guest = P2 (cyan)
         const hostCount = myCount;
         const guestCount = peerCount;
 
         let winnerIdFinal: string | null = null;
         let winnerNameFinal = "";
         if (hostCount > guestCount) {
-          winnerIdFinal = playerId; // host menang
+          winnerIdFinal = playerId;
           winnerNameFinal =
             players.find((p) => p.id === playerId)?.name ?? "Kamu";
         } else if (guestCount > hostCount) {
@@ -476,7 +479,7 @@ export default function ColorWars() {
       if (loopRef.current) window.clearTimeout(loopRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, myPos, playerId, roundEndsAt, isHost, powerUps, players]);
+  }, [phase, myPos, playerId, roundEndsAt, isHost, players]);
 
   // ---- Host: spawn power-up tiap 8 detik ----
   useEffect(() => {
@@ -764,8 +767,8 @@ export default function ColorWars() {
             Color Wars<span>!</span>
           </h1>
           <p>
-            Rebut wilayah dengan warna! Warnai area 3×3 setiap langkah — kuasai
-            grid lebih banyak dari lawan.
+            Rebut wilayah dengan warna! Setiap langkah, warnai 3×3 area di
+            sekitarmu.
           </p>
         </header>
 
