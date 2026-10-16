@@ -41,10 +41,10 @@ type RoundState = {
 
 const ROOM_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const TOTAL_ROUNDS = 5;
-const INPUT_TIME_MS = 15_000; // 15 detik untuk setter
-const GUESS_TIME_MS = 15_000; // 15 detik untuk guesser
+const INPUT_TIME_MS = 15_000;
+const GUESS_TIME_MS = 15_000;
 const MIN_WORD_LEN = 3;
-const MAX_WORD_LEN = 7; // max 7 huruf
+const MAX_WORD_LEN = 7;
 const NEXT_ROUND_DELAY_MS = 1800;
 
 function makeRoomCode() {
@@ -104,16 +104,20 @@ export default function ScrambleDuel() {
   const [winnerId, setWinnerId] = useState<string | null>(null);
   const [winnerName, setWinnerName] = useState("");
 
-  // Refs
+  // Refs — biar handler Supabase selalu baca nilai terbaru
   const isHostRef = useRef(false);
   const playerIdRef = useRef("");
   const playersRef = useRef<RoomPlayer[]>([]);
   const roundStateRef = useRef<RoundState | null>(null);
   const myScoreRef = useRef(0);
   const peerScoreRef = useRef(0);
+  // Kata asli disimpan di ref. Di-set oleh setter saat submit,
+  // DAN di-set oleh semua pemain saat terima event "stage-guess"
+  // (lewat payload.answer) — supaya host selalu tahu jawaban.
   const answerRef = useRef("");
   const roundLockedRef = useRef(false);
   const nextRoundTimeoutRef = useRef<number | null>(null);
+  const resolveTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     isHostRef.current = isHost;
@@ -197,12 +201,12 @@ export default function ScrambleDuel() {
       setPhase("lobby");
     });
 
-    // Setter broadcast kata + mulai stage "guess"
+    // HOST memulai ronde (stage: input)
     channel.on(
       "broadcast",
       { event: "round-start" },
       ({ payload }: { payload: RoundState }) => {
-        if (!payload || typeof payload.guessEndsAt !== "number") return;
+        if (!payload || typeof payload.inputEndsAt !== "number") return;
         setRound(payload.round);
         setRoundState(payload);
         setGuessInput("");
@@ -213,16 +217,20 @@ export default function ScrambleDuel() {
       },
     );
 
-    // Saat stage berubah input -> guess (broadcast terpisah)
+    // SETTER broadcast kata + stage guess. `answer` disertakan
+    // supaya host juga tahu jawaban asli untuk verifikasi.
     channel.on(
       "broadcast",
-      { event: "stage-guess" },
+      {
+        event: "stage-guess",
+      },
       ({
         payload,
       }: {
         payload: {
           round: number;
           scrambled: string;
+          answer: string;
           answerLength: number;
           guessEndsAt: number;
           setterId: string;
@@ -230,6 +238,8 @@ export default function ScrambleDuel() {
         };
       }) => {
         if (!payload) return;
+        answerRef.current = payload.answer.toUpperCase();
+
         const prev = roundStateRef.current;
         if (!prev) return;
         const updated: RoundState = {
@@ -243,22 +253,26 @@ export default function ScrambleDuel() {
           guesserId: payload.guesserId,
         };
         setRoundState(updated);
+        roundStateRef.current = updated;
         setFeedback(null);
         setRoundLocked(false);
       },
     );
 
-    // Setter verifikasi jawaban guesser
+    // GUESSER kirim jawaban → HOST verifikasi (host selalu tahu answerRef)
     channel.on(
       "broadcast",
-      { event: "guess-submitted" },
+      {
+        event: "guess-submitted",
+      },
       ({ payload }: { payload: { guess: string; guesserId: string } }) => {
         if (!payload) return;
+        if (!isHostRef.current) return;
+        if (roundLockedRef.current) return;
+
         const currentRound = roundStateRef.current;
         if (!currentRound) return;
-        if (currentRound.setterId !== playerIdRef.current) return;
         if (currentRound.stage !== "guess") return;
-        if (roundLockedRef.current) return;
 
         const correct =
           payload.guess.trim().toUpperCase() ===
@@ -277,10 +291,12 @@ export default function ScrambleDuel() {
       },
     );
 
-    // Semua pemain terima hasil → stop timer, lanjut ronde berikutnya
+    // Semua pemain terima hasil → kunci ronde → jadwalkan ronde berikutnya
     channel.on(
       "broadcast",
-      { event: "round-result" },
+      {
+        event: "round-result",
+      },
       ({
         payload,
       }: {
@@ -295,6 +311,7 @@ export default function ScrambleDuel() {
         if (roundLockedRef.current) return;
 
         setRoundLocked(true);
+        roundLockedRef.current = true;
         setFeedback({
           type: payload.correct ? "correct" : "wrong",
           text: payload.correct
@@ -310,7 +327,6 @@ export default function ScrambleDuel() {
           }
         }
 
-        // HOST yang trigger lanjut ronde berikutnya
         if (isHostRef.current) {
           if (nextRoundTimeoutRef.current) {
             window.clearTimeout(nextRoundTimeoutRef.current);
@@ -322,14 +338,17 @@ export default function ScrambleDuel() {
       },
     );
 
-    // Setter timeout input → ronde di-skip
+    // Setter timeout input → skip ronde
     channel.on(
       "broadcast",
-      { event: "round-skipped" },
+      {
+        event: "round-skipped",
+      },
       ({ payload }: { payload: { reason: string; round: number } }) => {
         if (!payload) return;
         if (roundLockedRef.current) return;
         setRoundLocked(true);
+        roundLockedRef.current = true;
         setFeedback({
           type: "timeout",
           text:
@@ -337,7 +356,6 @@ export default function ScrambleDuel() {
               ? "Setter kehabisan waktu. Ronde dilewati."
               : "Waktu habis. Ronde dilewati.",
         });
-        // Host trigger advance
         if (isHostRef.current) {
           if (nextRoundTimeoutRef.current) {
             window.clearTimeout(nextRoundTimeoutRef.current);
@@ -351,7 +369,9 @@ export default function ScrambleDuel() {
 
     channel.on(
       "broadcast",
-      { event: "game-over" },
+      {
+        event: "game-over",
+      },
       ({
         payload,
       }: {
@@ -383,6 +403,10 @@ export default function ScrambleDuel() {
         window.clearTimeout(nextRoundTimeoutRef.current);
         nextRoundTimeoutRef.current = null;
       }
+      if (resolveTimeoutRef.current) {
+        window.clearTimeout(resolveTimeoutRef.current);
+        resolveTimeoutRef.current = null;
+      }
       void supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -399,7 +423,7 @@ export default function ScrambleDuel() {
   }, [activeRoom, isConnected, isHost, isReady, playerId, playerName]);
 
   // =========================================================
-  // TIMER (input 15s atau guess 15s)
+  // TIMER
   // =========================================================
   useEffect(() => {
     if (phase !== "playing" || !roundState) return;
@@ -420,11 +444,13 @@ export default function ScrambleDuel() {
   }, [phase, roundState, roundLocked]);
 
   // =========================================================
-  // HOST: timeout handler — kalau setter tidak input / guesser tidak jawab
+  // HOST WATCHDOG: auto-resolve saat waktu habis
+  // (dijalankan ulang tiap stage berubah)
   // =========================================================
   useEffect(() => {
     if (!isHost) return;
-    if (phase !== "playing" || !roundState) return;
+    if (phase !== "playing") return;
+    if (!roundState) return;
     if (roundLocked) return;
 
     const target =
@@ -433,20 +459,22 @@ export default function ScrambleDuel() {
         : roundState.guessEndsAt;
     const msLeft = Math.max(0, target - Date.now());
 
-    const timeout = setTimeout(() => {
+    if (resolveTimeoutRef.current) {
+      window.clearTimeout(resolveTimeoutRef.current);
+    }
+
+    resolveTimeoutRef.current = window.setTimeout(() => {
       if (roundLockedRef.current) return;
       const current = roundStateRef.current;
       if (!current) return;
 
       if (current.stage === "input") {
-        // Setter tidak input → skip ronde
         void channelRef.current?.send({
           type: "broadcast",
           event: "round-skipped",
           payload: { reason: "input-timeout", round: current.round },
         });
-      } else {
-        // Guesser tidak jawab → anggap salah, lanjut
+      } else if (current.stage === "guess") {
         void channelRef.current?.send({
           type: "broadcast",
           event: "round-result",
@@ -458,10 +486,14 @@ export default function ScrambleDuel() {
           },
         });
       }
-    }, msLeft + 150);
+    }, msLeft + 200);
 
-    return () => clearTimeout(timeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      if (resolveTimeoutRef.current) {
+        window.clearTimeout(resolveTimeoutRef.current);
+        resolveTimeoutRef.current = null;
+      }
+    };
   }, [isHost, phase, roundState, roundLocked]);
 
   // =========================================================
@@ -492,10 +524,12 @@ export default function ScrambleDuel() {
     answerRef.current = "";
     setRound(roundNumber);
     setRoundState(state);
+    roundStateRef.current = state;
     setWordInput("");
     setGuessInput("");
     setFeedback(null);
     setRoundLocked(false);
+    roundLockedRef.current = false;
     setRemainingMs(INPUT_TIME_MS);
     setPhase("playing");
 
@@ -507,7 +541,7 @@ export default function ScrambleDuel() {
   };
 
   // =========================================================
-  // HOST: advance ke ronde berikutnya / selesai
+  // HOST: advance ronde / selesai
   // =========================================================
   const advanceRound = () => {
     if (!isHostRef.current) return;
@@ -522,7 +556,6 @@ export default function ScrambleDuel() {
 
       let winnerIdFinal: string | null = null;
       let winnerNameFinal = "";
-
       const guest = playersRef.current.find((p) => !p.isHost);
       const hostPlayer = playersRef.current.find((p) => p.isHost);
 
@@ -580,15 +613,16 @@ export default function ScrambleDuel() {
       guessEndsAt,
     };
     setRoundState(updated);
+    roundStateRef.current = updated;
     setRemainingMs(GUESS_TIME_MS);
 
-    // Beritahu semua player stage sudah pindah ke guess
     void channelRef.current?.send({
       type: "broadcast",
       event: "stage-guess",
       payload: {
         round: roundState.round,
         scrambled,
+        answer: cleaned, // ← penting: host perlu tahu jawaban
         answerLength: cleaned.length,
         guessEndsAt,
         setterId: roundState.setterId,
@@ -598,7 +632,7 @@ export default function ScrambleDuel() {
   };
 
   // =========================================================
-  // GUESSER: submit jawaban (BERFUNGSI UNTUK HOST & GUEST)
+  // GUESSER: submit jawaban
   // =========================================================
   const handleGuesserSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -632,7 +666,7 @@ export default function ScrambleDuel() {
   };
 
   // =========================================================
-  // ROOM ENTER/LEAVE
+  // ROOM ENTER / LEAVE
   // =========================================================
   const peekRoomPlayerCount = async (roomCode: string): Promise<number> => {
     if (!supabase) return 0;
@@ -776,6 +810,10 @@ export default function ScrambleDuel() {
     if (nextRoundTimeoutRef.current) {
       window.clearTimeout(nextRoundTimeoutRef.current);
       nextRoundTimeoutRef.current = null;
+    }
+    if (resolveTimeoutRef.current) {
+      window.clearTimeout(resolveTimeoutRef.current);
+      resolveTimeoutRef.current = null;
     }
     setActiveRoom("");
     setIsConnected(false);
@@ -1041,7 +1079,7 @@ export default function ScrambleDuel() {
                     : "TEBAK KATA INI!"}
                 </div>
 
-                {/* ============ SETTER VIEW ============ */}
+                {/* ============ SETTER ============ */}
                 {myRole === "setter" && stage === "input" && (
                   <form
                     className="scramble-setter-form"
@@ -1121,7 +1159,7 @@ export default function ScrambleDuel() {
                   </div>
                 )}
 
-                {/* ============ GUESSER VIEW ============ */}
+                {/* ============ GUESSER ============ */}
                 {myRole === "guesser" && stage === "input" && (
                   <div className="scramble-waiting-opponent">
                     <div className="scramble-waiting-icon">⏳</div>
@@ -1183,12 +1221,7 @@ export default function ScrambleDuel() {
                     <button
                       className="tap-rush-primary scramble-submit-btn"
                       type="submit"
-                      disabled={
-                        submitting ||
-                        roundLocked ||
-                        !guessInput.trim() ||
-                        feedback !== null
-                      }
+                      disabled={submitting || roundLocked || !guessInput.trim()}
                     >
                       <Send size={17} />{" "}
                       {submitting
@@ -1418,7 +1451,6 @@ export default function ScrambleDuel() {
           opacity: 0.5;
         }
 
-        /* ==== HURUF HORIZONTAL + WRAP ==== */
         .scramble-letters {
           display: flex;
           flex-wrap: wrap;
@@ -1509,7 +1541,6 @@ export default function ScrambleDuel() {
           text-transform: uppercase;
         }
 
-        /* ==== WAITING SCREEN UNTUK GUESSER ==== */
         .scramble-waiting-opponent {
           display: flex;
           flex-direction: column;
