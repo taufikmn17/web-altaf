@@ -2,6 +2,7 @@
 
 import {
   ArrowLeft,
+  Check,
   Copy,
   DoorOpen,
   Puzzle,
@@ -1146,7 +1147,7 @@ export default function ScrambleDuelGame() {
                   <Copy size={15} aria-hidden="true" />
                 </button>
                 <span className="tap-rush-copy-note">
-                  {copied ? "Kode tersalin!" : "Bagikan ke teman"}
+                  {copied ? "Kode tersalin!" : "Bagikan kode ini ke teman"}
                 </span>
               </div>
               <div
@@ -1177,10 +1178,12 @@ export default function ScrambleDuelGame() {
                           {p.name}
                           {p.id === playerId ? " (kamu)" : ""}
                         </span>
-                        {p.id === playerId && isHost ? (
+                        {i === 0 ? (
                           <span className="tap-rush-host">HOST</span>
                         ) : p.ready ? (
-                          <span className="tap-rush-ready">✓ SIAP</span>
+                          <span className="tap-rush-ready">
+                            <Check size={14} /> SIAP
+                          </span>
                         ) : (
                           <span className="tap-rush-waiting">MENUNGGU</span>
                         )}
@@ -1216,7 +1219,7 @@ export default function ScrambleDuelGame() {
                       disabled={!isConnected || players.length !== 2}
                       onClick={() => setIsReady((ready) => !ready)}
                     >
-                      <UsersRound size={17} />{" "}
+                      <Check size={17} />{" "}
                       {isReady ? "Siap! (ubah)" : "Saya siap"}
                     </button>
                   )}
@@ -1501,29 +1504,6 @@ export default function ScrambleDuelGame() {
       </section>
 
       <style jsx>{`
-        .tap-rush-host,
-        .tap-rush-ready,
-        .tap-rush-waiting {
-          margin-left: auto;
-          font-size: 10px;
-          font-weight: 800;
-          letter-spacing: 0.08em;
-          white-space: nowrap;
-        }
-        .tap-rush-host {
-          color: #fbbf24;
-        }
-        .tap-rush-ready {
-          color: #86efac;
-        }
-        .tap-rush-waiting {
-          color: rgba(255, 255, 255, 0.45);
-        }
-        .tap-rush-primary.is-ready {
-          border-color: rgba(134, 239, 172, 0.55);
-          background: rgba(34, 197, 94, 0.14);
-          color: #86efac;
-        }
         .scramble-wrap {
           display: flex;
           flex-direction: column;
