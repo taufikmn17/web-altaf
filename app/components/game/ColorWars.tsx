@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getSupabaseBrowserClient } from "@/app/lib/supabase-browser";
 
@@ -333,7 +334,7 @@ export default function ColorWars() {
     });
   };
 
-  // ---- Game loop: warnai HANYA 1 kotak per gerak ----
+  // ---- Game loop: warnai 1 kotak per gerak, sinkron pakai flushSync ----
   useEffect(() => {
     if (phase !== "playing") return;
     if (!myPos) return;
@@ -362,18 +363,24 @@ export default function ColorWars() {
       if (dir) {
         const next = { x: pos.x + dir.x, y: pos.y + dir.y };
 
-        // Warnai HANYA 1 kotak yang sedang diinjak
         const gridNow = gridRef.current;
         const currentOwner = gridNow[next.y]?.[next.x] ?? null;
 
         if (currentOwner !== myColor) {
           const change = { x: next.x, y: next.y, color: myColor };
 
-          setGrid((current) => {
-            const g = current.map((row) => [...row]);
-            g[next.y][next.x] = myColor;
-            return g;
+          // flushSync: update grid + posisi bersamaan dalam 1 frame render,
+          // biar karakter dan kotak yang diwarnai selalu sinkron
+          flushSync(() => {
+            setGrid((current) => {
+              const g = current.map((row) => [...row]);
+              g[next.y][next.x] = myColor;
+              return g;
+            });
+            setMyPos(next);
           });
+
+          myPosRef.current = next;
 
           setMyScore((current) => {
             const bonus = activePowerRef.current === "double" ? 2 : 1;
@@ -387,10 +394,11 @@ export default function ColorWars() {
             event: "grid-update",
             payload: { changes: [change] },
           });
+        } else {
+          // Kotak sudah warna kita → cukup update posisi
+          setMyPos(next);
+          myPosRef.current = next;
         }
-
-        setMyPos(next);
-        myPosRef.current = next;
 
         // Cek power-up pickup
         const now = Date.now();
@@ -1303,6 +1311,8 @@ export default function ColorWars() {
         .color-wars-cell {
           border-radius: 0;
           transition: background 100ms ease;
+          /* Grid line halus biar kotak kosong tetap kelihatan batasnya */
+          box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.03);
         }
 
         .color-wars-power {
