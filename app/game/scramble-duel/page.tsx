@@ -45,5 +45,5 @@ export const metadata: Metadata = {
 };
 
 export default function ScrambleDuelPage() {
-  return <ScrambleDuelGame />; // ← BERUBAH
+  return <ScrambleDuelGame />;
 }
