@@ -26,23 +26,21 @@ type GamePhase = "lobby" | "playing" | "results";
 
 type Vec = { x: number; y: number };
 
-type StationKind = "raw" | "cut" | "stove" | "plate" | "delivery";
+type StationKind = "fish" | "chicken" | "cut" | "stove" | "plate" | "box";
 
 type Station = {
   id: string;
   kind: StationKind;
   x: number;
   y: number;
+  label: string;
 };
 
-type Ingredient = "tomato" | "cheese" | "onion" | "lettuce" | "meat";
-type Item = Ingredient | "plate" | "dish";
+type Ingredient = "fish" | "chicken";
+type Cooked = "fish-cooked" | "chicken-cooked";
+type Item = Ingredient | Cooked;
 
-type CookingState = {
-  stationId: string;
-  progress: number; // 0..1
-  result: Item;
-};
+type OrderType = "dine-in" | "take-away";
 
 type PlayerState = {
   id: string;
@@ -51,65 +49,62 @@ type PlayerState = {
   y: number;
   holding: Item | null;
   color: string;
-  score: number;
 };
 
 type Order = {
   id: string;
-  dish: "soup" | "salad" | "burger";
+  type: OrderType;
+  ingredient: Ingredient;
   expiresAt: number;
   reward: number;
 };
 
 const COLS = 10;
-const ROWS = 8;
+const ROWS = 7;
 const TICK_MS = 130;
-const COOK_TIME_MS = 4000;
-const CUT_TIME_MS = 2500;
+const CUT_TIME_MS = 2000;
+const COOK_TIME_MS = 3500;
 const ROUND_TIME_MS = 90_000;
 const ROOM_CHARACTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 const COLORS = ["#ec4899", "#fbbf24", "#22d3ee", "#a3e635"];
 
-// Layout stasiun (fixed)
+// Layout: baris 1 (bahan + potong + masak), baris 5 (antar)
 const STATIONS: Station[] = [
-  { id: "raw1", kind: "raw", x: 1, y: 1 },
-  { id: "raw2", kind: "raw", x: 2, y: 1 },
-  { id: "raw3", kind: "raw", x: 3, y: 1 },
-  { id: "raw4", kind: "raw", x: 4, y: 1 },
-  { id: "cut1", kind: "cut", x: 6, y: 1 },
-  { id: "stove1", kind: "stove", x: 7, y: 1 },
-  { id: "stove2", kind: "stove", x: 8, y: 1 },
-  { id: "plate1", kind: "plate", x: 1, y: 6 },
-  { id: "plate2", kind: "plate", x: 2, y: 6 },
-  { id: "delivery", kind: "delivery", x: 8, y: 6 },
+  { id: "fish1", kind: "fish", x: 1, y: 1, label: "Ambil Ikan" },
+  { id: "fish2", kind: "fish", x: 2, y: 1, label: "Ambil Ikan" },
+  { id: "chicken1", kind: "chicken", x: 3, y: 1, label: "Ambil Ayam" },
+  { id: "chicken2", kind: "chicken", x: 4, y: 1, label: "Ambil Ayam" },
+  { id: "cut1", kind: "cut", x: 5, y: 1, label: "Potong" },
+  { id: "cut2", kind: "cut", x: 6, y: 1, label: "Potong" },
+  { id: "stove1", kind: "stove", x: 7, y: 1, label: "Masak" },
+  { id: "stove2", kind: "stove", x: 8, y: 1, label: "Masak" },
+  { id: "plate", kind: "plate", x: 2, y: 5, label: "Dine In" },
+  { id: "box", kind: "box", x: 7, y: 5, label: "Take Away" },
 ];
 
 const STATION_EMOJI: Record<StationKind, string> = {
-  raw: "🧺",
+  fish: "🐟",
+  chicken: "🐔",
   cut: "🔪",
   stove: "🔥",
   plate: "🍽️",
-  delivery: "📦",
-};
-
-const INGREDIENT_EMOJI: Record<Ingredient, string> = {
-  tomato: "🍅",
-  cheese: "🧀",
-  onion: "🧅",
-  lettuce: "🥬",
-  meat: "🥩",
+  box: "📦",
 };
 
 const ITEM_EMOJI: Record<Item, string> = {
-  tomato: "🍅",
-  cheese: "🧀",
-  onion: "🧅",
-  lettuce: "🥬",
-  meat: "🥩",
-  plate: "🍽️",
-  dish: "🍲",
+  fish: "🐟",
+  chicken: "🐔",
+  "fish-cooked": "🍣",
+  "chicken-cooked": "🍗",
 };
+
+const START_POSITIONS: Vec[] = [
+  { x: 3, y: 3 },
+  { x: 6, y: 3 },
+  { x: 3, y: 4 },
+  { x: 6, y: 4 },
+];
 
 function makeRoomCode() {
   const values = new Uint32Array(6);
@@ -139,18 +134,42 @@ function directionFromKey(key: string): Vec | null {
   }
 }
 
-// Cari station di posisi (x, y)
 function findStation(x: number, y: number): Station | undefined {
   return STATIONS.find((s) => s.x === x && s.y === y);
 }
 
-// Player start positions (4 sudut tengah arena)
-const START_POSITIONS: Vec[] = [
-  { x: 3, y: 3 },
-  { x: 6, y: 3 },
-  { x: 3, y: 4 },
-  { x: 6, y: 4 },
-];
+function isCooked(item: Item): item is Cooked {
+  return item === "fish-cooked" || item === "chicken-cooked";
+}
+
+function getNextStep(
+  holding: Item | null,
+  activeOrder: Order | null,
+): { instruction: string; emoji: string } {
+  if (holding === null) {
+    if (!activeOrder) {
+      return { instruction: "Ambil bahan dari 🐟 atau 🐔", emoji: "🧺" };
+    }
+    const ing = activeOrder.ingredient;
+    return {
+      instruction: `Ambil ${ing === "fish" ? "ikan 🐟" : "ayam 🐔"} dari station`,
+      emoji: ing === "fish" ? "🐟" : "🐔",
+    };
+  }
+  if (holding === "fish" || holding === "chicken") {
+    return { instruction: "Bawa ke 🔪 papan potong", emoji: "🔪" };
+  }
+  if (holding === "fish-cooked" || holding === "chicken-cooked") {
+    if (!activeOrder) {
+      return { instruction: "Tunggu pesanan…", emoji: "⏳" };
+    }
+    if (activeOrder.type === "dine-in") {
+      return { instruction: "Antar ke 🍽️ PIRING (Dine In)", emoji: "🍽️" };
+    }
+    return { instruction: "Antar ke 📦 KARDUS (Take Away)", emoji: "📦" };
+  }
+  return { instruction: "Mulai dari stasiun bahan", emoji: "🧺" };
+}
 
 export default function KitchenRush() {
   const supabase = getSupabaseBrowserClient();
@@ -171,25 +190,27 @@ export default function KitchenRush() {
   const [copied, setCopied] = useState(false);
   const [joiningRoom, setJoiningRoom] = useState(false);
 
-  // Game state
   const [myPos, setMyPos] = useState<Vec | null>(null);
   const [myHolding, setMyHolding] = useState<Item | null>(null);
   const [peers, setPeers] = useState<Record<string, PlayerState>>({});
-  const [stationItems, setStationItems] = useState<Record<string, Item | null>>(
-    {},
-  );
-  const [cooking, setCooking] = useState<CookingState | null>(null);
+  const [cookingStation, setCookingStation] = useState<{
+    stationId: string;
+    progress: number;
+    result: Item;
+  } | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [score, setScore] = useState(0);
   const [roundEndsAt, setRoundEndsAt] = useState<number | null>(null);
   const [remainingMs, setRemainingMs] = useState(ROUND_TIME_MS);
   const [roundIndex, setRoundIndex] = useState(0);
+  const [bigNotice, setBigNotice] = useState<string | null>(null);
 
   const myPosRef = useRef<Vec | null>(null);
   const myHoldingRef = useRef<Item | null>(null);
   const dirQueueRef = useRef<Vec[]>([]);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const phaseRef = useRef<GamePhase>("lobby");
+  const lastStationRef = useRef<string | null>(null);
 
   useEffect(() => {
     myPosRef.current = myPos;
@@ -205,6 +226,11 @@ export default function KitchenRush() {
     const q = dirQueueRef.current;
     if (q.length > 2) return;
     q.push(dir);
+  };
+
+  const showNotice = (msg: string) => {
+    setBigNotice(msg);
+    setTimeout(() => setBigNotice(null), 1800);
   };
 
   // ---- Realtime channel ----
@@ -236,13 +262,13 @@ export default function KitchenRush() {
       setMyPos(null);
       setMyHolding(null);
       setPeers({});
-      setStationItems({});
-      setCooking(null);
+      setCookingStation(null);
       setOrders([]);
       setScore(0);
       setRoundEndsAt(null);
       setPhase("lobby");
       dirQueueRef.current = [];
+      lastStationRef.current = null;
     });
 
     channel.on("broadcast", { event: "round-start" }, ({ payload }) => {
@@ -259,11 +285,10 @@ export default function KitchenRush() {
         return;
 
       const myStart = data.startPositions[playerId];
-      setMyPos(myStart ?? { x: 4, y: 4 });
+      setMyPos(myStart ?? { x: 4, y: 3 });
       setMyHolding(null);
       setPeers({});
-      setStationItems({});
-      setCooking(null);
+      setCookingStation(null);
       setOrders([]);
       setScore(0);
       setRoundIndex(data.roundIndex);
@@ -272,6 +297,8 @@ export default function KitchenRush() {
       setPhase("playing");
       setError("");
       dirQueueRef.current = [];
+      lastStationRef.current = null;
+      showNotice("🏁 Mulai! Lihat pesanan di atas");
     });
 
     channel.on("broadcast", { event: "player-state" }, ({ payload }) => {
@@ -280,37 +307,21 @@ export default function KitchenRush() {
       setPeers((current) => ({ ...current, [data.id]: data }));
     });
 
-    channel.on("broadcast", { event: "station-set" }, ({ payload }) => {
-      const data = payload as { stationId?: string; item?: Item | null };
-      if (typeof data.stationId !== "string") return;
-      setStationItems((current) => ({
-        ...current,
-        [data.stationId as string]: data.item ?? null,
-      }));
-    });
-
     channel.on("broadcast", { event: "cooking-start" }, ({ payload }) => {
       const data = payload as {
         stationId?: string;
         result?: Item;
-        durationMs?: number;
       };
       if (!data.stationId || !data.result) return;
-      setCooking({
+      setCookingStation({
         stationId: data.stationId,
         progress: 0,
         result: data.result,
       });
     });
 
-    channel.on("broadcast", { event: "cooking-done" }, ({ payload }) => {
-      const data = payload as { stationId?: string; item?: Item };
-      if (!data.stationId || !data.item) return;
-      setCooking(null);
-      setStationItems((current) => ({
-        ...current,
-        [data.stationId as string]: data.item as Item,
-      }));
+    channel.on("broadcast", { event: "cooking-done" }, () => {
+      setCookingStation(null);
     });
 
     channel.on("broadcast", { event: "orders" }, ({ payload }) => {
@@ -370,6 +381,23 @@ export default function KitchenRush() {
     return () => window.removeEventListener("keydown", handler);
   }, [phase]);
 
+  const broadcastMyState = (pos: Vec, holding: Item | null) => {
+    const myIndex = players.findIndex((p) => p.id === playerId);
+    const me = players.find((p) => p.id === playerId);
+    void channelRef.current?.send({
+      type: "broadcast",
+      event: "player-state",
+      payload: {
+        id: playerId,
+        name: me?.name ?? "Pemain",
+        x: pos.x,
+        y: pos.y,
+        holding,
+        color: COLORS[myIndex >= 0 ? myIndex % COLORS.length : 0],
+      } as PlayerState,
+    });
+  };
+
   // ---- Game loop ----
   useEffect(() => {
     if (phase !== "playing") return;
@@ -390,7 +418,6 @@ export default function KitchenRush() {
         const nx = pos.x + c.x;
         const ny = pos.y + c.y;
         if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS) continue;
-        // Cek collision dengan player lain (tidak bisa masuk kotak yang ada player)
         const blocked = Object.values(peers).some(
           (p) => p.x === nx && p.y === ny,
         );
@@ -404,6 +431,9 @@ export default function KitchenRush() {
         setMyPos(next);
         myPosRef.current = next;
         broadcastMyState(next, myHoldingRef.current);
+
+        const st = findStation(next.x, next.y);
+        if (!st) lastStationRef.current = null;
       }
 
       loopRef.current = window.setTimeout(tick, TICK_MS);
@@ -416,181 +446,207 @@ export default function KitchenRush() {
       if (loopRef.current) window.clearTimeout(loopRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, myPos, playerId]);
+  }, [phase, myPos, playerId, peers]);
 
-  const broadcastMyState = (pos: Vec, holding: Item | null) => {
-    const me = players.find((p) => p.id === playerId);
-    const myIndex = players.findIndex((p) => p.id === playerId);
-    void channelRef.current?.send({
-      type: "broadcast",
-      event: "player-state",
-      payload: {
-        id: playerId,
-        name: me?.name ?? "Pemain",
-        x: pos.x,
-        y: pos.y,
-        holding,
-        color: COLORS[myIndex >= 0 ? myIndex : 0],
-        score: 0,
-      } as PlayerState,
-    });
-  };
-
-  // ---- Auto pickup / interact saat masuk kotak station ----
+  // ---- Auto pickup/interact ----
   useEffect(() => {
     if (phase !== "playing") return;
     if (!myPos) return;
+    if (cookingStation) return;
 
     const station = findStation(myPos.x, myPos.y);
     if (!station) return;
+    if (lastStationRef.current === station.id) return;
+    lastStationRef.current = station.id;
 
-    // Handle automatic interactions
     handleInteraction(station);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [myPos, phase]);
+  }, [myPos, phase, cookingStation]);
+
+  const startCookingProcess = (
+    stationId: string,
+    result: Item,
+    durationMs: number,
+    afterDone: () => void,
+  ) => {
+    void channelRef.current?.send({
+      type: "broadcast",
+      event: "cooking-start",
+      payload: { stationId, result },
+    });
+    setCookingStation({ stationId, progress: 0, result });
+
+    const start = Date.now();
+    const step = () => {
+      if (phaseRef.current !== "playing") return;
+      const elapsed = Date.now() - start;
+      const progress = Math.min(1, elapsed / durationMs);
+      setCookingStation({ stationId, progress, result });
+      if (progress >= 1) {
+        setCookingStation(null);
+        void channelRef.current?.send({
+          type: "broadcast",
+          event: "cooking-done",
+          payload: {},
+        });
+        afterDone();
+        return;
+      }
+      cookTimerRef.current = window.setTimeout(step, 100);
+    };
+    cookTimerRef.current = window.setTimeout(step, 100);
+  };
 
   const handleInteraction = (station: Station) => {
     const holding = myHoldingRef.current;
-    const stationItem = stationItems[station.id] ?? null;
 
-    // RAW: ambil bahan mentah
-    if (station.kind === "raw" && !holding && !stationItem) {
-      const ingredients: Ingredient[] = [
-        "tomato",
-        "cheese",
-        "onion",
-        "lettuce",
-        "meat",
-      ];
-      const ing = ingredients[Math.floor(Math.random() * ingredients.length)];
-      setMyHolding(ing);
-      myHoldingRef.current = ing;
-      broadcastMyState(myPosRef.current!, ing);
+    // FISH: ambil ikan
+    if (station.kind === "fish") {
+      if (!holding) {
+        setMyHolding("fish");
+        myHoldingRef.current = "fish";
+        broadcastMyState(myPosRef.current!, "fish");
+        showNotice("🐟 Ikan diambil! Bawa ke 🔪");
+      }
+      return;
+    }
+
+    // CHICKEN: ambil ayam
+    if (station.kind === "chicken") {
+      if (!holding) {
+        setMyHolding("chicken");
+        myHoldingRef.current = "chicken";
+        broadcastMyState(myPosRef.current!, "chicken");
+        showNotice("🐔 Ayam diambil! Bawa ke 🔪");
+      }
       return;
     }
 
     // CUT: potong bahan
     if (station.kind === "cut") {
-      if (holding && !stationItem && isIngredient(holding)) {
-        // Taruh bahan untuk dipotong
+      if (holding === "fish" || holding === "chicken") {
+        const ingredient = holding;
         setMyHolding(null);
         myHoldingRef.current = null;
         broadcastMyState(myPosRef.current!, null);
-        // Mulai proses potong
-        void channelRef.current?.send({
-          type: "broadcast",
-          event: "cooking-start",
-          payload: {
-            stationId: station.id,
-            result: holding,
-            durationMs: CUT_TIME_MS,
-          },
-        });
-        startCooking(station.id, holding, CUT_TIME_MS, true);
-        return;
-      }
-      if (!holding && stationItem) {
-        setMyHolding(stationItem);
-        myHoldingRef.current = stationItem;
-        broadcastMyState(myPosRef.current!, stationItem);
-        void channelRef.current?.send({
-          type: "broadcast",
-          event: "station-set",
-          payload: { stationId: station.id, item: null },
-        });
-        setStationItems((c) => ({ ...c, [station.id]: null }));
-        return;
-      }
-    }
 
-    // STOVE: masak
-    if (station.kind === "stove") {
-      if (holding && !stationItem && isIngredient(holding)) {
-        setMyHolding(null);
-        myHoldingRef.current = null;
-        broadcastMyState(myPosRef.current!, null);
-        void channelRef.current?.send({
-          type: "broadcast",
-          event: "cooking-start",
-          payload: {
-            stationId: station.id,
-            result: "dish",
-            durationMs: COOK_TIME_MS,
-          },
+        // Setelah potong, langsung otomatis "siap masak" (item tetap sama)
+        startCookingProcess(station.id, ingredient, CUT_TIME_MS, () => {
+          setMyHolding(ingredient);
+          myHoldingRef.current = ingredient;
+          broadcastMyState(myPosRef.current!, ingredient);
+          showNotice(
+            `${ingredient === "fish" ? "🐟 Ikan" : "🐔 Ayam"} dipotong! Bawa ke 🔥`,
+          );
         });
-        startCooking(station.id, "dish", COOK_TIME_MS, false);
-        return;
+      } else if (holding) {
+        showNotice("❌ Hanya bisa potong ikan/ayam mentah");
       }
-      if (!holding && stationItem) {
-        setMyHolding(stationItem);
-        myHoldingRef.current = stationItem;
-        broadcastMyState(myPosRef.current!, stationItem);
-        void channelRef.current?.send({
-          type: "broadcast",
-          event: "station-set",
-          payload: { stationId: station.id, item: null },
-        });
-        setStationItems((c) => ({ ...c, [station.id]: null }));
-        return;
-      }
-    }
-
-    // PLATE: ambil plate kosong
-    if (station.kind === "plate" && !holding && !stationItem) {
-      setMyHolding("plate");
-      myHoldingRef.current = "plate";
-      broadcastMyState(myPosRef.current!, "plate");
       return;
     }
 
-    // DELIVERY: setor dish (auto selesai order)
-    if (station.kind === "delivery" && holding === "dish") {
-      setMyHolding(null);
-      myHoldingRef.current = null;
-      broadcastMyState(myPosRef.current!, null);
-      // Selesaikan order yang paling cepat expired
-      if (orders.length > 0) {
-        const sorted = [...orders].sort((a, b) => a.expiresAt - b.expiresAt);
-        const done = sorted[0];
-        const newScore = score + done.reward;
+    // STOVE: masak bahan yang sudah dipotong
+    if (station.kind === "stove") {
+      if (holding === "fish" || holding === "chicken") {
+        const ingredient = holding;
+        const cooked: Cooked =
+          ingredient === "fish" ? "fish-cooked" : "chicken-cooked";
+
+        setMyHolding(null);
+        myHoldingRef.current = null;
+        broadcastMyState(myPosRef.current!, null);
+
+        startCookingProcess(station.id, cooked, COOK_TIME_MS, () => {
+          setMyHolding(cooked);
+          myHoldingRef.current = cooked;
+          broadcastMyState(myPosRef.current!, cooked);
+          showNotice(
+            `${ingredient === "fish" ? "🍣 Ikan" : "🍗 Ayam"} matang! Antar ke pesanan`,
+          );
+        });
+      } else if (holding) {
+        showNotice("❌ Butuh bahan mentah yang sudah dipotong");
+      }
+      return;
+    }
+
+    // PLATE: Dine In
+    if (station.kind === "plate") {
+      if (holding && isCooked(holding)) {
+        const dineInOrder = orders.find(
+          (o) =>
+            o.type === "dine-in" &&
+            ((o.ingredient === "fish" && holding === "fish-cooked") ||
+              (o.ingredient === "chicken" && holding === "chicken-cooked")),
+        );
+        if (!dineInOrder) {
+          showNotice("⚠️ Tidak ada pesanan Dine In yang cocok");
+          return;
+        }
+        const newScore = score + dineInOrder.reward;
         setScore(newScore);
         void channelRef.current?.send({
           type: "broadcast",
           event: "score",
           payload: { score: newScore },
         });
+
+        const nextOrders = orders.filter((o) => o.id !== dineInOrder.id);
+        setOrders(nextOrders);
+        void channelRef.current?.send({
+          type: "broadcast",
+          event: "orders",
+          payload: { orders: nextOrders },
+        });
+
+        setMyHolding(null);
+        myHoldingRef.current = null;
+        broadcastMyState(myPosRef.current!, null);
+        showNotice(`🍽️ +${dineInOrder.reward} Dine In!`);
+      } else if (holding) {
+        showNotice("❌ Butuh makanan matang 🍣/🍗");
       }
       return;
     }
-  };
 
-  const startCooking = (
-    stationId: string,
-    result: Item,
-    durationMs: number,
-    isCut: boolean,
-  ) => {
-    setCooking({ stationId, progress: 0, result });
-    const startTime = Date.now();
-    const step = () => {
-      if (phaseRef.current !== "playing") return;
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(1, elapsed / durationMs);
-      setCooking({ stationId, progress, result });
-      if (progress >= 1) {
-        setCooking(null);
+    // BOX: Take Away
+    if (station.kind === "box") {
+      if (holding && isCooked(holding)) {
+        const takeAwayOrder = orders.find(
+          (o) =>
+            o.type === "take-away" &&
+            ((o.ingredient === "fish" && holding === "fish-cooked") ||
+              (o.ingredient === "chicken" && holding === "chicken-cooked")),
+        );
+        if (!takeAwayOrder) {
+          showNotice("⚠️ Tidak ada pesanan Take Away yang cocok");
+          return;
+        }
+        const newScore = score + takeAwayOrder.reward;
+        setScore(newScore);
         void channelRef.current?.send({
           type: "broadcast",
-          event: "cooking-done",
-          payload: { stationId, item: result },
+          event: "score",
+          payload: { score: newScore },
         });
-        setStationItems((c) => ({ ...c, [stationId]: result }));
-        return;
+
+        const nextOrders = orders.filter((o) => o.id !== takeAwayOrder.id);
+        setOrders(nextOrders);
+        void channelRef.current?.send({
+          type: "broadcast",
+          event: "orders",
+          payload: { orders: nextOrders },
+        });
+
+        setMyHolding(null);
+        myHoldingRef.current = null;
+        broadcastMyState(myPosRef.current!, null);
+        showNotice(`📦 +${takeAwayOrder.reward} Take Away!`);
+      } else if (holding) {
+        showNotice("❌ Butuh makanan matang 🍣/🍗");
       }
-      cookTimerRef.current = window.setTimeout(step, 100);
-    };
-    cookTimerRef.current = window.setTimeout(step, 100);
-    void isCut; // unused
+      return;
+    }
   };
 
   // ---- Host: spawn order tiap 8 detik ----
@@ -600,14 +656,17 @@ export default function KitchenRush() {
 
     const spawnOrder = () => {
       const now = Date.now();
+      const type: OrderType = Math.random() < 0.5 ? "dine-in" : "take-away";
+      const ingredient: Ingredient = Math.random() < 0.5 ? "fish" : "chicken";
       const newOrder: Order = {
         id: crypto.randomUUID(),
-        dish: "soup",
-        expiresAt: now + 25_000,
-        reward: 100,
+        type,
+        ingredient,
+        expiresAt: now + 30_000,
+        reward: type === "dine-in" ? 100 : 120,
       };
       setOrders((current) => {
-        const next = [...current, newOrder].slice(-3);
+        const next = [...current, newOrder].slice(-4);
         void channelRef.current?.send({
           type: "broadcast",
           event: "orders",
@@ -685,11 +744,6 @@ export default function KitchenRush() {
     }
   };
 
-  // ---- Helpers ----
-  function isIngredient(item: Item): item is Ingredient {
-    return ["tomato", "cheese", "onion", "lettuce", "meat"].includes(item);
-  }
-
   // ---- Preflight ----
   const peekRoomPlayerCount = async (roomCode: string): Promise<number> => {
     if (!supabase) return 0;
@@ -759,8 +813,7 @@ export default function KitchenRush() {
       setMyPos(null);
       setMyHolding(null);
       setPeers({});
-      setStationItems({});
-      setCooking(null);
+      setCookingStation(null);
       setOrders([]);
       setScore(0);
       setRoundEndsAt(null);
@@ -768,6 +821,7 @@ export default function KitchenRush() {
       setIsHost(host);
       setActiveRoom(roomCode);
       dirQueueRef.current = [];
+      lastStationRef.current = null;
     } catch {
       setError("Gagal masuk room. Coba lagi.");
     } finally {
@@ -813,17 +867,17 @@ export default function KitchenRush() {
 
     const endsAt = Date.now() + ROUND_TIME_MS;
     setRoundIndex(1);
-    setMyPos(startPositions[playerId] ?? { x: 4, y: 4 });
+    setMyPos(startPositions[playerId] ?? { x: 4, y: 3 });
     setMyHolding(null);
     setPeers({});
-    setStationItems({});
-    setCooking(null);
+    setCookingStation(null);
     setOrders([]);
     setScore(0);
     setRoundEndsAt(endsAt);
     setRemainingMs(ROUND_TIME_MS);
     setPhase("playing");
     dirQueueRef.current = [];
+    lastStationRef.current = null;
 
     void channelRef.current?.send({
       type: "broadcast",
@@ -852,13 +906,13 @@ export default function KitchenRush() {
     setMyPos(null);
     setMyHolding(null);
     setPeers({});
-    setStationItems({});
-    setCooking(null);
+    setCookingStation(null);
     setOrders([]);
     setScore(0);
     setRoundEndsAt(null);
     setError("");
     dirQueueRef.current = [];
+    lastStationRef.current = null;
   };
 
   const guestsReady = players.filter((p) => !p.isHost).every((p) => p.ready);
@@ -867,6 +921,8 @@ export default function KitchenRush() {
   const secondsLeft = Math.ceil(remainingMs / 1000);
 
   const peerList = Object.values(peers);
+  const activeOrder = orders[0] ?? null;
+  const nextStep = getNextStep(myHolding, activeOrder);
 
   return (
     <main className="tap-rush-shell">
@@ -887,8 +943,8 @@ export default function KitchenRush() {
             Kitchen Rush<span>!</span>
           </h1>
           <p>
-            Kerja sama masak pesanan sebelum waktu habis. Ambil bahan, masak,
-            antar!
+            Ambil ikan/ayam → potong → masak → antar. Dine In ke 🍽️, Take Away
+            ke 📦.
           </p>
         </header>
 
@@ -901,8 +957,8 @@ export default function KitchenRush() {
               <div>
                 <h2>Bikin room, kumpulkan koki</h2>
                 <p>
-                  Kerja sama tim untuk penuhi pesanan. Makin banyak pemain,
-                  makin seru!
+                  🐟/🐔 Ambil bahan → 🔪 Potong → 🔥 Masak → antar ke 🍽️ Dine In
+                  atau 📦 Take Away.
                 </p>
               </div>
             </div>
@@ -1091,13 +1147,28 @@ export default function KitchenRush() {
                     orders.map((o) => {
                       const timeLeft = Math.max(0, o.expiresAt - Date.now());
                       const urgent = timeLeft < 8000;
+                      const orderEmoji = o.ingredient === "fish" ? "🍣" : "🍗";
+                      const orderTypeEmoji = o.type === "dine-in" ? "🍽️" : "📦";
+                      const orderLabel =
+                        o.type === "dine-in" ? "Dine In" : "Take Away";
                       return (
                         <div
                           key={o.id}
-                          className={`kitchen-order ${urgent ? "is-urgent" : ""}`}
+                          className={`kitchen-order ${urgent ? "is-urgent" : ""} ${
+                            o.type === "dine-in" ? "is-dine" : "is-take"
+                          }`}
                         >
-                          <span className="kitchen-order-emoji">🍲</span>
-                          <span className="kitchen-order-text">Sup Tomat</span>
+                          <span className="kitchen-order-emoji">
+                            {orderEmoji}
+                          </span>
+                          <div className="kitchen-order-info">
+                            <span className="kitchen-order-type">
+                              {orderTypeEmoji} {orderLabel}
+                            </span>
+                            <span className="kitchen-order-ing">
+                              {o.ingredient === "fish" ? "Ikan" : "Ayam"}
+                            </span>
+                          </div>
                           <span className="kitchen-order-time">
                             {Math.ceil(timeLeft / 1000)}s
                           </span>
@@ -1107,7 +1178,22 @@ export default function KitchenRush() {
                   )}
                 </div>
 
-                {/* Arena isometric */}
+                {/* Panduan step */}
+                <div className="kitchen-guide">
+                  <span className="kitchen-guide-icon">{nextStep.emoji}</span>
+                  <div className="kitchen-guide-text">
+                    <span className="kitchen-guide-label">
+                      LANGKAH BERIKUTNYA
+                    </span>
+                    <strong>{nextStep.instruction}</strong>
+                  </div>
+                  <div className="kitchen-guide-holding">
+                    <span className="kitchen-guide-label">DI TANGAN</span>
+                    <strong>{myHolding ? ITEM_EMOJI[myHolding] : "—"}</strong>
+                  </div>
+                </div>
+
+                {/* Arena */}
                 <div
                   className="kitchen-arena"
                   onTouchStart={handleTouchStart}
@@ -1120,27 +1206,32 @@ export default function KitchenRush() {
                       gridTemplateRows: `repeat(${ROWS}, 1fr)`,
                     }}
                   >
-                    {/* Stations */}
                     {STATIONS.map((s) => {
-                      const item = stationItems[s.id] ?? null;
-                      const isCooking = cooking?.stationId === s.id;
+                      const isCooking = cookingStation?.stationId === s.id;
                       return (
                         <div
                           key={s.id}
-                          className={`kitchen-station kitchen-station-${s.kind} ${isCooking ? "is-cooking" : ""}`}
+                          className={`kitchen-station kitchen-station-${s.kind} ${
+                            isCooking ? "is-cooking" : ""
+                          }`}
                           style={{
                             gridColumn: s.x + 1,
                             gridRow: s.y + 1,
                           }}
                         >
                           <span className="kitchen-station-emoji">
-                            {item ? ITEM_EMOJI[item] : STATION_EMOJI[s.kind]}
+                            {STATION_EMOJI[s.kind]}
                           </span>
-                          {isCooking && cooking && (
+                          <span className="kitchen-station-label">
+                            {s.label}
+                          </span>
+                          {isCooking && cookingStation && (
                             <div className="kitchen-station-progress">
                               <div
                                 className="kitchen-station-progress-fill"
-                                style={{ width: `${cooking.progress * 100}%` }}
+                                style={{
+                                  width: `${cookingStation.progress * 100}%`,
+                                }}
                               />
                             </div>
                           )}
@@ -1148,7 +1239,6 @@ export default function KitchenRush() {
                       );
                     })}
 
-                    {/* Peers */}
                     {peerList.map((p) => (
                       <div
                         key={p.id}
@@ -1173,7 +1263,6 @@ export default function KitchenRush() {
                       </div>
                     ))}
 
-                    {/* Me */}
                     <div
                       className="kitchen-player is-me"
                       style={{
@@ -1190,6 +1279,10 @@ export default function KitchenRush() {
                       <span className="kitchen-player-name">Kamu</span>
                     </div>
                   </div>
+
+                  {bigNotice && (
+                    <div className="kitchen-big-notice">{bigNotice}</div>
+                  )}
                 </div>
 
                 {/* D-pad */}
@@ -1239,10 +1332,6 @@ export default function KitchenRush() {
                     ▼
                   </button>
                 </div>
-
-                <p className="kitchen-hint">
-                  Masuk ke kotak stasiun untuk auto-interaksi · WASD / Panah
-                </p>
               </div>
             )}
 
@@ -1296,7 +1385,7 @@ export default function KitchenRush() {
         <footer className="tap-rush-footnote">
           <span>2—4 PEMAIN</span>
           <span>90 DETIK / RONDE</span>
-          <span>CO-OP COOKING</span>
+          <span>DINE IN & TAKE AWAY</span>
         </footer>
       </section>
 
@@ -1304,7 +1393,7 @@ export default function KitchenRush() {
         .kitchen-wrap {
           display: flex;
           flex-direction: column;
-          gap: 14px;
+          gap: 12px;
           align-items: center;
           width: 100%;
         }
@@ -1357,7 +1446,7 @@ export default function KitchenRush() {
           justify-content: center;
           width: 100%;
           max-width: 640px;
-          min-height: 48px;
+          min-height: 56px;
         }
         .kitchen-orders-empty {
           color: #9d7a8c;
@@ -1369,16 +1458,22 @@ export default function KitchenRush() {
         .kitchen-order {
           display: flex;
           align-items: center;
-          gap: 8px;
-          padding: 8px 14px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(236, 72, 153, 0.4);
+          gap: 10px;
+          padding: 8px 12px;
           border-radius: 10px;
+          border: 2px solid;
           animation: slideIn 0.25s ease-out;
         }
+        .kitchen-order.is-dine {
+          background: rgba(96, 165, 250, 0.12);
+          border-color: rgba(96, 165, 250, 0.5);
+        }
+        .kitchen-order.is-take {
+          background: rgba(251, 191, 36, 0.12);
+          border-color: rgba(251, 191, 36, 0.55);
+        }
         .kitchen-order.is-urgent {
-          border-color: #ef4444;
-          background: rgba(239, 68, 68, 0.12);
+          border-color: #ef4444 !important;
           animation: pulse 0.8s infinite;
         }
         @keyframes slideIn {
@@ -1392,19 +1487,79 @@ export default function KitchenRush() {
           }
         }
         .kitchen-order-emoji {
-          font-size: 20px;
+          font-size: 22px;
         }
-        .kitchen-order-text {
-          font-size: 12px;
-          font-weight: 700;
+        .kitchen-order-info {
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
+        }
+        .kitchen-order-type {
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+        }
+        .kitchen-order-ing {
+          font-size: 10px;
+          opacity: 0.75;
         }
         .kitchen-order-time {
           font-family: Impact, "Arial Black", sans-serif;
           font-size: 14px;
           color: #fbbf24;
+          margin-left: 4px;
         }
 
-        /* Arena isometric */
+        /* Panduan */
+        .kitchen-guide {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          width: 100%;
+          max-width: 640px;
+          padding: 12px 16px;
+          background: linear-gradient(
+            135deg,
+            rgba(236, 72, 153, 0.15),
+            rgba(251, 191, 36, 0.08)
+          );
+          border: 1px solid rgba(236, 72, 153, 0.4);
+          border-radius: 12px;
+        }
+        .kitchen-guide-icon {
+          font-size: 32px;
+          line-height: 1;
+        }
+        .kitchen-guide-text {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          flex: 1;
+          min-width: 0;
+        }
+        .kitchen-guide-label {
+          font-size: 9px;
+          letter-spacing: 0.15em;
+          text-transform: uppercase;
+          opacity: 0.6;
+        }
+        .kitchen-guide-text strong {
+          font-size: 14px;
+          color: #fff;
+        }
+        .kitchen-guide-holding {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          align-items: center;
+          min-width: 60px;
+        }
+        .kitchen-guide-holding strong {
+          font-size: 22px;
+        }
+
+        /* Arena */
         .kitchen-arena {
           width: 100%;
           max-width: 640px;
@@ -1438,8 +1593,10 @@ export default function KitchenRush() {
         /* Station */
         .kitchen-station {
           display: flex;
+          flex-direction: column;
           align-items: center;
           justify-content: center;
+          gap: 1px;
           border-radius: 8px;
           position: relative;
           background: rgba(255, 255, 255, 0.04);
@@ -1447,10 +1604,16 @@ export default function KitchenRush() {
           transform: translateZ(6px);
           transition: all 150ms ease;
           box-shadow: 0 4px 0 rgba(0, 0, 0, 0.4);
+          padding: 2px;
+          overflow: hidden;
         }
-        .kitchen-station-raw {
-          background: rgba(163, 230, 53, 0.15);
-          border-color: rgba(163, 230, 53, 0.5);
+        .kitchen-station-fish {
+          background: rgba(96, 165, 250, 0.15);
+          border-color: rgba(96, 165, 250, 0.5);
+        }
+        .kitchen-station-chicken {
+          background: rgba(251, 146, 60, 0.15);
+          border-color: rgba(251, 146, 60, 0.5);
         }
         .kitchen-station-cut {
           background: rgba(148, 163, 184, 0.15);
@@ -1461,12 +1624,12 @@ export default function KitchenRush() {
           border-color: rgba(249, 115, 22, 0.55);
         }
         .kitchen-station-plate {
-          background: rgba(96, 165, 250, 0.15);
-          border-color: rgba(96, 165, 250, 0.5);
+          background: rgba(34, 197, 94, 0.15);
+          border-color: rgba(34, 197, 94, 0.5);
         }
-        .kitchen-station-delivery {
-          background: rgba(236, 72, 153, 0.2);
-          border-color: rgba(236, 72, 153, 0.6);
+        .kitchen-station-box {
+          background: rgba(251, 191, 36, 0.15);
+          border-color: rgba(251, 191, 36, 0.5);
         }
         .kitchen-station.is-cooking {
           animation: cookShake 0.4s infinite;
@@ -1481,7 +1644,15 @@ export default function KitchenRush() {
           }
         }
         .kitchen-station-emoji {
-          font-size: clamp(16px, 3.5vw, 24px);
+          font-size: clamp(14px, 3vw, 20px);
+          line-height: 1;
+        }
+        .kitchen-station-label {
+          font-size: 7px;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          opacity: 0.7;
+          text-align: center;
           line-height: 1;
         }
         .kitchen-station-progress {
@@ -1563,6 +1734,35 @@ export default function KitchenRush() {
           white-space: nowrap;
         }
 
+        /* Big notice */
+        .kitchen-big-notice {
+          position: absolute;
+          top: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          padding: 10px 20px;
+          border-radius: 12px;
+          background: rgba(236, 72, 153, 0.95);
+          color: #fff;
+          font-size: 14px;
+          font-weight: 800;
+          letter-spacing: 0.04em;
+          box-shadow: 0 10px 30px rgba(236, 72, 153, 0.5);
+          animation: noticeIn 0.3s ease-out;
+          z-index: 10;
+          white-space: nowrap;
+        }
+        @keyframes noticeIn {
+          from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+          }
+        }
+
         /* D-pad */
         .kitchen-dpad {
           display: grid;
@@ -1605,14 +1805,6 @@ export default function KitchenRush() {
           grid-area: 3 / 2;
         }
 
-        .kitchen-hint {
-          font-size: 11px;
-          opacity: 0.55;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          text-align: center;
-        }
-
         @media (min-width: 720px) and (hover: hover) {
           .kitchen-dpad {
             display: none;
@@ -1624,6 +1816,12 @@ export default function KitchenRush() {
           }
           .kitchen-grid {
             transform: rotateX(30deg) rotateZ(-10deg) scale(0.98);
+          }
+          .kitchen-station-label {
+            display: none;
+          }
+          .kitchen-order-info {
+            display: none;
           }
         }
       `}</style>
