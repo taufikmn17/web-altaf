@@ -1630,32 +1630,24 @@ export default function ScrambleDuelGame() {
         }
         .scramble-letters {
           display: flex;
-          flex-wrap: nowrap;
+          flex-wrap: wrap;
           justify-content: center;
           align-items: center;
-          gap: 6px;
+          gap: 0 clamp(4px, 1.6vw, 10px);
           padding: 8px 4px;
           width: 100%;
           max-width: 100%;
-          overflow-x: hidden;
-          gap: clamp(2px, 1vw, 6px);
         }
         .scramble-letter {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: clamp(20px, calc((100vw - 72px) / 10), 56px);
-          height: clamp(26px, calc((100vw - 72px) / 10), 56px);
-          min-width: 0;
-          border-radius: 10px;
-          background: linear-gradient(135deg, #f472b6, #ec4899);
+          display: inline-block;
           color: #fff;
           font-family: Impact, "Arial Black", sans-serif;
-          font-size: clamp(12px, calc((100vw - 150px) / 10), 26px);
-          font-weight: 700;
-          box-shadow: 0 4px 12px rgba(236, 72, 153, 0.4);
-          flex-shrink: 0;
+          font-size: clamp(24px, 8.5vw, 44px);
+          font-weight: 900;
+          line-height: 1.15;
+          letter-spacing: 0.04em;
           text-transform: uppercase;
+          text-shadow: 0 2px 14px rgba(236, 72, 153, 0.55);
         }
         .scramble-letter.is-muted {
           opacity: 0.55;
@@ -1837,11 +1829,6 @@ export default function ScrambleDuelGame() {
           }
           .scramble-round strong {
             font-size: 20px;
-          }
-          .scramble-letter {
-            width: clamp(32px, 9vw, 46px);
-            height: clamp(32px, 9vw, 46px);
-            font-size: clamp(16px, 4.5vw, 22px);
           }
         }
       `}</style>
