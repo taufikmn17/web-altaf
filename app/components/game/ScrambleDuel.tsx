@@ -100,22 +100,23 @@ export default function ScrambleDuel() {
     text: string;
   } | null>(null);
   const [roundLocked, setRoundLocked] = useState(false);
+  // ✅ NEW: freeze timer segera saat player submit (sebelum hasil diterima)
+  const [mySubmitted, setMySubmitted] = useState(false);
 
   const [winnerId, setWinnerId] = useState<string | null>(null);
   const [winnerName, setWinnerName] = useState("");
 
-  // Refs — biar handler Supabase selalu baca nilai terbaru
+  // Refs
   const isHostRef = useRef(false);
   const playerIdRef = useRef("");
   const playersRef = useRef<RoomPlayer[]>([]);
   const roundStateRef = useRef<RoundState | null>(null);
   const myScoreRef = useRef(0);
   const peerScoreRef = useRef(0);
-  // Kata asli disimpan di ref. Di-set oleh setter saat submit,
-  // DAN di-set oleh semua pemain saat terima event "stage-guess"
-  // (lewat payload.answer) — supaya host selalu tahu jawaban.
   const answerRef = useRef("");
   const roundLockedRef = useRef(false);
+  // ✅ NEW: ref untuk freeze timer segera
+  const mySubmittedRef = useRef(false);
   const nextRoundTimeoutRef = useRef<number | null>(null);
   const resolveTimeoutRef = useRef<number | null>(null);
 
@@ -140,6 +141,9 @@ export default function ScrambleDuel() {
   useEffect(() => {
     roundLockedRef.current = roundLocked;
   }, [roundLocked]);
+  useEffect(() => {
+    mySubmittedRef.current = mySubmitted;
+  }, [mySubmitted]);
 
   const myRole: RoundRole | null = useMemo(() => {
     if (!roundState || !playerId) return null;
@@ -193,7 +197,9 @@ export default function ScrambleDuel() {
       setGuessInput("");
       setFeedback(null);
       setRoundLocked(false);
+      setMySubmitted(false);
       answerRef.current = "";
+      mySubmittedRef.current = false;
       if (nextRoundTimeoutRef.current) {
         window.clearTimeout(nextRoundTimeoutRef.current);
         nextRoundTimeoutRef.current = null;
@@ -209,21 +215,22 @@ export default function ScrambleDuel() {
         if (!payload || typeof payload.inputEndsAt !== "number") return;
         setRound(payload.round);
         setRoundState(payload);
+        roundStateRef.current = payload;
         setGuessInput("");
         setFeedback(null);
         setRoundLocked(false);
+        setMySubmitted(false);
+        roundLockedRef.current = false;
+        mySubmittedRef.current = false;
         setPhase("playing");
         setError("");
       },
     );
 
-    // SETTER broadcast kata + stage guess. `answer` disertakan
-    // supaya host juga tahu jawaban asli untuk verifikasi.
+    // SETTER broadcast kata + stage guess (dengan answer untuk host)
     channel.on(
       "broadcast",
-      {
-        event: "stage-guess",
-      },
+      { event: "stage-guess" },
       ({
         payload,
       }: {
@@ -256,15 +263,16 @@ export default function ScrambleDuel() {
         roundStateRef.current = updated;
         setFeedback(null);
         setRoundLocked(false);
+        setMySubmitted(false);
+        roundLockedRef.current = false;
+        mySubmittedRef.current = false;
       },
     );
 
-    // GUESSER kirim jawaban → HOST verifikasi (host selalu tahu answerRef)
+    // GUESSER kirim jawaban → HOST verifikasi
     channel.on(
       "broadcast",
-      {
-        event: "guess-submitted",
-      },
+      { event: "guess-submitted" },
       ({ payload }: { payload: { guess: string; guesserId: string } }) => {
         if (!payload) return;
         if (!isHostRef.current) return;
@@ -291,12 +299,10 @@ export default function ScrambleDuel() {
       },
     );
 
-    // Semua pemain terima hasil → kunci ronde → jadwalkan ronde berikutnya
+    // Semua pemain terima hasil
     channel.on(
       "broadcast",
-      {
-        event: "round-result",
-      },
+      { event: "round-result" },
       ({
         payload,
       }: {
@@ -312,6 +318,8 @@ export default function ScrambleDuel() {
 
         setRoundLocked(true);
         roundLockedRef.current = true;
+        setMySubmitted(false);
+        mySubmittedRef.current = false;
         setFeedback({
           type: payload.correct ? "correct" : "wrong",
           text: payload.correct
@@ -341,14 +349,14 @@ export default function ScrambleDuel() {
     // Setter timeout input → skip ronde
     channel.on(
       "broadcast",
-      {
-        event: "round-skipped",
-      },
+      { event: "round-skipped" },
       ({ payload }: { payload: { reason: string; round: number } }) => {
         if (!payload) return;
         if (roundLockedRef.current) return;
         setRoundLocked(true);
         roundLockedRef.current = true;
+        setMySubmitted(false);
+        mySubmittedRef.current = false;
         setFeedback({
           type: "timeout",
           text:
@@ -369,9 +377,7 @@ export default function ScrambleDuel() {
 
     channel.on(
       "broadcast",
-      {
-        event: "game-over",
-      },
+      { event: "game-over" },
       ({
         payload,
       }: {
@@ -423,11 +429,13 @@ export default function ScrambleDuel() {
   }, [activeRoom, isConnected, isHost, isReady, playerId, playerName]);
 
   // =========================================================
-  // TIMER
+  // TIMER (freeze di player yang submit & saat roundLocked)
   // =========================================================
   useEffect(() => {
     if (phase !== "playing" || !roundState) return;
+    // ✅ FIX: freeze kalau ronde sudah dikunci ATAU player sudah submit
     if (roundLocked) return;
+    if (mySubmitted) return;
 
     const target =
       roundState.stage === "input"
@@ -441,11 +449,10 @@ export default function ScrambleDuel() {
     tick();
     const timer = setInterval(tick, 100);
     return () => clearInterval(timer);
-  }, [phase, roundState, roundLocked]);
+  }, [phase, roundState, roundLocked, mySubmitted]);
 
   // =========================================================
-  // HOST WATCHDOG: auto-resolve saat waktu habis
-  // (dijalankan ulang tiap stage berubah)
+  // HOST WATCHDOG
   // =========================================================
   useEffect(() => {
     if (!isHost) return;
@@ -529,7 +536,9 @@ export default function ScrambleDuel() {
     setGuessInput("");
     setFeedback(null);
     setRoundLocked(false);
+    setMySubmitted(false);
     roundLockedRef.current = false;
+    mySubmittedRef.current = false;
     setRemainingMs(INPUT_TIME_MS);
     setPhase("playing");
 
@@ -615,6 +624,9 @@ export default function ScrambleDuel() {
     setRoundState(updated);
     roundStateRef.current = updated;
     setRemainingMs(GUESS_TIME_MS);
+    // reset mySubmitted untuk stage guess baru
+    setMySubmitted(false);
+    mySubmittedRef.current = false;
 
     void channelRef.current?.send({
       type: "broadcast",
@@ -622,7 +634,7 @@ export default function ScrambleDuel() {
       payload: {
         round: roundState.round,
         scrambled,
-        answer: cleaned, // ← penting: host perlu tahu jawaban
+        answer: cleaned,
         answerLength: cleaned.length,
         guessEndsAt,
         setterId: roundState.setterId,
@@ -632,7 +644,7 @@ export default function ScrambleDuel() {
   };
 
   // =========================================================
-  // GUESSER: submit jawaban
+  // GUESSER: submit jawaban — ✅ FIX: freeze timer segera
   // =========================================================
   const handleGuesserSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -640,6 +652,7 @@ export default function ScrambleDuel() {
 
     if (submitting) return;
     if (roundLocked) return;
+    if (mySubmitted) return;
     if (!roundState) return;
     if (roundState.guesserId !== playerId) return;
     if (roundState.stage !== "guess") return;
@@ -653,6 +666,9 @@ export default function ScrambleDuel() {
       return;
     }
 
+    // ✅ FREEZE TIMER DI SISI PLAYER INI SEGERA
+    setMySubmitted(true);
+    mySubmittedRef.current = true;
     setSubmitting(true);
     setError("");
 
@@ -743,7 +759,9 @@ export default function ScrambleDuel() {
       setGuessInput("");
       setFeedback(null);
       setRoundLocked(false);
+      setMySubmitted(false);
       answerRef.current = "";
+      mySubmittedRef.current = false;
       setIsReady(host);
       setIsHost(host);
       setActiveRoom(roomCode);
@@ -789,9 +807,11 @@ export default function ScrambleDuel() {
     setGuessInput("");
     setFeedback(null);
     setRoundLocked(false);
+    setMySubmitted(false);
     answerRef.current = "";
     myScoreRef.current = 0;
     peerScoreRef.current = 0;
+    mySubmittedRef.current = false;
 
     startRound(1);
   };
@@ -831,7 +851,9 @@ export default function ScrambleDuel() {
     setGuessInput("");
     setFeedback(null);
     setRoundLocked(false);
+    setMySubmitted(false);
     answerRef.current = "";
+    mySubmittedRef.current = false;
     setError("");
   };
 
@@ -1215,19 +1237,24 @@ export default function ScrambleDuel() {
                       placeholder="JAWABANMU"
                       maxLength={MAX_WORD_LEN}
                       autoComplete="off"
-                      disabled={roundLocked}
+                      disabled={roundLocked || mySubmitted}
                     />
 
                     <button
                       className="tap-rush-primary scramble-submit-btn"
                       type="submit"
-                      disabled={submitting || roundLocked || !guessInput.trim()}
+                      disabled={
+                        submitting ||
+                        roundLocked ||
+                        mySubmitted ||
+                        !guessInput.trim()
+                      }
                     >
                       <Send size={17} />{" "}
-                      {submitting
-                        ? "Mengirim…"
-                        : feedback
-                          ? "Menunggu…"
+                      {mySubmitted
+                        ? "Menunggu hasil…"
+                        : submitting
+                          ? "Mengirim…"
                           : "Kirim"}
                     </button>
 
