@@ -7,8 +7,8 @@ import {
   Grid3x3,
   HelpCircle,
   Key,
-  Palette,
   PawPrint,
+  Puzzle,
   Radio,
   Swords,
   UsersRound,
@@ -21,7 +21,7 @@ import Footer from "../components/Footer";
 export const metadata: Metadata = {
   title: "Game Arcade - Altaf Story",
   description:
-    "Mainkan Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz, Trivia Indonesia, Cat & Mouse, Kitchen Rush, dan Color Wars — plus jelajahi katalog Free to Game di Altaf Story.",
+    "Mainkan Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz, Trivia Indonesia, Cat & Mouse, Kitchen Rush, dan Scramble Duel — plus jelajahi katalog Free to Game di Altaf Story.",
   keywords: [
     "game multiplayer online",
     "game party online",
@@ -50,9 +50,13 @@ export const metadata: Metadata = {
     "game masak online",
     "game cooking multiplayer",
     "kitchen rush",
-    "game rebut wilayah",
-    "color wars",
-    "game warna online",
+    "game scramble",
+    "scramble duel",
+    "game acak kata",
+    "game tebak kata",
+    "game susun huruf",
+    "game kata online",
+    "game tebak kata multiplayer",
     "free to game",
     "katalog game gratis",
     "game multiplayer gratis",
@@ -64,7 +68,7 @@ export const metadata: Metadata = {
     "Trivia Indonesia",
     "Cat & Mouse",
     "Kitchen Rush",
-    "Color Wars",
+    "Scramble Duel",
     "Free to Game",
     "Altaf Story games",
   ],
@@ -74,7 +78,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Game Arcade - Altaf Story",
     description:
-      "Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz, Trivia Indonesia, Cat & Mouse, Kitchen Rush, Color Wars & katalog Free to Game — main bareng teman secara real-time.",
+      "Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz, Trivia Indonesia, Cat & Mouse, Kitchen Rush, Scramble Duel & katalog Free to Game — main bareng teman secara real-time.",
     url: "/game",
     siteName: "Altaf Story",
     locale: "id_ID",
@@ -92,7 +96,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Game Arcade - Altaf Story",
     description:
-      "Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz, Trivia Indonesia, Cat & Mouse, Kitchen Rush, Color Wars & katalog Free to Game — main bareng teman secara real-time.",
+      "Two Sides, Snake Duel, Tebak Negara, Sudoku Duel, Trivia Blitz, Trivia Indonesia, Cat & Mouse, Kitchen Rush, Scramble Duel & katalog Free to Game — main bareng teman secara real-time.",
     images: ["/assets/img/hero.jpeg"],
   },
 };
@@ -117,6 +121,7 @@ export default function DaftarGamePage() {
         </header>
 
         <div className="game-hub-grid">
+          {/* ---- 001: TWO SIDES ---- */}
           <section className="game-feature">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
@@ -152,6 +157,7 @@ export default function DaftarGamePage() {
             </div>
           </section>
 
+          {/* ---- 002: CAT & MOUSE ---- */}
           <section className="game-feature">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
@@ -187,6 +193,7 @@ export default function DaftarGamePage() {
             </div>
           </section>
 
+          {/* ---- 003: SNAKE DUEL ---- */}
           <section className="game-feature">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
@@ -222,6 +229,7 @@ export default function DaftarGamePage() {
             </div>
           </section>
 
+          {/* ---- 004: TEBAK NEGARA ---- */}
           <section className="game-feature">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
@@ -257,6 +265,7 @@ export default function DaftarGamePage() {
             </div>
           </section>
 
+          {/* ---- 005: SUDOKU DUEL ---- */}
           <section className="game-feature">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
@@ -292,6 +301,7 @@ export default function DaftarGamePage() {
             </div>
           </section>
 
+          {/* ---- 006: TRIVIA BLITZ ---- */}
           <section className="game-feature">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
@@ -327,6 +337,7 @@ export default function DaftarGamePage() {
             </div>
           </section>
 
+          {/* ---- 007: TRIVIA INDONESIA ---- */}
           <section className="game-feature">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
@@ -362,6 +373,7 @@ export default function DaftarGamePage() {
             </div>
           </section>
 
+          {/* ---- 008: KITCHEN RUSH ---- */}
           <section className="game-feature">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
@@ -397,15 +409,15 @@ export default function DaftarGamePage() {
             </div>
           </section>
 
-          {/* ---- KARTU COLOR WARS ---- */}
+          {/* ---- 009: SCRAMBLE DUEL (GAME BARU) ---- */}
           <section className="game-feature">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
               <div className="game-feature-target">
-                <Palette size={88} strokeWidth={1.5} />
+                <Puzzle size={88} strokeWidth={1.5} />
               </div>
-              <span className="game-feature-number">20×20</span>
-              <span className="game-feature-art-label">REBUT WILAYAH</span>
+              <span className="game-feature-number">1V1</span>
+              <span className="game-feature-art-label">ACAK / KATA</span>
               <span className="game-feature-live">
                 <i /> LIVE ROOM
               </span>
@@ -414,27 +426,27 @@ export default function DaftarGamePage() {
               <div className="game-feature-kicker">
                 <Radio size={14} /> PARTY GAME / 009
               </div>
-              <h2>Color Wars</h2>
+              <h2>Scramble Duel</h2>
               <p className="game-feature-description">
-                Rebut wilayah dengan warna! Gerak bebas di grid, warnai kotak
-                dengan warnamu, dan kuasai lebih banyak dari lawan sebelum waktu
-                habis.
+                Satu pemain menulis kata rahasia, hurufnya diacak, dan lawan
+                harus menebak kata aslinya. Adu cepat & tepat sebelum waktu
+                habis!
               </p>
               <div className="game-feature-facts">
                 <span>
                   <UsersRound size={16} /> 2 pemain
                 </span>
                 <span>
-                  <Palette size={16} /> Rebut wilayah
+                  <Puzzle size={16} /> Tebak kata acak
                 </span>
               </div>
-              <Link href="/game/color-wars" className="game-feature-cta">
+              <Link href="/game/scramble-duel" className="game-feature-cta">
                 Tantang teman <ArrowUpRight size={18} />
               </Link>
             </div>
           </section>
 
-          {/* ---- KARTU FREE TO GAME (PALING BAWAH) ---- */}
+          {/* ---- 010: FREE TO GAME ---- */}
           <section className="game-feature is-external">
             <div className="game-feature-art" aria-hidden="true">
               <div className="game-feature-scanlines" />
