@@ -673,6 +673,26 @@ export default function ScrambleDuelGame() {
   };
 
   // =============================================================
+  // LAWAN KELUAR — game langsung selesai, pemain yang tersisa menang
+  // =============================================================
+  useEffect(() => {
+    if (phase !== "playing" || !playerId) return;
+    const onlyMe = players.length === 1 && players[0]?.id === playerId;
+    if (!onlyMe) return;
+
+    // Jeda singkat supaya gangguan koneksi sesaat tidak mengakhiri game
+    const timer = window.setTimeout(() => {
+      clearTimers();
+      sessionLockedRef.current = true;
+      setWinnerId(playerId);
+      setWinnerName(playerName.trim());
+      setPhase("results");
+    }, 2000);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, players, playerId]);
+
+  // =============================================================
   // TIMER — SELALU JALAN (tanpa freeze)
   // =============================================================
   useEffect(() => {
@@ -1471,6 +1491,11 @@ export default function ScrambleDuelGame() {
                     <strong>{peerScore}</strong>
                   </div>
                 </div>
+                {players.length < 2 && (
+                  <p className="scramble-waiting-text">
+                    Lawan keluar dari permainan.
+                  </p>
+                )}
                 <div className="tap-rush-lobby-footer">
                   {isHost ? (
                     <button
