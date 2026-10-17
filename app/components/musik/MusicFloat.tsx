@@ -223,14 +223,34 @@ export default function MusicFloat({
               <div className="absolute top-4 right-4 md:top-5 md:right-5 z-30 flex items-center gap-3">
                 <button
                   onClick={handleStop}
-                  className="rounded-full bg-black/50 backdrop-blur-md border border-pink-500/30 text-pink-200 text-xs font-semibold px-4 py-2 hover:bg-black/70 transition cursor-pointer"
+                  aria-label="Matikan musik"
+                  className="group h-10 pl-2.5 pr-4 rounded-full flex items-center gap-2 whitespace-nowrap cursor-pointer text-pink-100 text-xs font-semibold tracking-wide bg-gradient-to-r from-pink-500/25 to-rose-500/25 backdrop-blur-md border border-pink-400/50 shadow-[0_0_18px_rgba(255,80,150,0.35)] hover:from-pink-500/50 hover:to-rose-500/50 hover:border-pink-300 hover:shadow-[0_0_26px_rgba(255,80,150,0.65)] active:scale-95 transition-all duration-300"
                 >
-                  Matikan Musik
+                  <span className="h-6 w-6 rounded-full bg-pink-500/30 border border-pink-300/40 flex items-center justify-center group-hover:bg-pink-500/60 transition-colors">
+                    <svg
+                      className="h-3.5 w-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      viewBox="0 0 24 24"
+                    >
+                      <polygon
+                        points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"
+                        fill="currentColor"
+                      />
+                      <line x1="23" y1="9" x2="17" y2="15" />
+                      <line x1="17" y1="9" x2="23" y2="15" />
+                    </svg>
+                  </span>
+                  <span>Matikan Musik</span>
                 </button>
+
                 <button
                   onClick={() => setOpen(false)}
                   aria-label="Tutup tampilan"
-                  className="h-10 w-10 rounded-full bg-pink-600 hover:bg-rose-600 text-white flex items-center justify-center shadow-lg transition cursor-pointer"
+                  className="h-10 w-10 rounded-full bg-gradient-to-br from-pink-500 to-rose-600 text-white flex items-center justify-center cursor-pointer border border-pink-300/40 shadow-[0_0_18px_rgba(255,80,150,0.5)] hover:scale-110 hover:shadow-[0_0_26px_rgba(255,80,150,0.8)] active:scale-95 transition-all duration-300"
                 >
                   <svg
                     className="h-5 w-5"
