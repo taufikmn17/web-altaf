@@ -4,29 +4,24 @@ import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 
 const REVEAL_SELECTOR =
-  'main :is(section, article), main [class*="grid-cols-"] > div, main [data-scroll-reveal-target]';
+  'main :is(section, article), main [class*="grid-cols-"] > div, main [data-scroll-reveal-target], main #about .container > div, main #virtualWish .container > div';
 
 export default function ScrollReveal() {
   const pathname = usePathname();
 
   useEffect(() => {
-    const targets = Array.from(
-      document.querySelectorAll<HTMLElement>(REVEAL_SELECTOR),
-    );
-
-    if (targets.length === 0) return;
+    const main = document.querySelector("main");
+    if (!main) return;
 
     const reducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
 
     if (reducedMotion || !("IntersectionObserver" in window)) {
-      targets.forEach((target) => {
-        target.dataset.scrollReveal = "visible";
-      });
       return;
     }
 
+    const observedTargets = new WeakSet<HTMLElement>();
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -36,19 +31,40 @@ export default function ScrollReveal() {
           observer.unobserve(entry.target);
         });
       },
-      { threshold: 0 },
+      { rootMargin: "0px 0px -8% 0px", threshold: 0.01 },
     );
 
-    targets.forEach((target) => {
-      target.dataset.scrollReveal = "pending";
+    const observeTargets = (root: ParentNode) => {
+      const targets = Array.from(
+        root.querySelectorAll<HTMLElement>(REVEAL_SELECTOR),
+      );
+
+      if (root instanceof HTMLElement && root.matches(REVEAL_SELECTOR)) {
+        targets.unshift(root);
+      }
+
+      targets.forEach((target) => {
+        if (observedTargets.has(target)) return;
+
+        observedTargets.add(target);
+        target.dataset.scrollReveal = "pending";
+        observer.observe(target);
+      });
+    };
+
+    const mutations = new MutationObserver((records) => {
+      records.forEach((record) => {
+        record.addedNodes.forEach((node) => {
+          if (node instanceof HTMLElement) observeTargets(node);
+        });
+      });
     });
 
-    const frame = window.requestAnimationFrame(() => {
-      targets.forEach((target) => observer.observe(target));
-    });
+    mutations.observe(main, { childList: true, subtree: true });
+    observeTargets(main);
 
     return () => {
-      window.cancelAnimationFrame(frame);
+      mutations.disconnect();
       observer.disconnect();
     };
   }, [pathname]);

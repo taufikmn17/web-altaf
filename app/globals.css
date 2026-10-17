@@ -1498,6 +1498,24 @@ main [data-scroll-reveal="pending"][data-scroll-reveal-target] {
   translate: 0 20px;
 }
 
+#about .container > [data-scroll-reveal],
+#virtualWish .container > [data-scroll-reveal] {
+  transition-duration: 720ms;
+}
+
+#about .container > [data-scroll-reveal]:nth-child(2),
+#virtualWish .container > [data-scroll-reveal]:nth-child(2) {
+  transition-delay: 90ms;
+}
+
+#about .container > [data-scroll-reveal]:nth-child(3) {
+  transition-delay: 180ms;
+}
+
+#virtualWish .container > [data-scroll-reveal]:nth-child(3) {
+  transition-delay: 180ms;
+}
+
 main [data-scroll-reveal="visible"] {
   opacity: 1;
   translate: 0 0;
