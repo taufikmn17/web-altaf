@@ -13,13 +13,18 @@ interface MusicFloatProps {
 }
 
 const HEART_COLORS = [
-  "#ff4d8d",
-  "#ff7eb3",
-  "#ff2e63",
-  "#ffb3d1",
+  "#ec4899",
+  "#f472b6",
+  "#fbcfe8",
+  "#fb7185",
+  "#ec4899",
   "#f43f5e",
-  "#fda4af",
 ];
+
+// Bentuk hati yang sama dengan Hero (kurva bezier), dalam kotak 100x100
+const HEART_PATH =
+  "M50 25 C50 0 0 0 0 25 C0 50 50 75 50 100 C50 75 100 50 100 25 C100 0 50 0 50 25 Z";
+
 const MAX_PHOTOS = 10;
 
 /** Minta Google mengirim versi kecil (lebar 480px) agar ringan di HP */
@@ -194,11 +199,11 @@ export default function MusicFloat({
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="absolute w-[60vmin] h-[60vmin] rounded-full bg-[radial-gradient(circle,rgba(255,45,120,0.35)_0%,transparent_70%)]" />
                 <svg
-                  viewBox="0 0 24 24"
+                  viewBox="0 0 100 100"
                   className="relative w-[70vmin] h-[70vmin] text-pink-600/20 animate-[mf-beat_1.6s_ease-in-out_infinite] [will-change:transform]"
                   fill="currentColor"
                 >
-                  <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                  <path d={HEART_PATH} />
                 </svg>
               </div>
 
@@ -217,7 +222,7 @@ export default function MusicFloat({
                 />
               ))}
 
-              {/* Hati melayang naik */}
+              {/* Hati melayang naik (bentuk sama dengan Hero) */}
               {hearts.map((h) => (
                 <span
                   key={h.id}
@@ -225,14 +230,21 @@ export default function MusicFloat({
                   style={
                     {
                       left: `${h.left}%`,
-                      fontSize: h.size,
+                      width: h.size,
+                      height: h.size,
                       color: h.color,
                       "--sway": `${h.sway}px`,
                       animation: `mf-rise ${h.duration}s ease-in ${h.delay}s infinite`,
                     } as React.CSSProperties
                   }
                 >
-                  ❤
+                  <svg
+                    viewBox="0 0 100 100"
+                    className="w-full h-full"
+                    fill="currentColor"
+                  >
+                    <path d={HEART_PATH} />
+                  </svg>
                 </span>
               ))}
 
