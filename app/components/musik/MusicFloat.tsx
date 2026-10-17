@@ -325,25 +325,15 @@ export default function MusicFloat({
 
               {/* Judul (statis, tanpa animasi filter) */}
               <div className="relative z-10 shrink-0 text-center px-6 pt-24 md:pt-10 pb-4 pointer-events-none">
-                <span className="mb-3 inline-flex items-center gap-2 rounded-full border border-pink-200/20 bg-black/20 px-3.5 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-pink-100/80 backdrop-blur-sm">
+                <h2
+                  style={{ fontFamily: "Georgia, serif" }}
+                  className="inline-flex items-center justify-center gap-3 rounded-full border border-pink-200/20 bg-black/20 px-5 py-2 text-lg font-bold uppercase tracking-[0.16em] text-transparent bg-clip-text bg-gradient-to-r from-pink-200 via-white to-pink-300 drop-shadow-[0_4px_18px_rgba(236,72,153,0.2)] backdrop-blur-sm md:text-2xl"
+                >
                   <span aria-hidden="true" className="text-pink-300">
                     ♡
                   </span>
                   Album Kenangan
-                </span>
-                <h2
-                  style={{ fontFamily: "Georgia, serif" }}
-                  className="text-2xl md:text-5xl font-black leading-tight text-transparent bg-clip-text bg-gradient-to-r from-pink-200 via-white to-pink-300 drop-shadow-[0_4px_18px_rgba(236,72,153,0.2)]"
-                >
-                  {title}
                 </h2>
-                <p
-                  style={{ fontFamily: "Georgia, serif" }}
-                  className="mx-auto mt-3 max-w-xl text-xs md:text-base italic leading-relaxed text-pink-100/80"
-                >
-                  {subtitle}
-                </p>
-                <div className="mx-auto mt-4 h-px w-14 bg-gradient-to-r from-transparent via-pink-300/80 to-transparent" />
               </div>
 
               {/* Foto: mengisi sisa ruang di bawah judul */}
