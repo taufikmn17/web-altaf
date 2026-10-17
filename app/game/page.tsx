@@ -113,7 +113,7 @@ export default function DaftarGamePage() {
 
       <main className="game-hub-main">
         <header className="relative isolate mx-auto mb-16 max-w-2xl text-center">
-          <div className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-pink-600/10 blur-[140px]" />
+          <div className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[600px] max-h-[calc(100vw-48px)] w-[600px] max-w-[calc(100vw-48px)] -translate-x-1/2 -translate-y-1/2 rounded-full bg-pink-600/10 blur-[140px]" />
           <span className="mb-3 inline-block rounded-full border border-pink-500/30 bg-pink-500/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-pink-300 shadow-sm backdrop-blur-md">
             Game Kita
           </span>
