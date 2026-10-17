@@ -41,7 +41,10 @@ export default function CulinaryClientWrapper({
           Belum ada data kuliner di sheet &quot;kuliner&quot;.
         </div>
       ) : (
-        <div className="w-full max-w-4xl mx-auto flex flex-col items-center px-4 sm:px-6">
+        <div
+          data-scroll-reveal-target
+          className="w-full max-w-4xl mx-auto flex flex-col items-center px-4 sm:px-6"
+        >
           {/* Depth Carousel Container yang menyesuaikan tinggi di berbagai device */}
           <div className="w-full h-[340px] xs:h-[370px] sm:h-[420px] md:h-[460px] relative mb-2 sm:mb-4">
             <DepthCarousel

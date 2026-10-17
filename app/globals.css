@@ -1494,6 +1494,10 @@ main [data-scroll-reveal="pending"] {
   translate: 0 38px;
 }
 
+main [data-scroll-reveal="pending"][data-scroll-reveal-target] {
+  translate: 0 20px;
+}
+
 main [data-scroll-reveal="visible"] {
   opacity: 1;
   translate: 0 0;

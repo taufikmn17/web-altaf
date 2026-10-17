@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 
 const REVEAL_SELECTOR =
-  'main :is(section, article), main [class*="grid-cols-"] > div';
+  'main :is(section, article), main [class*="grid-cols-"] > div, main [data-scroll-reveal-target]';
 
 export default function ScrollReveal() {
   const pathname = usePathname();

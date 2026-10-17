@@ -69,6 +69,7 @@ export default function DestinationClientWrapper({
           destinations.map((item) => (
             <div
               key={item.id}
+              data-scroll-reveal-target
               className="min-w-[290px] md:min-w-[330px] max-w-[330px] bg-[#1a1017]/70 backdrop-blur-xl border border-pink-500/20 rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl hover:shadow-pink-500/20 hover:border-pink-500/50 transition-all duration-300 flex-shrink-0 snap-center flex flex-col justify-between text-left group"
             >
               {/* Bagian Gambar (Bisa diklik untuk buka modal) */}
