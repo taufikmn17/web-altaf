@@ -12,6 +12,16 @@ interface MusicFloatProps {
   subtitle?: string;
 }
 
+interface HeartData {
+  id: number;
+  left: number;
+  size: number;
+  duration: number;
+  delay: number;
+  sway: number;
+  color: string;
+}
+
 const HEART_COLORS = [
   "#ec4899",
   "#f472b6",
@@ -33,6 +43,44 @@ function optimizeImage(url: string) {
     /^(https:\/\/lh3\.googleusercontent\.com\/d\/[\w-]+)(=.*)?$/,
   );
   return m ? `${m[1]}=w480` : url;
+}
+
+function makeHearts(
+  count: number,
+  minSize: number,
+  rangeSize: number,
+): HeartData[] {
+  return Array.from({ length: count }, (_, i) => ({
+    id: i,
+    left: Math.random() * 100,
+    size: minSize + Math.random() * rangeSize,
+    duration: 8 + Math.random() * 7,
+    delay: Math.random() * 8,
+    sway: 20 + Math.random() * 40,
+    color: HEART_COLORS[i % HEART_COLORS.length],
+  }));
+}
+
+function FloatingHeart({ h }: { h: HeartData }) {
+  return (
+    <span
+      className="absolute bottom-[-80px] pointer-events-none select-none [will-change:transform,opacity]"
+      style={
+        {
+          left: `${h.left}%`,
+          width: h.size,
+          height: h.size,
+          color: h.color,
+          "--sway": `${h.sway}px`,
+          animation: `mf-rise ${h.duration}s ease-in ${h.delay}s infinite`,
+        } as React.CSSProperties
+      }
+    >
+      <svg viewBox="0 0 100 100" className="w-full h-full" fill="currentColor">
+        <path d={HEART_PATH} />
+      </svg>
+    </span>
+  );
 }
 
 export default function MusicFloat({
@@ -64,19 +112,18 @@ export default function MusicFloat({
   const rowA = rowPhotos;
   const rowB = useMemo(() => [...rowPhotos].reverse(), [rowPhotos]);
 
-  // Hati & bintang: jumlahnya lebih sedikit di layar kecil
-  const hearts = useMemo(() => {
+  // Hati belakang (di balik foto)
+  const backHearts = useMemo(() => {
     if (!open) return [];
-    const count = window.innerWidth < 768 ? 10 : 20;
-    return Array.from({ length: count }, (_, i) => ({
-      id: i,
-      left: Math.random() * 100,
-      size: 14 + Math.random() * 26,
-      duration: 8 + Math.random() * 7,
-      delay: Math.random() * 8,
-      sway: 20 + Math.random() * 40,
-      color: HEART_COLORS[i % HEART_COLORS.length],
-    }));
+    const count = window.innerWidth < 768 ? 8 : 14;
+    return makeHearts(count, 14, 26);
+  }, [open]);
+
+  // Hati depan (melintas di atas foto): lebih sedikit & sedikit lebih besar
+  const frontHearts = useMemo(() => {
+    if (!open) return [];
+    const count = window.innerWidth < 768 ? 5 : 9;
+    return makeHearts(count, 22, 30);
   }, [open]);
 
   const sparkles = useMemo(() => {
@@ -222,30 +269,9 @@ export default function MusicFloat({
                 />
               ))}
 
-              {/* Hati melayang naik (bentuk sama dengan Hero) */}
-              {hearts.map((h) => (
-                <span
-                  key={h.id}
-                  className="absolute bottom-[-60px] pointer-events-none select-none [will-change:transform,opacity]"
-                  style={
-                    {
-                      left: `${h.left}%`,
-                      width: h.size,
-                      height: h.size,
-                      color: h.color,
-                      "--sway": `${h.sway}px`,
-                      animation: `mf-rise ${h.duration}s ease-in ${h.delay}s infinite`,
-                    } as React.CSSProperties
-                  }
-                >
-                  <svg
-                    viewBox="0 0 100 100"
-                    className="w-full h-full"
-                    fill="currentColor"
-                  >
-                    <path d={HEART_PATH} />
-                  </svg>
-                </span>
+              {/* Hati BELAKANG (di balik foto) */}
+              {backHearts.map((h) => (
+                <FloatingHeart key={`b-${h.id}`} h={h} />
               ))}
 
               {/* Tombol kontrol (tutup & matikan musik) */}
@@ -332,6 +358,13 @@ export default function MusicFloat({
                   <div className="absolute inset-y-0 right-0 w-[10%] bg-gradient-to-l from-[#12030b] to-transparent pointer-events-none z-10" />
                 </div>
               )}
+
+              {/* Hati DEPAN (melintas di atas foto, di bawah tombol kontrol) */}
+              <div className="absolute inset-0 z-20 pointer-events-none overflow-hidden">
+                {frontHearts.map((h) => (
+                  <FloatingHeart key={`f-${h.id}`} h={h} />
+                ))}
+              </div>
             </div>
           )}
 
