@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import "./globals.css";
 import WelcomeCatModal from "./components/welcome/WelcomeModal";
 import PageTransition from "./components/PageTransition";
 import ScrollReveal from "./components/ScrollReveal";
+import MusicFloatLoader from "./components/musik/MusicFloatLoader";
 
 export const metadata: Metadata = {
   title: {
@@ -38,6 +40,11 @@ export default function RootLayout({
         {children}
         <ScrollReveal />
         <PageTransition />
+
+        {/* Tombol musik float */}
+        <Suspense fallback={null}>
+          <MusicFloatLoader />
+        </Suspense>
       </body>
     </html>
   );
