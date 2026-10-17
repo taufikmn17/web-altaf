@@ -1445,14 +1445,12 @@
 }
 
 .game-hub-main {
-  width: min(100% - 40px, 1120px);
+  width: min(100% - 48px, 1232px);
   flex: 1;
   margin: 0 auto;
   padding: 128px 0 66px;
 }
 
-.game-hub-overline,
-.game-hub-heading > p,
 .game-feature-kicker,
 .game-feature-art-label,
 .game-feature-live,
@@ -1460,54 +1458,6 @@
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.14em;
-}
-
-.game-hub-overline {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  color: #c4a0b5;
-}
-
-.game-hub-overline > span:first-child {
-  width: 7px;
-  height: 7px;
-  background: #ec4899;
-  border-radius: 50%;
-  box-shadow: 0 0 10px rgba(236, 72, 153, 0.7);
-}
-
-.game-hub-overline > span:last-child {
-  margin-left: auto;
-  color: #9d7a8c;
-}
-
-.game-hub-heading {
-  margin: 36px 0 38px;
-}
-
-.game-hub-heading > p {
-  margin: 0 0 12px;
-  color: #f9a8d4;
-}
-
-.game-hub-heading h1 {
-  margin: 0;
-  font-family: Impact, "Arial Black", sans-serif;
-  font-size: 64px;
-  font-weight: 900;
-  line-height: 0.98;
-}
-
-.game-hub-heading h1 span {
-  color: #ec4899;
-}
-
-.game-hub-underline {
-  width: 70px;
-  height: 4px;
-  margin-top: 21px;
-  background: #d4af37;
 }
 
 .game-hub-grid {
@@ -1721,12 +1671,8 @@
 
 @media (max-width: 760px) {
   .game-hub-main {
-    width: min(100% - 32px, 560px);
+    width: min(100% - 48px, 560px);
     padding-top: 106px;
-  }
-
-  .game-hub-heading h1 {
-    font-size: 54px;
   }
 
   .game-feature {

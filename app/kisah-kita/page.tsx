@@ -58,36 +58,36 @@ const timelineData: TimelineItem[] = [
   {
     id: "1",
     date: "Awal Pertemuan",
-    title: "Takdir yang Tak Terduga",
+    title: "Pertemuan Pertama",
     description:
-      "Semua berawal dari sebuah ketidaksengajaan yang menuntun langkah Taufik dan Alya ke satu arah yang sama. Di antara miliaran pasang mata dan riuhnya dunia, takdir mempertemukan lewat sapaan sederhana.",
+      "Sebuah momen tak terduga yang mempertemukan kita untuk pertama kalinya.",
     image: "/assets/img/about1.jpeg",
     icon: "✨",
   },
   {
     id: "2",
-    date: "Pendekatan & Obrolan",
-    title: "Menemukan Kenyamanan",
+    date: "Mengenal Lebih Dekat",
+    title: "Proses Mengenal",
     description:
-      "Dari obrolan-obrolan kecil tentang hal sehari-hari hingga percakapan mendalam. Tawa kecil yang tercipta perlahan-lahan mulai terasa hangat dan memberikan warna baru di hari-hari mereka.",
+      "Lewat obrolan dan cerita harian, kita mulai mengenal sifat serta pribadi satu sama lain.",
     image: "/assets/img/about2.jpeg",
     icon: "💬",
   },
   {
     id: "3",
-    date: "Momen Spesial",
-    title: "Saling Memahami & Mendukung",
+    date: "Tumbuh Bersama",
+    title: "Komitmen & Dukungan",
     description:
-      "Waktu terus berjalan, dan hubungan ini diuji oleh berbagai cerita. Belajar untuk saling mendengarkan, saling menguatkan dalam setiap keadaan, dan menyadari bahwa kita adalah rumah bagi satu sama lain.",
+      "Belajar saling menerima kelebihan dan kekurangan, serta menjadi ruang aman di setiap situasi.",
     image: "/assets/img/about3.jpeg",
     icon: "❤️",
   },
   {
     id: "4",
-    date: "Masa Depan",
-    title: "Melangkah Bersama Menuju Impian",
+    date: "Langkah Selanjutnya",
+    title: "Menuju Masa Depan",
     description:
-      "Kini, merajut masa depan bersama, menyatukan doa, harapan, dan tekad untuk saling menjaga dalam ikatan yang lebih indah, selamanya.",
+      "Menyatukan impian dan melangkah ke jenjang yang lebih serius secara bersama-sama.",
     image: "/assets/img/about4.jpeg",
     icon: "💍",
   },
@@ -130,49 +130,77 @@ export default async function KisahKitaPage() {
           </div>
 
           {/* Timeline Section dengan Foto (Layout Zig-Zag interaktif) */}
-          <div className="space-y-16 relative">
+          <div className="relative space-y-12 md:space-y-16">
+            <div
+              aria-hidden="true"
+              className="absolute bottom-8 left-5 top-8 w-px bg-gradient-to-b from-transparent via-pink-400/50 to-transparent md:left-1/2"
+            />
+
             {timelineData.map((item, index) => {
               const isEven = index % 2 === 0; // Menentukan posisi ganti posisi foto & teks
 
               return (
-                <div
+                <article
                   key={item.id}
-                  className={`flex flex-col md:flex-row items-center gap-8 md:gap-12 ${
-                    isEven ? "md:flex-row" : "md:flex-row-reverse"
+                  className={`relative grid items-center gap-5 pl-12 md:grid-cols-2 md:gap-12 md:pl-0 ${
+                    isEven ? "" : "md:[&>div:first-of-type]:order-2"
                   }`}
                 >
+                  <span className="absolute left-0 top-7 z-10 flex h-10 w-10 items-center justify-center rounded-full border border-pink-400/40 bg-[#1a1017] text-xs font-bold text-pink-300 shadow-lg shadow-pink-900/20 md:left-1/2 md:-translate-x-1/2">
+                    {String(index + 1).padStart(2, "0")}
+                  </span>
+
                   {/* Bagian Foto */}
-                  <div className="w-full md:w-1/2">
-                    <div className="relative h-64 md:h-80 w-full rounded-3xl overflow-hidden border border-pink-500/30 shadow-2xl group">
+                  <div className="w-full">
+                    <div className="group relative h-64 w-full overflow-hidden rounded-3xl border border-pink-500/30 shadow-2xl md:h-80">
                       <img
                         src={item.image}
                         alt={item.title}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+                        loading="lazy"
+                        className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-105"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#1a1017] via-transparent to-transparent opacity-60"></div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#1a1017] via-transparent to-transparent opacity-70"></div>
 
                       {/* Badge Icon di atas foto */}
-                      <span className="absolute top-4 left-4 bg-black/60 backdrop-blur-md text-white border border-white/10 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-2">
-                        <span>{item.icon}</span> {item.date}
+                      <span className="absolute bottom-4 left-4 flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-3 py-1.5 text-xs font-bold text-white shadow-lg backdrop-blur-md">
+                        <span aria-hidden="true">{item.icon}</span>
+                        {item.date}
                       </span>
                     </div>
                   </div>
 
                   {/* Bagian Deskripsi Teks */}
-                  <div className="w-full md:w-1/2 text-left">
-                    <div className="bg-[#1a1017]/70 backdrop-blur-xl p-8 rounded-3xl border border-pink-500/20 shadow-xl transition-all duration-300 hover:border-pink-500/50 hover:shadow-2xl">
-                      <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-pink-400 bg-pink-500/10 px-3 py-1 rounded-full mb-3 border border-pink-500/20">
+                  <div className="w-full text-left">
+                    <div className="rounded-3xl border border-pink-500/20 bg-[#1a1017]/70 p-6 shadow-xl backdrop-blur-xl transition-all duration-300 hover:border-pink-500/50 hover:shadow-2xl md:p-8">
+                      <span className="mb-3 inline-block rounded-full border border-pink-500/20 bg-pink-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-pink-400">
                         {item.date}
                       </span>
-                      <h3 className="text-2xl font-bold text-white mb-3">
+                      <h2 className="mb-3 text-xl font-bold text-white md:text-2xl">
                         {item.title}
-                      </h3>
-                      <p className="text-sm md:text-base text-zinc-300 leading-relaxed">
+                      </h2>
+                      <p className="text-sm leading-relaxed text-zinc-300 md:text-base">
                         {item.description}
                       </p>
+
+                      <details className="group/details mt-5 border-t border-pink-500/20 pt-4">
+                        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-pink-300 marker:content-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-pink-400">
+                          <span>♡ Buka pesan kecil</span>
+                          <span
+                            aria-hidden="true"
+                            className="text-lg transition-transform duration-300 group-open/details:rotate-45"
+                          >
+                            +
+                          </span>
+                        </summary>
+                        <p className="mt-3 rounded-2xl bg-pink-500/5 p-4 text-sm leading-relaxed text-zinc-300">
+                          Setiap babak baru membawa cerita dan pelajaran
+                          tersendiri. Semoga niat baik ini senantiasa bertumbuh
+                          dan membawa keberkahan di setiap langkah selanjutnya.
+                        </p>
+                      </details>
                     </div>
                   </div>
-                </div>
+                </article>
               );
             })}
           </div>

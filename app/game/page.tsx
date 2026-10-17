@@ -103,21 +103,31 @@ export const metadata: Metadata = {
 
 export default function DaftarGamePage() {
   return (
-    <div className="game-hub-shell">
+    <div
+      className="game-hub-shell"
+      style={{
+        background: "linear-gradient(to bottom, #1a0d14, #150b12, #0a0508)",
+      }}
+    >
       <Navbar />
 
       <main className="game-hub-main">
-        <div className="game-hub-overline">
-          <span /> ALTAF ARCADE <span>10 / ONLINE</span>
-        </div>
-        <header className="game-hub-heading">
-          <p>PLAY TOGETHER</p>
-          <h1>
-            Room up.
-            <br />
-            <span>Bring friends.</span>
+        <header className="relative isolate mx-auto mb-16 max-w-2xl text-center">
+          <div className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-pink-600/10 blur-[140px]" />
+          <span className="mb-3 inline-block rounded-full border border-pink-500/30 bg-pink-500/10 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-pink-300 shadow-sm backdrop-blur-md">
+            Game Kita
+          </span>
+          <h1 className="text-3xl font-extrabold tracking-tight text-white md:text-5xl">
+            Semua Keseruan &amp; <br />
+            <span className="bg-gradient-to-r from-pink-400 via-rose-400 to-pink-500 bg-clip-text text-transparent">
+              Game Favorit Kita
+            </span>
           </h1>
-          <div className="game-hub-underline" />
+          <div className="mx-auto mt-4 h-1 w-16 rounded-full bg-gradient-to-r from-pink-400 to-pink-600" />
+          <p className="mx-auto mt-6 max-w-2xl text-sm leading-relaxed text-zinc-300 md:text-base">
+            Pilih permainan, ajak teman, dan ciptakan keseruan baru bersama di
+            arena game Altaf Story.
+          </p>
         </header>
 
         <div className="game-hub-grid">
