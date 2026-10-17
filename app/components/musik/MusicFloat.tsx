@@ -20,11 +20,20 @@ const HEART_COLORS = [
   "#f43f5e",
   "#fda4af",
 ];
+const MAX_PHOTOS = 10;
+
+/** Minta Google mengirim versi kecil (lebar 480px) agar ringan di HP */
+function optimizeImage(url: string) {
+  const m = url.match(
+    /^(https:\/\/lh3\.googleusercontent\.com\/d\/[\w-]+)(=.*)?$/,
+  );
+  return m ? `${m[1]}=w480` : url;
+}
 
 export default function MusicFloat({
   photos,
   audioSrc = "/musik.mp3",
-  title = "Our Moments",
+  title = "Untuk Kamu, Cintaku",
   subtitle = "Setiap momen bersamamu adalah lagu terindah",
 }: MusicFloatProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -35,40 +44,45 @@ export default function MusicFloat({
   // Halaman game tidak memakai tombol musik
   const isGame = pathname === "/game" || pathname?.startsWith("/game/");
 
-  // Ulangi foto agar baris marquee selalu penuh walau datanya sedikit
+  // Batasi jumlah foto, perkecil ukurannya, ulangi bila datanya sedikit
   const rowPhotos = useMemo(() => {
-    const valid = photos.filter(Boolean);
+    const valid = photos
+      .filter(Boolean)
+      .slice(0, MAX_PHOTOS)
+      .map(optimizeImage);
     if (valid.length === 0) return [];
     const out: string[] = [];
-    while (out.length < 8) out.push(...valid);
+    while (out.length < 6) out.push(...valid);
     return out;
   }, [photos]);
 
   const rowA = rowPhotos;
   const rowB = useMemo(() => [...rowPhotos].reverse(), [rowPhotos]);
 
-  // Hati melayang (hanya dibuat saat overlay dibuka -> aman dari hydration mismatch)
+  // Hati & bintang: jumlahnya lebih sedikit di layar kecil
   const hearts = useMemo(() => {
     if (!open) return [];
-    return Array.from({ length: 28 }, (_, i) => ({
+    const count = window.innerWidth < 768 ? 10 : 20;
+    return Array.from({ length: count }, (_, i) => ({
       id: i,
       left: Math.random() * 100,
-      size: 14 + Math.random() * 30,
-      duration: 7 + Math.random() * 7,
+      size: 14 + Math.random() * 26,
+      duration: 8 + Math.random() * 7,
       delay: Math.random() * 8,
-      sway: 20 + Math.random() * 50,
+      sway: 20 + Math.random() * 40,
       color: HEART_COLORS[i % HEART_COLORS.length],
     }));
   }, [open]);
 
   const sparkles = useMemo(() => {
     if (!open) return [];
-    return Array.from({ length: 30 }, (_, i) => ({
+    const count = window.innerWidth < 768 ? 10 : 20;
+    return Array.from({ length: count }, (_, i) => ({
       id: i,
       left: Math.random() * 100,
       top: Math.random() * 100,
-      size: 2 + Math.random() * 4,
-      duration: 1.5 + Math.random() * 3,
+      size: 2 + Math.random() * 3,
+      duration: 2 + Math.random() * 3,
       delay: Math.random() * 4,
     }));
   }, [open]);
@@ -133,6 +147,10 @@ export default function MusicFloat({
     setOpen(false); // lagu selesai -> tampilan otomatis tertutup
   };
 
+  // Kecepatan konstan berapa pun jumlah fotonya
+  const durationA = Math.max(30, rowA.length * 4.5);
+  const durationB = Math.max(36, rowB.length * 5.5);
+
   return (
     <>
       <audio
@@ -172,11 +190,12 @@ export default function MusicFloat({
               aria-modal="true"
               className="fixed inset-0 z-[9999] overflow-hidden flex flex-col bg-[radial-gradient(ellipse_at_center,#3b0a24_0%,#1a0510_55%,#0a0208_100%)] animate-[mf-fade_0.6s_ease-out]"
             >
-              {/* Hati besar berdenyut di tengah */}
+              {/* Hati besar berdenyut di tengah (tanpa filter, hanya transform) */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="absolute w-[60vmin] h-[60vmin] rounded-full bg-[radial-gradient(circle,rgba(255,45,120,0.35)_0%,transparent_70%)]" />
                 <svg
                   viewBox="0 0 24 24"
-                  className="w-[70vmin] h-[70vmin] text-pink-600/20 animate-[mf-beat_1.6s_ease-in-out_infinite] drop-shadow-[0_0_60px_rgba(255,45,120,0.6)]"
+                  className="relative w-[70vmin] h-[70vmin] text-pink-600/20 animate-[mf-beat_1.6s_ease-in-out_infinite] [will-change:transform]"
                   fill="currentColor"
                 >
                   <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
@@ -187,13 +206,12 @@ export default function MusicFloat({
               {sparkles.map((s) => (
                 <span
                   key={s.id}
-                  className="absolute rounded-full bg-white pointer-events-none"
+                  className="absolute rounded-full bg-pink-100 pointer-events-none [will-change:transform,opacity]"
                   style={{
                     left: `${s.left}%`,
                     top: `${s.top}%`,
                     width: s.size,
                     height: s.size,
-                    boxShadow: "0 0 10px 2px rgba(255,200,230,0.9)",
                     animation: `mf-twinkle ${s.duration}s ease-in-out ${s.delay}s infinite`,
                   }}
                 />
@@ -203,13 +221,12 @@ export default function MusicFloat({
               {hearts.map((h) => (
                 <span
                   key={h.id}
-                  className="absolute bottom-[-60px] pointer-events-none select-none"
+                  className="absolute bottom-[-60px] pointer-events-none select-none [will-change:transform,opacity]"
                   style={
                     {
                       left: `${h.left}%`,
                       fontSize: h.size,
                       color: h.color,
-                      textShadow: `0 0 14px ${h.color}`,
                       "--sway": `${h.sway}px`,
                       animation: `mf-rise ${h.duration}s ease-in ${h.delay}s infinite`,
                     } as React.CSSProperties
@@ -224,7 +241,7 @@ export default function MusicFloat({
                 <button
                   onClick={handleStop}
                   aria-label="Matikan musik"
-                  className="group h-10 pl-2.5 pr-4 rounded-full flex items-center gap-2 whitespace-nowrap cursor-pointer text-pink-100 text-xs font-semibold tracking-wide bg-gradient-to-r from-pink-500/25 to-rose-500/25 backdrop-blur-md border border-pink-400/50 shadow-[0_0_18px_rgba(255,80,150,0.35)] hover:from-pink-500/50 hover:to-rose-500/50 hover:border-pink-300 hover:shadow-[0_0_26px_rgba(255,80,150,0.65)] active:scale-95 transition-all duration-300"
+                  className="group h-10 pl-2.5 pr-4 rounded-full flex items-center gap-2 whitespace-nowrap cursor-pointer text-pink-100 text-xs font-semibold tracking-wide bg-gradient-to-r from-pink-600/40 to-rose-600/40 border border-pink-400/50 shadow-[0_0_14px_rgba(255,80,150,0.35)] hover:from-pink-500/60 hover:to-rose-500/60 hover:border-pink-300 active:scale-95 transition-all duration-300"
                 >
                   <span className="h-6 w-6 rounded-full bg-pink-500/30 border border-pink-300/40 flex items-center justify-center group-hover:bg-pink-500/60 transition-colors">
                     <svg
@@ -250,7 +267,7 @@ export default function MusicFloat({
                 <button
                   onClick={() => setOpen(false)}
                   aria-label="Tutup tampilan"
-                  className="h-10 w-10 rounded-full bg-gradient-to-br from-pink-500 to-rose-600 text-white flex items-center justify-center cursor-pointer border border-pink-300/40 shadow-[0_0_18px_rgba(255,80,150,0.5)] hover:scale-110 hover:shadow-[0_0_26px_rgba(255,80,150,0.8)] active:scale-95 transition-all duration-300"
+                  className="h-10 w-10 rounded-full bg-gradient-to-br from-pink-500 to-rose-600 text-white flex items-center justify-center cursor-pointer border border-pink-300/40 shadow-[0_0_14px_rgba(255,80,150,0.5)] hover:scale-110 active:scale-95 transition-transform duration-300"
                 >
                   <svg
                     className="h-5 w-5"
@@ -268,11 +285,11 @@ export default function MusicFloat({
                 </button>
               </div>
 
-              {/* Judul (ikut alur kolom, tidak menimpa foto) */}
+              {/* Judul (statis, tanpa animasi filter) */}
               <div className="relative z-10 shrink-0 text-center px-6 pt-16 md:pt-10 pb-2 pointer-events-none">
                 <h2
                   style={{ fontFamily: "Georgia, serif" }}
-                  className="text-2xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-200 via-white to-pink-300 drop-shadow-[0_0_25px_rgba(255,105,180,0.8)] animate-[mf-glow_3s_ease-in-out_infinite]"
+                  className="text-2xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-pink-200 via-white to-pink-300"
                 >
                   {title}
                 </h2>
@@ -286,9 +303,21 @@ export default function MusicFloat({
 
               {/* Foto: mengisi sisa ruang di bawah judul */}
               {rowPhotos.length > 0 && (
-                <div className="relative z-10 flex-1 min-h-0 flex flex-col justify-center gap-0 md:gap-2 pb-4 [mask-image:linear-gradient(to_right,transparent,black_10%,black_90%,transparent)]">
-                  <MarqueeRow photos={rowA} direction="left" duration={45} />
-                  <MarqueeRow photos={rowB} direction="right" duration={55} />
+                <div className="relative z-10 flex-1 min-h-0 flex flex-col justify-center gap-0 md:gap-2 pb-4">
+                  <MarqueeRow
+                    photos={rowA}
+                    direction="left"
+                    duration={durationA}
+                  />
+                  <MarqueeRow
+                    photos={rowB}
+                    direction="right"
+                    duration={durationB}
+                  />
+
+                  {/* Pudar di tepi kiri & kanan (statis, jauh lebih ringan dari mask-image) */}
+                  <div className="absolute inset-y-0 left-0 w-[10%] bg-gradient-to-r from-[#12030b] to-transparent pointer-events-none z-10" />
+                  <div className="absolute inset-y-0 right-0 w-[10%] bg-gradient-to-l from-[#12030b] to-transparent pointer-events-none z-10" />
                 </div>
               )}
             </div>
@@ -300,15 +329,14 @@ export default function MusicFloat({
             @keyframes mf-fade { from{opacity:0} to{opacity:1} }
             @keyframes mf-beat { 0%,100%{transform:scale(1)} 15%{transform:scale(1.08)} 30%{transform:scale(1)} 45%{transform:scale(1.05)} }
             @keyframes mf-twinkle { 0%,100%{opacity:0;transform:scale(.4)} 50%{opacity:1;transform:scale(1.2)} }
-            @keyframes mf-glow { 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.35)} }
             @keyframes mf-rise {
-              0%   { transform: translate(0,0) rotate(-10deg) scale(.6); opacity: 0; }
+              0%   { transform: translate3d(0,0,0) scale(.6); opacity: 0; }
               10%  { opacity: .95; }
-              50%  { transform: translate(var(--sway),-55vh) rotate(10deg) scale(1); }
-              100% { transform: translate(calc(var(--sway) * -1),-115vh) rotate(-10deg) scale(1.2); opacity: 0; }
+              50%  { transform: translate3d(var(--sway),-55vh,0) scale(1); }
+              100% { transform: translate3d(calc(var(--sway) * -1),-115vh,0) scale(1.2); opacity: 0; }
             }
-            @keyframes mf-left  { from{transform:translateX(0)} to{transform:translateX(-50%)} }
-            @keyframes mf-right { from{transform:translateX(-50%)} to{transform:translateX(0)} }
+            @keyframes mf-left  { from{transform:translate3d(0,0,0)} to{transform:translate3d(-50%,0,0)} }
+            @keyframes mf-right { from{transform:translate3d(-50%,0,0)} to{transform:translate3d(0,0,0)} }
           `}</style>
         </>
       )}
@@ -328,9 +356,9 @@ function MarqueeRow({
   // Dobel agar loop mulus (geser -50% lalu ulang)
   const items = [...photos, ...photos];
   return (
-    <div className="overflow-hidden py-3">
+    <div className="overflow-hidden py-3 [contain:paint]">
       <div
-        className="flex w-max gap-4 md:gap-5 px-3"
+        className="flex w-max gap-4 md:gap-5 px-3 [will-change:transform] [backface-visibility:hidden]"
         style={{
           animation: `${direction === "left" ? "mf-left" : "mf-right"} ${duration}s linear infinite`,
         }}
@@ -338,19 +366,20 @@ function MarqueeRow({
         {items.map((src, i) => (
           <div
             key={`${src}-${i}`}
-            className="shrink-0 rounded-2xl overflow-hidden border-2 border-pink-300/40 bg-black/40 shadow-[0_0_30px_rgba(255,80,150,0.45)]"
+            className="shrink-0 rounded-2xl overflow-hidden border-2 border-pink-300/40 bg-black/40"
             style={{
               // tinggi mengikuti tinggi layar, lebar otomatis (rasio 3:4)
               height: "clamp(120px, 30vh, 380px)",
               aspectRatio: "3 / 4",
-              transform: `rotate(${i % 2 === 0 ? -3 : 3}deg)`,
             }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={src}
               alt=""
-              loading="lazy"
+              loading="eager"
+              decoding="async"
+              draggable={false}
               className="w-full h-full object-cover"
               onError={(e) => {
                 (e.currentTarget.parentElement as HTMLElement).style.display =
